@@ -1,0 +1,26 @@
+{
+  "name": "blog",
+  "version": "1.0.0",
+  "description": "A minimal modern blog built with 11ty, HTMX, and Pico.css",
+  "scripts": {
+    "start": "eleventy --serve",
+    "build": "eleventy"
+  },
+  "keywords": [
+    "blog",
+    "11ty",
+    "htmx",
+    "pico"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.2",
+    "@11ty/eleventy-plugin-syntaxhighlight": "^5.0.2",
+    "markdown-it-footnote": "^4.0.0"
+  },
+  "dependencies": {
+    "@11ty/eleventy-plugin-rss": "^2.0.4",
+    "markdown-it-container": "^4.0.0"
+  }
+}

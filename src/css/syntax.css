@@ -1,0 +1,345 @@
+/* Syntax highlighting for code blocks - Theme-aware */
+/* Inherits colors from Pico.css for automatic dark mode support */
+
+/* ============================================ */
+/* Callout Blocks                              */
+/* ============================================ */
+
+.callout {
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    border-left: 4px solid;
+    border-radius: var(--pico-border-radius, 0.25rem);
+    background-color: var(--pico-card-background-color);
+}
+
+.callout > :first-child {
+    margin-top: 0;
+}
+
+.callout > :last-child {
+    margin-bottom: 0;
+}
+
+.callout-note {
+    border-left-color: var(--pico-primary);
+    background-color: color-mix(in srgb, var(--pico-primary) 10%, var(--pico-background-color));
+}
+
+.callout-info {
+    border-left-color: #3b82f6;
+    background-color: color-mix(in srgb, #3b82f6 10%, var(--pico-background-color));
+}
+
+.callout-tip {
+    border-left-color: #10b981;
+    background-color: color-mix(in srgb, #10b981 10%, var(--pico-background-color));
+}
+
+.callout-warning {
+    border-left-color: #f59e0b;
+    background-color: color-mix(in srgb, #f59e0b 10%, var(--pico-background-color));
+}
+
+.callout-danger {
+    border-left-color: #ef4444;
+    background-color: color-mix(in srgb, #ef4444 10%, var(--pico-background-color));
+}
+
+/* Margin callouts - appear to the right of content */
+.callout-margin {
+    position: absolute;
+    right: -400px;
+    width: 350px;
+    margin: 2rem 0;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* Add extra space between consecutive margin notes */
+.callout-margin + * + .callout-margin {
+    margin-top: 3rem;
+}
+
+/* On smaller screens, display inline */
+@media (max-width: 1200px) {
+    .callout-margin {
+        position: static;
+        right: auto;
+        width: auto;
+        margin: 1.5rem 0;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+    }
+}
+
+.dafny-code {
+    padding: 8px 8px;
+    margin: 2.0rem auto;
+    background-color: var(--pico-code-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    overflow-x: auto;
+    white-space: pre;
+    font-family: var(--pico-font-family-monospace, monospace);
+    line-height: 1.4;
+    color: var(--pico-color);
+}
+
+.dafny-code pre {
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* Line structure */
+.dafny-code .line { display: block; }
+.dafny-code .cl { display: contents; }
+
+/* Keywords - use primary color */
+.dafny-code .k,
+.dafny-code .kc,
+.dafny-code .kd,
+.dafny-code .kp,
+.dafny-code .kr,
+.dafny-code .kt {
+    color: var(--pico-primary);
+    font-weight: 600;
+}
+
+/* Special keywords - use contrast color */
+.dafny-code .kn {
+    color: var(--pico-contrast);
+    font-weight: 600;
+}
+
+/* Strings and literals - use secondary color with fallback */
+.dafny-code .s,
+.dafny-code .s1,
+.dafny-code .s2,
+.dafny-code .sa,
+.dafny-code .sb,
+.dafny-code .sc,
+.dafny-code .dl,
+.dafny-code .sd,
+.dafny-code .se,
+.dafny-code .sh,
+.dafny-code .si,
+.dafny-code .sx,
+.dafny-code .sr,
+.dafny-code .ss,
+.dafny-code .l,
+.dafny-code .ld {
+    color: var(--pico-secondary, var(--pico-primary-hover));
+}
+
+/* Numbers - slightly emphasized */
+.dafny-code .m,
+.dafny-code .mb,
+.dafny-code .mf,
+.dafny-code .mh,
+.dafny-code .mi,
+.dafny-code .il,
+.dafny-code .mo {
+    color: var(--pico-secondary, var(--pico-primary-hover));
+    font-weight: 600;
+}
+
+/* Comments - muted color */
+.dafny-code .c,
+.dafny-code .c1,
+.dafny-code .ch,
+.dafny-code .cm,
+.dafny-code .cs,
+.dafny-code .cp,
+.dafny-code .cpf {
+    color: var(--pico-muted-color);
+    font-style: italic;
+}
+
+/* Names, identifiers, functions - inherit main text color */
+.dafny-code .n,
+.dafny-code .na,
+.dafny-code .nb,
+.dafny-code .bp,
+.dafny-code .nc,
+.dafny-code .no,
+.dafny-code .nd,
+.dafny-code .ni,
+.dafny-code .ne,
+.dafny-code .nf,
+.dafny-code .fm,
+.dafny-code .nl,
+.dafny-code .nn,
+.dafny-code .nx,
+.dafny-code .py,
+.dafny-code .nt,
+.dafny-code .nv,
+.dafny-code .vc,
+.dafny-code .vg,
+.dafny-code .vi,
+.dafny-code .vm {
+    color: var(--pico-color);
+}
+
+/* Operators and punctuation - inherit main text color */
+.dafny-code .o,
+.dafny-code .ow,
+.dafny-code .p {
+    color: var(--pico-color);
+}
+
+/* Generic/special - use contrast */
+.dafny-code .g,
+.dafny-code .gd,
+.dafny-code .ge,
+.dafny-code .gr,
+.dafny-code .gh,
+.dafny-code .gi,
+.dafny-code .go,
+.dafny-code .gp,
+.dafny-code .gs,
+.dafny-code .gu,
+.dafny-code .gt,
+.dafny-code .gl {
+    color: var(--pico-contrast);
+}
+
+/* ============================================ */
+/* MathJax Equation Overflow Handling         */
+/* ============================================ */
+
+/* Make display equations scrollable when they overflow */
+mjx-container[display="true"] {
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    display: block !important;
+    margin: 1.5rem 0;
+    padding: 0.5rem;
+    background-color: var(--pico-card-background-color, transparent);
+    border-radius: var(--pico-border-radius, 0.25rem);
+}
+
+/* Add a subtle shadow to indicate scrollability */
+mjx-container[display="true"]::-webkit-scrollbar {
+    height: 8px;
+}
+
+mjx-container[display="true"]::-webkit-scrollbar-track {
+    background: var(--pico-form-element-background-color);
+    border-radius: 4px;
+}
+
+mjx-container[display="true"]::-webkit-scrollbar-thumb {
+    background: var(--pico-muted-border-color);
+    border-radius: 4px;
+}
+
+mjx-container[display="true"]::-webkit-scrollbar-thumb:hover {
+    background: var(--pico-primary);
+}
+
+/* Ensure inline math doesn't cause issues */
+mjx-container[display="false"] {
+    display: inline-block;
+}
+
+/* ============================================ */
+/* Prism.js Syntax Highlighting - Theme-aware  */
+/* ============================================ */
+
+/* Code blocks generated by Prism */
+pre[class*="language-"] {
+    background-color: var(--pico-code-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius, 0.25rem);
+    padding: 1rem;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+    color: var(--pico-color);
+}
+
+code[class*="language-"] {
+    color: var(--pico-color);
+    font-family: var(--pico-font-family-monospace, monospace);
+    line-height: 1.5;
+}
+
+/* Inline code (not in pre blocks) */
+:not(pre) > code[class*="language-"] {
+    background-color: var(--pico-code-background-color);
+    padding: 0.1em 0.3em;
+    border-radius: 0.25rem;
+}
+
+/* Token colors using Pico.css variables */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+    color: var(--pico-muted-color);
+    font-style: italic;
+}
+
+.token.punctuation {
+    color: var(--pico-color);
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+    color: var(--pico-secondary, var(--pico-primary-hover));
+    font-weight: 600;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+    color: var(--pico-secondary, var(--pico-primary-hover));
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+    color: var(--pico-color);
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+    color: var(--pico-primary);
+    font-weight: 600;
+}
+
+.token.function,
+.token.class-name {
+    color: var(--pico-primary);
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+    color: var(--pico-contrast);
+}
+
+.token.important,
+.token.bold {
+    font-weight: bold;
+}
+
+.token.italic {
+    font-style: italic;
+}

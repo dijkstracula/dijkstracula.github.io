@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if title %}{{ title }} - {% endif %}Your Blog Name</title>
+
+  <!-- Pico.css for minimal, beautiful styling -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+  <!-- Syntax highlighting for code blocks -->
+  <link rel="stylesheet" href="/css/syntax.css">
+
+  <!-- RSS Feed -->
+  <link rel="alternate" type="application/atom+xml" title="Your Blog Name RSS Feed" href="/feed.xml">
+
+  <!-- MathJax for math rendering -->
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true,
+        processEnvironments: true
+      },
+      svg: {
+        linebreaks: { automatic: true }
+      },
+      chtml: {
+        linebreaks: { automatic: true }
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- HTMX for dynamic interactions -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+  <!-- Custom styles -->
+  <style>
+    /* Reduce overall font size */
+    :root {
+      --pico-font-size: 16px;
+    }
+
+    body {
+      padding: 2rem 1rem;
+      font-size: 16px;
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Create space for margin notes */
+    article, .post-content {
+      max-width: 1000px;
+      position: relative;
+    }
+
+    /* Reduce heading sizes */
+    h1 {
+      font-size: 1.75rem;
+      line-height: 1.3;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      line-height: 1.3;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      line-height: 1.3;
+    }
+
+    h4 {
+      font-size: 1.1rem;
+      line-height: 1.3;
+    }
+
+    header {
+      margin-bottom: 3rem;
+      border-bottom: 1px solid var(--pico-muted-border-color);
+      padding-bottom: 1rem;
+    }
+
+    header h1 {
+      margin-bottom: 0.5rem;
+    }
+
+    header nav ul {
+      padding: 0;
+      margin: 0;
+      list-style: none;
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    header nav a {
+      text-decoration: none;
+    }
+
+    .post-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .post-list li {
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--pico-muted-border-color);
+    }
+
+    .post-list li:last-child {
+      border-bottom: none;
+    }
+
+    .post-list h2 {
+      margin-bottom: 0.5rem;
+    }
+
+    .post-list p:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .post-date {
+      color: var(--pico-muted-color);
+      font-size: 0.9rem;
+    }
+
+    .post-meta {
+      margin-bottom: 1rem;
+    }
+
+    article header {
+      border-bottom: none;
+      margin-bottom: 2rem;
+    }
+
+    footer {
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--pico-muted-border-color);
+      text-align: center;
+      color: var(--pico-muted-color);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1><a href="/" style="text-decoration: none; color: inherit;">Your Blog Name</a></h1>
+      <nav>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/about/">About</a></li>
+          <li><a href="/feed.xml">RSS</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    {{ content | safe }}
+
+    <footer>
+      <p>&copy; {{ "" | currentYear }} Your Name. Built with <a href="https://www.11ty.dev/">11ty</a>, <a href="https://htmx.org/">HTMX</a>, and <a href="https://picocss.com/">Pico.css</a>.</p>
+    </footer>
+  </main>
+</body>
+</html>
