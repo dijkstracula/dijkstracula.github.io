@@ -4,6 +4,7 @@ title: "Callout Blocks Demo"
 date: 2024-01-20T00:00:00.000Z
 tags: [post, demo]
 excerpt: "A demonstration of how to use callout blocks in your blog posts."
+draft: true
 ---
 
 # Callout Blocks Demo

@@ -150,6 +150,26 @@
       color: var(--pico-muted-color);
       font-size: 0.9rem;
     }
+
+    /* Headshot styling */
+    .headshot {
+      float: right;
+      margin-left: 2rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      max-width: 250px;
+      width: 100%;
+      height: auto;
+    }
+
+    @media (max-width: 768px) {
+      .headshot {
+        float: none;
+        display: block;
+        margin: 1rem auto;
+        max-width: 200px;
+      }
+    }
   </style>
 </head>
 <body>
