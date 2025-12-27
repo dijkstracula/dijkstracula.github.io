@@ -49,8 +49,16 @@ module.exports = function(eleventyConfig) {
 
   eleventyConfig.setLibrary("md", md);
 
-  // Add syntax highlighting
-  eleventyConfig.addPlugin(syntaxHighlight);
+  // Add syntax highlighting with custom Lean 4 support
+  eleventyConfig.addPlugin(syntaxHighlight, {
+    init: function({ Prism }) {
+      // Load custom Lean 4 language definition
+      const leanDef = require('./src/js/prism-lean.js');
+      if (typeof leanDef === 'function') {
+        leanDef(Prism);
+      }
+    }
+  });
 
   // Add RSS plugin
   eleventyConfig.addPlugin(rssPlugin);
