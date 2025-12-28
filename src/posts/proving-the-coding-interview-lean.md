@@ -105,8 +105,8 @@ character-count optimised!
 If you're comfortable with more, ahem, "popular" functional languages like
 Scala or OCaml, you might write Fizzbuzz in such a way:
 
-```lean
-def fb_naive (n : Nat) : List String :=
+```lean4
+def fizzbuzz (n : Nat) : List String :=
   List.range' 1 n |> List.map (fun i =>     
     if i % 15 = 0 then "Fizzbuzz" else
     if i % 5 = 0 then "Buzz" else
@@ -115,7 +115,7 @@ def fb_naive (n : Nat) : List String :=
 ```
 
 As with the Dafny example, I don't expect you to pick up every piece of
-syntax, but: this defines the function `fb_naive` with one argument `n`
+syntax, but: this defines the function `fizzbuzz` with one argument `n`
 of type `Nat`, and, after the colon, produces a List of Strings (written
 `List<String>` in a more conventional syntax).  Following the `:=` is the body
 of the function.
@@ -127,7 +127,7 @@ Lean write `f x y (g z)`.
 :::
 
 This function first creates the `List Nat` expression `[1, 2, 3, 4, ... n+1]`
-and then "pipes" each number into the string-creation function.  So, `fb_naive
+and then "pipes" each number into the string-creation function.  So, `fizzbuzz
 5` would produce `["1", "2", "Fizz", "4", "Buzz"]`, as we would hope it would.
 
 ## Our first theorem
@@ -138,17 +138,17 @@ test or something; here, we'll do it in Lean's proof system by by stating it as
 a _theorem_:
 
 ```lean4
-theorem fb_naive_example : fb_naive 3 = ["1", "2", "Fizz"] := rfl
+theorem fizzbuzz_thm : fizzbuzz 3 = ["1", "2", "Fizz"] := rfl
 ```
 
 In VS Code, I see a little blue check next to the theorem, indicating that
 Lean has validated it.  (If I changed the final element of the list, or broke
-something in `fb_naive`, I'd, as you'd expect, see an immediate and
+something in `fizzbuzz`, I'd, as you'd expect, see an immediate and
 reasonable-sounding error in my IDE:
 
 ```
 the left-hand side
-  fb_naive 3
+  fizzbuzz 3
 is not definitionally equal to the right-hand side
   ["1", "2", "Buzz"]
 ```
@@ -165,11 +165,11 @@ actually different than one?
 
 Here's the kicker: no part of this definition has any runtime semantics; you
 can think of it as invisible "ghost code" (which should sound familiar to you
-from Dafny).  the _proposition_ that this theorem states, `fb_naive 3 = ["1",
+from Dafny).  the _proposition_ that this theorem states, `fizzbuzz 3 = ["1",
 "2", "Fizz"]` might at first glance look like a boolean expression, but just
 like with Dafny's invariants, it's not! Look where it resides in the theorem
 definition, between `:` and `:=`.  In the function definition earlier, this was
-where the return type went.  And with good reason: the proposition `fb_naive 3
+where the return type went.  And with good reason: the proposition `fizzbuzz 3
 = ["1", "2", "Fizz"]` is, in lean, the _type_ of the theorem!!
 
 This might feel ridiculous if you've never seen a type system like this before.
@@ -255,11 +255,11 @@ to get them into a state that `rfl` can handle.)
 ## When `rfl` isn't enough
 
 Here's another theorem that we might want to write: let's suppose we want to
-validate that the the list that `fb_naive 3` produces isn't empty.  We might
+validate that the the list that `fizzbuzz 3` produces isn't empty.  We might
 start the theorem like this:
 
 ```lean4
-theorem fb_naive_ex_2 : 0 < (fb_naive 3).length := -- TODO: finish me
+theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := -- TODO: finish me
 ```
 
 `rfl` is all about proving equalities, but we have an _inequality_ here, so
@@ -273,14 +273,14 @@ simpler ones.  So, a tactics-oriented proof looks like a sequence of rewrites.
 To enter tactics mode, we use the `by` keyword in the theorem body:
 
 ```lean4
-theorem fb_naive_ex_2 : 0 < (fb_naive 3).length := by
+theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
 ```
 
 And the IDE now shows us, in its "tactics state" panel:
 
 ```lean4
 1 goal
-⊢ 0 < (fb_naive 3).length 
+⊢ 0 < (fizzbuzz 3).length 
 ```
 
 This is sometimes called the _proof context_. 
@@ -307,17 +307,29 @@ So now we're kind of on our own!  It's now up to our intuition to transform
 this goal into something that's "obviously" true.  This is a problem if you
 are new to proof assistants and haven't yet developed your intuition!
 
-Here's how I proved this theorem:
+Here's how I proved this theorem: I started with the following proof and
+proof context:
+
+```lean4
+theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
+  rw [fizzbuzz_thm] -- NEW
+
+1 goal
+⊢ 0 < (fizzbuzz 3).length
+```
+
+That is, the goal starts out by looking just exactly like the theorem we're
+trying to prove.  Where can we go from here?
 
 ### `rw` rewrites the goal based on a known equality
 
-What can we say about what `fb_naive 3` evaluates to?  Well, by the theorem
+What can we say about what `fizzbuzz 3` evaluates to?  Well, by the theorem
 we wrote earlier, we have a _proof of equality_ about its value.  So, we can
-use the `rw` tactic with `fb_naive_example` to transform the goal into:
+use the `rw` tactic with `fizzbuzz_thm` to transform the goal into:
 
 ```lean4
-theorem fb_naive_ex_2 : 0 < (fb_naive 3).length := by
-  rw [fb_naive_example] -- NEW
+theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
+  rw [fizzbuzz_thm] -- NEW
 
 1 goal
 ⊢ 0 < ["1", "2", "Fizz"].length
@@ -328,14 +340,14 @@ As a rough heuristic, usually, but not always, if your goal is getting smaller,
 you're on the right track. 
 :::
 A theorem that helps us prove another one is sometimes called a _lemma_.
-Rewriting with `fb_naive_example` has banished the function call away, leaving
+Rewriting with `fizzbuzz_thm` has banished the function call away, leaving
 us with the raw list expression (that we then take the length of).  This feels
 like pretty good progress so far!
 
 ### `unfold` replaces something with its definition
 
 ::: margin-note
-We could have, in the first proof above, unfolded `fb_naive` instead of using
+We could have, in the first proof above, unfolded `fizzbuzz` instead of using
 our existing theorem and tried to simplify from there.  Maybe you could give
 that a try yourself!
 :::
@@ -346,8 +358,8 @@ replaces it with its definition.  Let's see what happens when we apply this
 tactic on the `length` function:
 
 ```lean4
-theorem fb_naive_ex_2 : 0 < (fb_naive 3).length := by
-  rw [fb_naive_example]
+theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
+  rw [fizzbuzz_thm]
   unfold List.length -- NEW
 
 1 goal
@@ -412,8 +424,8 @@ so we would pass that term in as an argument.  When we do so, Lean tells us our
 proof is complete!
 
 ```lean4
-theorem fb_naive_ex_2 : 0 < (fb_naive 3).length := by
-  rw [fb_naive_example]
+theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
+  rw [fizzbuzz_thm]
   unfold List.length
   apply Nat.add_one_pos (["2", "Fizz"].length) -- NEW
 
@@ -430,26 +442,26 @@ proof, leaving us a trail of breadcrumbs to follow at every step.
 ## Our first Fizzbuzz specification
 
 When we saw `Nat.add_one_pos`, we learned that theorems can take arguments.
-Given that `(fb_naive 3).length = 3`, maybe we're now inspired to make a
+Given that `(fizzbuzz 3).length = 3`, maybe we're now inspired to make a
 general statement about _all possible_ calls to the function:
 
 ```lean4
-theorem fb_naive_ex_3 (n : Nat) : (fb_naive n).length = n := by 
+theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by 
   -- TODO: what tactics can we apply to prove this statement?
 ```
 
 You might read this theorem aloud as "for all natural numbers `n`,
-`(fb_naive).length = n`", and note that this covers the first sentence in the
+`(fizzbuzz).length = n`", and note that this covers the first sentence in the
 specification: "First, construct a list of strings of length `n`, ...". 
 
-### Tackling the body of `fb_naive`
+### Tackling the body of `fizzbuzz`
 
 Well, we don't have a lemma to tell us anything specifically about
 `fb_native n`.  Guess we could do worse than just unfolding that function
 to see if there's anything in its definition that can help us out.
 
 ```lean4
-theorem fb_naive_ex_3 (n : Nat) : (fb_naive n).length = n := by 
+theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by 
   unfold fb_native -- NEW
 
 1 goal
@@ -478,8 +490,8 @@ Before proceeding, see if you can remember what tactic we can apply to this
 theorem to help us make progress on our goal.
 
 ```lean4
-theorem fb_naive_ex_3 (n : Nat) : (fb_naive n).length = n := by
-  unfold fb_naive
+theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
+  unfold fizzbuzz
   rw [List.length_map] -- NEW
 
 1 goal
@@ -494,15 +506,16 @@ What we're left with is another plausible goal, and good news, with a bit more
 [proof
 search](https://loogle.lean-lang.org/?q=List.length+%28List.range%27+_+_+_%29)
 we've found our
-[match](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Data/List/Range.lean#L32-L34)!  This completes our proof for us.
+[match](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Data/List/Range.lean#L32-L34)!
+This completes our proof for us.
 
 ::: margin-note
 We can group multiple adjacent rewrites onto one line like this: `rw
 [List.length_map, List.length_range']`. 
 :::
 ```lean4
-theorem fb_naive_ex_3 (n : Nat) : (fb_naive n).length = n := by
-  unfold fb_naive
+theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
+  unfold fizzbuzz
   rw [List.length_map]
   rw [List.length_range'] -- NEW
 ```
@@ -537,7 +550,7 @@ program runs.
 ## Thinking in Lean means thinking in types, which we should all do anyway
 
 We _could_ proceed with trying to write some theorems about, say, every third,
-fifth, and fifteenth element of `fb_naive n`, but we're leaving some complexity
+fifth, and fifteenth element of `fizzbuzz n`, but we're leaving some complexity
 on the table by doing so.  Think about what each of those theorems would have
 to state and how wd'd have to try to prove them: "Every 5th index in the
 produced list contains a string that ends, case insenstively, in 'buzz'" would
