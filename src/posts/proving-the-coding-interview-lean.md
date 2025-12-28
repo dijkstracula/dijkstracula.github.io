@@ -456,12 +456,12 @@ specification: "First, construct a list of strings of length `n`, ...".
 ### Tackling the body of `fizzbuzz`
 
 Well, we don't have a lemma to tell us anything specifically about
-`fb_native n`.  Guess we could do worse than just unfolding that function
+`fizzbuzz n`.  Guess we could do worse than just unfolding that function
 to see if there's anything in its definition that can help us out.
 
 ```lean4
 theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by 
-  unfold fb_native -- NEW
+  unfold fizzbuzz -- NEW
 
 1 goal
 n : ℕ
