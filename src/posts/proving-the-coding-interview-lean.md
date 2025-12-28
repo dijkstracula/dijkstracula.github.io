@@ -312,7 +312,6 @@ proof context:
 
 ```lean4
 theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
-  rw [fizzbuzz_thm] -- NEW
 
 1 goal
 ⊢ 0 < (fizzbuzz 3).length
@@ -390,8 +389,8 @@ methods, are super hot in the research community right now.
 In a lot of ways, the hardest part of writing these sorts of proofs is finding
 built-in theorems to help you out.  With the help of Lean's [proof search
 website](https://loogle.lean-lang.org/?q=0+%3C+_+%2B+1), I searched for
-all theorems in the Lean standard library shaped like "<something> is less than
-<something else> plus one" and found a great candidate:
+all theorems in the Lean standard library shaped like "`<something>` is less
+than `<something else>` plus one" and found a great candidate:
 [Nat.add_one_pos](https://leanprover-community.github.io/mathlib4_docs/Init/Data/Nat/Basic.html#Nat.add_one_pos)!
 
 Let's take a look at this theorem definition:
