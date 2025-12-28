@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Proving the Coding Interview"
 date: 2022-04-17T14:18:48-05:00
-tags: [post, [dafny, verification]]
+tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "Applying interesting research to uninteresting interview problems"
 ---
 

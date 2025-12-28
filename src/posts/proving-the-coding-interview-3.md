@@ -1,9 +1,9 @@
 ---
 layout: post.njk
-title: "Re-Proving the Coding Interview"
+title: "Proving the Coding Interview: verifying the JDK's `Integer.toString()`"
 date: 2022-04-30T20:47:23-05:00
-tags: [post, dafny, verification]
-excerpt: "Once more, with feeling"
+tags: [post, dafny, verification, provingthecodinginterview]
+excerpt: "A faster, but just as correct, nat -> string converter"
 ---
 
 This is the third of a three part series:

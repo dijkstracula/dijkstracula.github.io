@@ -65,7 +65,7 @@ module.exports = function(eleventyConfig) {
 
   // Add global metadata for RSS
   eleventyConfig.addGlobalData("metadata", {
-    url: "https://yourblog.com"
+    url: "https://dijkstracula.github.io"
   });
 
   // Copy static assets
@@ -77,7 +77,7 @@ module.exports = function(eleventyConfig) {
 
   // Add date filter for displaying dates nicely
   eleventyConfig.addFilter("readableDate", dateObj => {
-    return new Date(dateObj).toLocaleDateString('en-US', {
+    return new Date(dateObj).toLocaleDateString('en-CA', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'

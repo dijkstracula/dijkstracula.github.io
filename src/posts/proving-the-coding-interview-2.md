@@ -2,8 +2,8 @@
 layout: post.njk
 title: "Proving the Coding Interview II"
 date: 2022-04-28T09:19:51-05:00
-tags: [post, dafny, verification]
-excerpt: "toString() 2 furious"
+tags: [post, dafny, verification, provingthecodinginterview]
+excerpt: "Integer.toString() 2 furious"
 ---
 
 This is the second of a three part series:
