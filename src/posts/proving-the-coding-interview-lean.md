@@ -82,16 +82,20 @@ what we're trying to do here:
 First, construct a list of strings of length `n`, such that the following hold
 for all values `i` from 1 through to n:
 
-1) If i is a multiple of 3 (but not of 5) then the `i`th element is the string "Fizz";
-2) If i is a multiple of 5 (but not of 3) then the `i`th element is the string "Buzz";
-3) If i is a multiple of 15 then the `i`th element is the string "Fizzbuzz";
-4) Otherwise, the `i`th element equals the string representation of `i`.
+1) If i is a multiple of 3 (but not of 5) then the `i-1`th element is the string "Fizz";
+2) If i is a multiple of 5 (but not of 3) then the `i-1`th element is the string "Buzz";
+3) If i is a multiple of 15 then the `i-1`th element is the string "Fizzbuzz";
+4) Otherwise, the `i-1`th element equals the string representation of `i`.
 
 Then, print out, separated by a newline, every element in the list.
 :::
 
-(Enough of you got on my case that the Dafny specification was zero-indexed
-that I've adjusted this here.)
+::: note
+Enough of you got on my case that the Dafny specification was zero-indexed
+that I've adjusted this here - now I have to think hard about avoiding off-by-one
+errors between the value `i` residing at index `i-1`.  Hopefully the specification
+can help me get this right!
+:::
 
 ## A starting non-solution solution
 
@@ -130,6 +134,14 @@ This function first creates the `List Nat` expression `[1, 2, 3, 4, ... n+1]`
 and then "pipes" each number into the string-creation function.  So, `fizzbuzz
 5` would produce `["1", "2", "Fizz", "4", "Buzz"]`, as we would hope it would.
 
+::: note
+If you're interested in typing along with this post, great!  You'll want to be
+sure to include
+[mathlib4](https://github.com/leanprover-community/mathlib4/wiki/Using-mathlib4-as-a-dependency)
+as a dependency for your Lean project, since it includes theorems about modular
+arithmetic that we'll want to make use of.
+:::
+
 ## Our first theorem
 
 In fact, why don't we codify a fact like this by stating the above equality
@@ -146,17 +158,30 @@ Lean has validated it.  (If I changed the final element of the list, or broke
 something in `fizzbuzz`, I'd, as you'd expect, see an immediate and
 reasonable-sounding error in my IDE:
 
-```
 the left-hand side
   fizzbuzz 3
 is not definitionally equal to the right-hand side
   ["1", "2", "Buzz"]
-```
 
+::: note
 Before going any further, you should take a moment and think about how you
-would convince yourselves that this equality holds.  (It probably involves
-mentally evaluating the left hand side and confirming the final value happens
-to be the right-hand side.)
+would convince yourselves that this equality always holds.  (It probably
+involves mentally evaluating the left hand side and confirming the final result
+happens to be the right-hand side.)  
+
+While it's pretty easy to see that it's the case here, and would still be easy
+to see even if `fizzbuzz` was written in Python or Java or something, in more
+complicated functions you never know if some non-obvious piece of global
+mutable state will ultimately change the returned value between different
+function calls.  (I once worked at a company whose large C codebase had a
+2000-line long function `void poke(void)` - clearly the _only_ thing that
+function could ever do is read and modify global variables!)
+
+Lean's functional purity means such mutable state fundamentally can't exist
+anywhere in the program, so the function's output can only vary based on its
+inputs.  For formal proofs about our programs, this is an incredibly nice
+property to have.
+:::
 
 ### So what is a theorem, really?
 
@@ -213,7 +238,7 @@ documentation to understand what the body of the theorem -- the theorem's
 _proof_ -- is doing:
 
 ::: tip
-rfl : a = a is the unique constructor of the equality type.
+`rfl : a = a` is the unique constructor of the equality type.
 
 This is a more powerful theorem than it may appear at first, because although
 the statement of the theorem is a = a, Lean will allow anything that is
@@ -221,11 +246,11 @@ definitionally equal to that type. So, for instance, 2 + 2 = 4 is proven in
 Lean by rfl, because both sides are the same up to definitional equality. 
 :::
 
-Huh, so `rfl` is a _constructor_!  Again, `a = a` doesn't look like the sort of
-type we're used to, so if you want to mentally substitute the traditional
-polymorphic `IsTheSame<T, T>` until you're more familiar, that's fine.  So, in
-Java, the body of an equivalent "theorem" might be `return new IsTheSame<>()`
-or something like that. 
+Huh, so `rfl` is a _constructor_ for a value of type `a = a`!  Again, `a = a`
+doesn't look like the sort of type we're used to, so if you want to mentally
+substitute the traditional polymorphic `IsTheSame<T, T>` until you're more
+familiar, that's fine.  So, in Java, the body of an equivalent "theorem" might
+be `return new IsTheSame<>()` or something like that. 
 
 ::: note
 I always like getting my bearings by seeing what we could express in a
@@ -335,8 +360,8 @@ theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
 ```
 
 ::: margin-note
-As a rough heuristic, usually, but not always, if your goal is getting smaller,
-you're on the right track. 
+As a rough heuristic, usually, but not always, if your goal is getting smaller
+or simpler, you're on the right track. 
 :::
 A theorem that helps us prove another one is sometimes called a _lemma_.
 Rewriting with `fizzbuzz_thm` has banished the function call away, leaving
@@ -399,11 +424,28 @@ Let's take a look at this theorem definition:
 theorem add_one_pos (n : Nat) : 0 < n + 1 := ...
 ```
 
+::: margin-note
+Another way, perhaps more natural to mathematicians than programmers, to write
+this theorem is to use the `forall` keyword in the proposition:
+`∀ n : Nat, 0 < n + 1`.  To the best of my knowledge, Lean treats these two
+propositions as identical under the hood.
+:::
 Unlike our theorems so far, `add_one_pos` takes an `n`, just like a function of
 one argument would. And interestingly, `n` also appears in the return type
-(that is, the theorem's proposition)!  We say that the type _depends_ on `n`;
-type systems that allow you to express such types are, perhaps unsurprisingly,
-called _dependent type systems_.
+(that is, the theorem's proposition)!  You could read this theorem aloud as
+"for all natural numbers `n`, zero is less than the successor of `n`."
+
+
+::: note
+We say that the type _depends_ on the term `n`; even though would also be
+reasonable to say that `ArrayList<T>` depends on the type variable `T`, that
+piece of terminology is reserved specifically for terms.  In the followup post
+to this one, we'll see (and maybe write?) a few more types like this.
+
+Type systems that allow you to express such types are, perhaps unsurprisingly,
+called _dependent type systems_, and they're about as powerful and expressive
+as type systems get.
+:::
 
 If we _applied_ this theorem to our goal with the tactic `apply Nat.add_one_pos
 <some argument>`, our goal would be transformed into the theorem's proposition,
@@ -412,16 +454,22 @@ the goal with `rw`: Here, we're reducing our goal, which we haven't proven,
 into the goal of another theorem, _which has been proven_, so this is enough to
 complete our proof!
 
-::: margin-note
+What's `add_one_pos`'s `n` in our theorem's goal?  It's `["2", "Fizz"].length`,
+so we would pass that term in as an argument.  When we do so, Lean tells us our
+proof is complete!
+
+::: note
 Technically, Lean can infer what argument we want so we don't have to
 explicitly pass it in. Lots of proof assistants have these sorts of syntactic
 shortcuts to abbreviate the proof, but it makes what's happening a bit opaque.
 I'm being as explicit as possible here just to keep the mechanism clearer.
 :::
-What's `add_one_pos`'s `n` in our theorem's goal?  It's `["2", "Fizz"].length`,
-so we would pass that term in as an argument.  When we do so, Lean tells us our
-proof is complete!
 
+::: margin-note
+By far the _worst_ feature of Lean is that, unlike Coq, you do _not_ close out
+a finished proof with the [QED](https://en.wikipedia.org/wiki/Q.E.D.) keyword.
+Boo!
+:::
 ```lean4
 theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
   rw [fizzbuzz_thm]
@@ -447,16 +495,33 @@ general statement about _all possible_ calls to the function:
 ```lean4
 theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by 
   -- TODO: what tactics can we apply to prove this statement?
+
+1 goal
+n : ℕ
+⊢ (fizzbuzz n).length = n
 ```
 
-You might read this theorem aloud as "for all natural numbers `n`,
-`(fizzbuzz).length = n`", and note that this covers the first sentence in the
+You might read this theorem aloud as "for all natural numbers `n`, `(fizzbuzz
+n).length = n`", and note that this covers the first sentence in the
 specification: "First, construct a list of strings of length `n`, ...". 
+
+::: margin-warning
+Sometimes hypotheses are called _assumptions_ in formal logic.  Don't mistake
+this for the colloquial "ass-out-of-you-and-me" meaning of "assume": Lean's
+type system is _sound_, which means if Lean introduces a hypothesis into your
+context like it did with `n`, you can trust that this was a correct thing for
+it to do.
+:::
+Notice we have something new in our context: `n : ℕ` is a _hypothesis_
+indicating that there's a value `n` of type `Nat` that we can make use of in
+our goal.  You can think of it like defining a local variable in a function,
+or, in a hand-written proof, a statement to the effect of "Let n be a natural
+number."
 
 ### Tackling the body of `fizzbuzz`
 
 Well, we don't have a lemma to tell us anything specifically about
-`fizzbuzz n`.  Guess we could do worse than just unfolding that function
+`fizzbuzz n`.  Guess we could do worse than just unfolding `fizzbuzz` itself
 to see if there's anything in its definition that can help us out.
 
 ```lean4
@@ -470,20 +535,15 @@ n : ℕ
       (List.range' 1 n)).length = n
 ```
 
-Notice we have something new in our context: `n : ℕ` is a _hypothesis_
-indicating that there's a value `n` of type `Nat` that we can make use of in
-our goal.  You can think of it like defining a local variable in a function,
-or, in a hand-written proof, a statement to the effect of "Let n be a natural
-number."
-
 ### Exploiting theorems about `List`s
 
 It better always be the case that if you map over some list, you get back a
 list with the same number of elements.  With a little bit of a [proof
 search](https://loogle.lean-lang.org/?q=%28List.map+_+_%29.length), we can see
-that some kind library maintainer has written down [this
-theorem](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Data/List/Lemmas.lean#L1062-L1065)
-for us!
+that some kind library maintainer has written down [List.length_map](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Data/List/Lemmas.lean#L1062-L1065)
+for us!  It produces the equality proof `(as.map f).length = as.length` for all
+lists `as` (in our case, `List.range' 1 n` and all functions that can map over
+them.
 
 Before proceeding, see if you can remember what tactic we can apply to this
 theorem to help us make progress on our goal.
@@ -499,14 +559,20 @@ n : ℕ
 ```
 
 If you guessed `rw`, you're right!  `List.length_map` is a statement about
-equality, and we have one of the sides of the equality in our goal.
+equality, and we have one of the sides of the equality in our goal.  Notice
+that owing to the properties of `List.length_map`, the function that does all
+the modular arithmetic and string operations is banished from our goal!  This
+simplification feels promising to me.
 
 What we're left with is another plausible goal, and good news, with a bit more
 [proof
 search](https://loogle.lean-lang.org/?q=List.length+%28List.range%27+_+_+_%29)
-we've found our
+we've found a nice property about `List.range'`: in essence, it states `(range'
+s n).length = n`!
 [match](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Data/List/Range.lean#L32-L34)!
-This completes our proof for us.
+
+Once you fill in the arguments for `s` and `n`, this is exactly what's left in
+our goal, so this completes the proof.
 
 ::: margin-note
 We can group multiple adjacent rewrites onto one line like this: `rw
@@ -517,6 +583,9 @@ theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
   unfold fizzbuzz
   rw [List.length_map]
   rw [List.length_range'] -- NEW
+
+0 goals
+Goals accomplished!
 ```
 
 ## Simplifying proof-writing with automation tactics
@@ -589,9 +658,9 @@ So, we'll make a modification to our English-language specification:
 First, construct a list of strings of length `n`, such that the following hold
 for all values `i` from 1 through to n:
 
-1) If i is a multiple of 3 (but not of 5) then the `i`th element is an internal representation of "fizz";
-2) If i is a multiple of 5 (but not of 3) then the `i`th element is an internal representation of "buzz";
-3) If i is a multiple of 15 then the `i`th element is an internal representation of "fizzbuzz";
+1) If i is a multiple of 3 (but not of 5) then the `i-1`th element is an internal representation of "fizz";
+2) If i is a multiple of 5 (but not of 3) then the `i-1`th element is an internal representation of "buzz";
+3) If i is a multiple of 15 then the `i-1`th element is an internal representation of "fizzbuzz";
 4) Otherwise, the `i`th element equals an internal representation of `i`.
 
 Then, print out, separated by a newline, every element in the list, after converting them from their
