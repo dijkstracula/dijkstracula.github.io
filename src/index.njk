@@ -14,6 +14,7 @@ Borrowing from Lanier: <i>The words on this blog are meant to be read by people,
 {% if collections.posts.length > 0 %}
 <ul class="post-list">
   {% for post in collections.posts %}
+  {% if not post.data.draft %}
   <li>
     <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
     <div class="post-meta">
@@ -30,6 +31,7 @@ Borrowing from Lanier: <i>The words on this blog are meant to be read by people,
     </div>
     <p><a href="{{ post.url }}">Read more →</a></p>
   </li>
+  {% endif %}
   {% endfor %}
 </ul>
 {% else %}

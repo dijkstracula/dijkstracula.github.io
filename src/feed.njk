@@ -14,6 +14,7 @@ eleventyExcludeFromCollections: true
     <name>Your Name</name>
   </author>
   {%- for post in collections.posts | reverse %}
+  {%- if not post.data.draft %}
   {%- set absolutePostUrl %}{{ post.url | absoluteUrl(metadata.url) }}{% endset %}
   <entry>
     <title>{{ post.data.title }}</title>
@@ -22,5 +23,6 @@ eleventyExcludeFromCollections: true
     <id>{{ absolutePostUrl }}</id>
     <content type="html">{{ post.templateContent | htmlToAbsoluteUrls(absolutePostUrl) }}</content>
   </entry>
+  {%- endif %}
   {%- endfor %}
 </feed>

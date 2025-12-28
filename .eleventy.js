@@ -105,10 +105,9 @@ module.exports = function(eleventyConfig) {
     return text.substr(0, length).trim() + '...';
   });
 
-  // Sort posts by date (newest first), exclude drafts
+  // Sort posts by date (newest first)
   eleventyConfig.addCollection("posts", function(collectionApi) {
     return collectionApi.getFilteredByGlob("src/posts/*.md")
-      .filter(item => !item.data.draft)
       .sort((a, b) => {
         return b.date - a.date;
       });
