@@ -105,9 +105,23 @@ module.exports = function(eleventyConfig) {
     return text.substr(0, length).trim() + '...';
   });
 
+  // Add limit filter to limit array length
+  eleventyConfig.addFilter("limit", (array, limit) => {
+    return array.slice(0, limit);
+  });
+
   // Sort posts by date (newest first)
   eleventyConfig.addCollection("posts", function(collectionApi) {
     return collectionApi.getFilteredByGlob("src/posts/*.md")
+      .sort((a, b) => {
+        return b.date - a.date;
+      });
+  });
+
+  // Published posts only (no drafts)
+  eleventyConfig.addCollection("publishedPosts", function(collectionApi) {
+    return collectionApi.getFilteredByGlob("src/posts/*.md")
+      .filter(post => !post.data.draft)
       .sort((a, b) => {
         return b.date - a.date;
       });
