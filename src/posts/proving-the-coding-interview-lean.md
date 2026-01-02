@@ -1,10 +1,9 @@
 ---
 layout: post.njk
 title: "Proving the Coding Interview: Lean vs Dafny cage-match"
-date: 2026-01-15T00:00:00-05:00
+date: 2026-01-02T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Is Fizzbuzz easier to write in Lean, or just differently hard?"
-draft: true
 ---
 
 Back in grad school, I ran a [directed reading
@@ -59,15 +58,18 @@ variables, raising exceptions, or I/O. Don't be like my ex-coworker who
 compared non-pure programming to the antivaxxer movement.
 :::
 * It is a _pure functional language_, with only recursion and no mutable
-  state, we don't have to worry about writing tricky loop invariants;
+  state, we don't have to worry about writing tricky loop invariants (since
+  we can't even syntactically write a loop!);
 * There's enough of a third-party ecosystem in Lean that we shouldn't have to
   reinvent the wheel for simple helpers, like we had to do with our
   Dafny `toString()` function;
 * As a proof-assistant, Lean doesn't attempt to automatically prove your
   programs correct as Dafny does, but relies on the programmer to write and
   prove _theorems_ about them.  This means there's no SMT solver with unstable
-  performance characteristics to worry about; once your theorems and proofs
-  are written, verifying your program boils down to just typechecking it.
+  performance characteristics to worry about, as you may have noticed if you
+  played with our Dafny fizzbuzz program yourself.  Once your theorems and
+  proofs are written, verifying your program boils down to just typechecking
+  it.
 
 Of course, it also stands to reason that what was easy to do in Dafny might
 be problematic in Lean.  Shall we see if that's in fact true...?
@@ -82,19 +84,20 @@ what we're trying to do here:
 First, construct a list of strings of length `n`, such that the following hold
 for all values `i` from 1 through to n:
 
-1) If i is a multiple of 3 (but not of 5) then the `i-1`th element is the string "Fizz";
-2) If i is a multiple of 5 (but not of 3) then the `i-1`th element is the string "Buzz";
-3) If i is a multiple of 15 then the `i-1`th element is the string "Fizzbuzz";
+1) If `i` is a multiple of 3 (but not of 5) then the `i-1`th element is the string "Fizz";
+2) If `i` is a multiple of 5 (but not of 3) then the `i-1`th element is the string "Buzz";
+3) If `i` is a multiple of 15 then the `i-1`th element is the string "Fizzbuzz";
 4) Otherwise, the `i-1`th element equals the string representation of `i`.
 
 Then, print out, separated by a newline, every element in the list.
 :::
 
 ::: note
-Enough of you got on my case that the Dafny specification was zero-indexed
-that I've adjusted this here - now I have to think hard about avoiding off-by-one
-errors between the value `i` residing at index `i-1`.  Hopefully the specification
-can help me get this right!
+Enough of you got on my case that the Dafny specification was zero-indexed that
+I've adjusted this here - now I have to think hard about avoiding off-by-one
+errors between the value `i` residing at index `i-1`.  The good news, though is
+that verifying our implementation against this specification can help me get
+this right!
 :::
 
 ## A starting non-solution solution
@@ -110,19 +113,22 @@ If you're comfortable with more, ahem, "popular" functional languages like
 Scala or OCaml, you might write Fizzbuzz in such a way:
 
 ```lean4
+def fb_one (i : Nat) : String :=
+  if i % 15 = 0 then "Fizzbuzz" else
+  if i % 5 = 0 then "Buzz" else
+  if i % 3 = 0 then "Fizz" else
+  Nat.repr i
+
 def fizzbuzz (n : Nat) : List String :=
-  List.range' 1 n |> List.map (fun i =>     
-    if i % 15 = 0 then "Fizzbuzz" else
-    if i % 5 = 0 then "Buzz" else
-    if i % 3 = 0 then "Fizz" else
-    Nat.repr i)
+  List.range' 1 n |> List.map fb_one
 ```
 
 As with the Dafny example, I don't expect you to pick up every piece of
 syntax, but: this defines the function `fizzbuzz` with one argument `n`
-of type `Nat`, and, after the colon, produces a List of Strings (written
-`List<String>` in a more conventional syntax).  Following the `:=` is the body
-of the function.
+of type `Nat`, and produces a List of Strings (this polymorphic type is written
+`List String`; imagine that `String` was in angle-brackets like it'd be in a
+more conventional syntax).  Following the `:=` is the body of the function,
+which calls a helper function `fb_one`.
 
 ::: margin-note
 In case it wasn't clear by now, when you call a function you don't wrap the
@@ -131,8 +137,17 @@ Lean write `f x y (g z)`.
 :::
 
 This function first creates the `List Nat` expression `[1, 2, 3, 4, ... n+1]`
-and then "pipes" each number into the string-creation function.  So, `fizzbuzz
-5` would produce `["1", "2", "Fizz", "4", "Buzz"]`, as we would hope it would.
+and then "pipes" each number into the string-creation heper function.  So,
+`fizzbuzz 5` would produce `["1", "2", "Fizz", "4", "Buzz"]`, as we would hope
+it would.  (You can type `#eval fizzbuzz 5` in your Lean file and the IDE will
+show the result of that computation.)
+
+As a child of the [How To Design Programs](https://htdp.org/) curriculum, I
+like explicitly separating out and giving a name to the helper that we pass to
+`List.map`, as opposed to just writing it as an anonymous function in the body.
+In HtDP, this was so we could more easily write unit tests, but here, of
+course, the hope is that a more decomposed implementation will also allow a
+more decomposed specification.
 
 ::: note
 If you're interested in typing along with this post, great!  You'll want to be
@@ -144,10 +159,10 @@ arithmetic that we'll want to make use of.
 
 ## Our first theorem
 
-In fact, why don't we codify a fact like this by stating the above equality
-more formally!  In a lot of languages we might write an `assert()` or a unit
-test or something; here, we'll do it in Lean's proof system by by stating it as
-a _theorem_:
+In fact, why don't we codify a fact like "we expect `fizzbuzz 5` to be some
+particular list of elements" by stating the above `#eval` more formally!  In a
+lot of languages we might write an `assert()` or a unit test or something;
+here, we'll do it in Lean's proof system by by stating it as a _theorem_:
 
 ```lean4
 theorem fizzbuzz_thm : fizzbuzz 3 = ["1", "2", "Fizz"] := rfl
@@ -158,12 +173,15 @@ Lean has validated it.  (If I changed the final element of the list, or broke
 something in `fizzbuzz`, I'd, as you'd expect, see an immediate and
 reasonable-sounding error in my IDE:
 
+:::warning
+```
 the left-hand side
   fizzbuzz 3
 is not definitionally equal to the right-hand side
   ["1", "2", "Buzz"]
+```
+:::
 
-::: note
 Before going any further, you should take a moment and think about how you
 would convince yourselves that this equality always holds.  (It probably
 involves mentally evaluating the left hand side and confirming the final result
@@ -173,15 +191,18 @@ While it's pretty easy to see that it's the case here, and would still be easy
 to see even if `fizzbuzz` was written in Python or Java or something, in more
 complicated functions you never know if some non-obvious piece of global
 mutable state will ultimately change the returned value between different
-function calls.  (I once worked at a company whose large C codebase had a
+function calls.  
+
+::: margin-note
+I once worked at a company whose large C codebase had a
 2000-line long function `void poke(void)` - clearly the _only_ thing that
-function could ever do is read and modify global variables!)
+function could ever do is read and modify global variables!
+:::
 
 Lean's functional purity means such mutable state fundamentally can't exist
 anywhere in the program, so the function's output can only vary based on its
 inputs.  For formal proofs about our programs, this is an incredibly nice
 property to have.
-:::
 
 ### So what is a theorem, really?
 
@@ -197,12 +218,14 @@ definition, between `:` and `:=`.  In the function definition earlier, this was
 where the return type went.  And with good reason: the proposition `fizzbuzz 3
 = ["1", "2", "Fizz"]` is, in lean, the _type_ of the theorem!!
 
-This might feel ridiculous if you've never seen a type system like this before.
-In most languages that, well, we can make money programming in, a type doesn't
-tell you much more than the set of possible values that a variable can have. If
-you're used to low-level programming, maybe you think of a type more in terms
-of its bitwise-representation in memory.  Here, though, we're thinking about
-a type as being the _same_ as a logical proposition.
+That a type can look like this might feel ridiculous if you've never seen a
+type system like Lean's before. In most languages that, well, we can make money
+programming in, a type doesn't tell you much more than the set of possible
+values that a variable can have. If you're used to low-level programming, maybe
+you think of a type more in terms of its bitwise-representation in memory.
+
+Here, though, we're thinking about a type as being the _same_ as a logical
+proposition.
 
 Edwin Brady (and probably others, but I learned it from his book) draw a nice
 comparision between types and tests: a test can demonstrate the _presence_ of a
@@ -210,7 +233,7 @@ bug, but a type can demonstrate the _absence_ of a bug.  (Of course, this is
 contingent on having a type system expressive enough to state interesting facts
 about your program. `int` and `String` might technically be "logical
 propositions" in Java, but they're not logically proposing anything
-interesting).
+to us).
 
 ::: margin-note
 You might be wondering why, if we prove theorems through its type system,
@@ -218,6 +241,14 @@ Lean doesn't seem to have much in the way of type inference.  It turns out that
 its type system is too expressive to support it - it's in fact proven to be
 formally undecidable!  This is why we, the programmer, need to help Lean along
 by writing proofs ourselves.
+
+Because Dafny's type system (and underlying prover) is not as expressive as a
+fully-dependent type system like Lean's, we give up the ability to articulate
+certain propositions but we gain the ability for Dafny to automatically deduce
+more aspects of their correctness.  I find this tradeoff really fascinating and
+there is lots of interesting research, like [liquid type
+systems](https://www.youtube.com/watch?v=C5PuBeiWaSA), that plays in this
+space.
 :::
 Back to figuring out the syntax of our theorem: in the function definition,
 what followed after `:=` was the function body. What this is is our explanation
@@ -248,9 +279,14 @@ Lean by rfl, because both sides are the same up to definitional equality.
 
 Huh, so `rfl` is a _constructor_ for a value of type `a = a`!  Again, `a = a`
 doesn't look like the sort of type we're used to, so if you want to mentally
-substitute the traditional polymorphic `IsTheSame<T, T>` until you're more
+substitute the traditional polymorphic `IsTheSame<T, T>` type until you're more
 familiar, that's fine.  So, in Java, the body of an equivalent "theorem" might
 be `return new IsTheSame<>()` or something like that. 
+
+This is a theme -- as well as a fundamental result in theoretical computer
+science -- that we'll keep coming back to: a _type_ states a logical
+proposition, and the _proof_ of that logical proposition takes the form of some
+computation, like the body of a function that returns a value of that type.
 
 ::: note
 I always like getting my bearings by seeing what we could express in a
@@ -397,9 +433,10 @@ in a functional language - the length of a list of three elements is one
 greater than the length of the list of two elements.
 
 This might not feel like a big change but it's kind of the lynchpin of the
-proof: Lean might not know exactly what the length of `["2", "Fizz"]` is, but,
-it very likely knows that any natural number plus 1 has to be greater than
-zero.  If we can remind Lean of that, we've won!
+proof: Lean might not know exactly what the length of `["2", "Fizz"]` is.  But,
+something that's foundational to the natural numbers is that _any_ natural
+number plus 1 has to be greater than zero.  If we can remind Lean of that,
+by finding a built-in theorem that states that, we've won!
 
 ::: margin-note
 As much as I'm an LLM cynic, I have to concede that describing something I want
@@ -415,7 +452,7 @@ In a lot of ways, the hardest part of writing these sorts of proofs is finding
 built-in theorems to help you out.  With the help of Lean's [proof search
 website](https://loogle.lean-lang.org/?q=0+%3C+_+%2B+1), I searched for
 all theorems in the Lean standard library shaped like "`<something>` is less
-than `<something else>` plus one" and found a great candidate:
+than `<something else> plus one`" and found a great candidate:
 [Nat.add_one_pos](https://leanprover-community.github.io/mathlib4_docs/Init/Data/Nat/Basic.html#Nat.add_one_pos)!
 
 Let's take a look at this theorem definition:
@@ -447,12 +484,21 @@ called _dependent type systems_, and they're about as powerful and expressive
 as type systems get.
 :::
 
+::: margin-note
+Applying a theorem doesn't always automatically complete the proof - for
+instance, if our goal was to prove `n-1 < n`, and we applied the theorem
+[Nat.sub_one_lt](https://leanprover-community.github.io/mathlib4_docs/Init/Data/Nat/Basic.html#Nat.pred_lt),
+our goal would next be to prove that the antecedent proposition `n ≠ 0` holds
+(Think about how n being nonzero is a requirement for `n-1 < n` to be true for
+the Nats!). But since `Nat.add_one_pos` isn't an "if-then" implication, we're
+all done!
+:::
 If we _applied_ this theorem to our goal with the tactic `apply Nat.add_one_pos
 <some argument>`, our goal would be transformed into the theorem's proposition,
 namely `0 < <some argument> + 1`.  Here's how this is different from _rewriting_
 the goal with `rw`: Here, we're reducing our goal, which we haven't proven,
-into the goal of another theorem, _which has been proven_, so this is enough to
-complete our proof!
+into the goal of another theorem, _which has been proven_!  In this case, this
+is enough complete our proof!
 
 What's `add_one_pos`'s `n` in our theorem's goal?  It's `["2", "Fizz"].length`,
 so we would pass that term in as an argument.  When we do so, Lean tells us our
@@ -465,11 +511,6 @@ shortcuts to abbreviate the proof, but it makes what's happening a bit opaque.
 I'm being as explicit as possible here just to keep the mechanism clearer.
 :::
 
-::: margin-note
-By far the _worst_ feature of Lean is that, unlike Coq, you do _not_ close out
-a finished proof with the [QED](https://en.wikipedia.org/wiki/Q.E.D.) keyword.
-Boo!
-:::
 ```lean4
 theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
   rw [fizzbuzz_thm]
@@ -480,6 +521,11 @@ theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
 Goals accomplished!
 ```
 
+::: margin-note
+By far the _worst_ feature of Lean is that, unlike Coq, you do _not_ close out
+a finished proof with the [QED](https://en.wikipedia.org/wiki/Q.E.D.) keyword.
+Boo!
+:::
 As virtuous as we might feel for having completed the proof, this might not feel
 as push-button as it would have in Dafny.  But, when we got stuck in Dafny with
 a missing invariant, the error messages often didn't guide us to what needed to
@@ -531,7 +577,7 @@ theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
 1 goal
 n : ℕ
 ⊢ (List.map
-      (fun i ↦ ...)
+      fb_one
       (List.range' 1 n)).length = n
 ```
 
@@ -540,10 +586,11 @@ n : ℕ
 It better always be the case that if you map over some list, you get back a
 list with the same number of elements.  With a little bit of a [proof
 search](https://loogle.lean-lang.org/?q=%28List.map+_+_%29.length), we can see
-that some kind library maintainer has written down [List.length_map](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Data/List/Lemmas.lean#L1062-L1065)
-for us!  It produces the equality proof `(as.map f).length = as.length` for all
-lists `as` (in our case, `List.range' 1 n` and all functions that can map over
-them.
+that some kind library maintainer has written down the
+[List.length_map](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Data/List/Lemmas.lean#L1062-L1065)
+theorem for us!  It produces the equality proof `(as.map f).length = as.length`
+for all lists `as` (in our case, `List.range' 1 n`) and all functions that can
+map over them (in our case, `fb_one`).
 
 Before proceeding, see if you can remember what tactic we can apply to this
 theorem to help us make progress on our goal.
@@ -559,10 +606,9 @@ n : ℕ
 ```
 
 If you guessed `rw`, you're right!  `List.length_map` is a statement about
-equality, and we have one of the sides of the equality in our goal.  Notice
-that owing to the properties of `List.length_map`, the function that does all
-the modular arithmetic and string operations is banished from our goal!  This
-simplification feels promising to me.
+equality, and our goal to prove is the left-hand side of that equality.  Notice
+that owing to the right-hand side of `List.length_map`, any mention of `fb_one`
+is banished from our goal!  This simplification feels promising to me.
 
 What we're left with is another plausible goal, and good news, with a bit more
 [proof
@@ -607,14 +653,6 @@ sure exactly _how_ your goal changed.  The variation `simp?` will show in the
 context which helpful theorems it found.  (There's no guarantee that `simp`
 will find an _efficient_ or _intuitive_ path, though!)
 
-<!--
-### So what is a type, really?
-
-Whatever a type _is_ in these settings, it feels fundamentally different from
-the expressions (which we call _terms_) that get evaluated when the
-program runs.  
--->
-
 ## Thinking in Lean means thinking in types, which we should all do anyway
 
 We _could_ proceed with trying to write some theorems about, say, every third,
@@ -626,11 +664,11 @@ involve some annoying list operations and substring slicing.  This sounds
 brittle to get right.
 
 Let's put aside all this fancy theorem proving stuff and just look a bit at the
-type signature of our function: it consumes a `Nat` and produces a `List
-String` (we write this function type with an arrow between each argument and
-the return type, so: `Nat -> List String`).  Here's a thought experiment: in
-what ways could a broken Fizzbuzz implementation still satisfy this signature?
-I can think of at least a few different ways:
+type signature of our `fizzbuzz` function: it consumes a `Nat` and produces a
+`List String` (we write this function type with an arrow between each argument
+and the return type, so: `Nat -> List String`).  Here's a thought experiment:
+in what ways could a broken Fizzbuzz implementation still satisfy this
+signature? I can think of at least a few different ways:
 
 1) It could return a list of length unequal to the input value.  (In other
 words, it would violate the theorem we just wrote.)  In the worst case, it could
@@ -641,16 +679,23 @@ produce the first `n` words of Jabberwocky and in the absence of any theorems
 stating otherwise, Lean would be perfectly happy with it.  
 
 By contrast: a way this function could _not_ be broken is if we passed a
-negative number to the function.  That's because the input argument's type
-is not an `Int` but rather a `Nat`.
+negative number to the function.  That's because the input argument's type is
+not an `Int` but rather a `Nat`.  And, the good news is that we were at least
+able to write a theorem guaranteeing that the first situation couldn't happen.
+So, we are _somewhat_ taking advantage of Lean's cool feautres.
 
-This suggests that the "type-friendly" way to write this function is to:
+Nonetheless, though, it kind of feels like we're being a bit sloppy with
+our type signatures and are hoping that our theorems will pick up the slack
+for us.  This might not be the best way to program in Lean, and, it might not
+even be the best way to program in Scala or OCaml (or Java (or Python!)!)
+
+Perhaps the more "type-friendly" way to write this function would be to:
 
 1) Produce not just an ordinary `List` of values, but a special collection type
-that knows its own length, so just like with `add_one_pos`, the return type
-can _depend_ on the value of the function argument;
+that _depends_ on its own length, so just like with `add_one_pos`, the return type
+can be explicit about how many elements are returned by the function;
 2) Encode the elements returned not as strings but as an enum-like type that
-forces a "fizz", "buzz", "fizzbuzz", or number value.
+forces a specific "fizz", "buzz", "fizzbuzz", or number value.
 
 So, we'll make a modification to our English-language specification:
 
@@ -661,11 +706,14 @@ for all values `i` from 1 through to n:
 1) If i is a multiple of 3 (but not of 5) then the `i-1`th element is an internal representation of "fizz";
 2) If i is a multiple of 5 (but not of 3) then the `i-1`th element is an internal representation of "buzz";
 3) If i is a multiple of 15 then the `i-1`th element is an internal representation of "fizzbuzz";
-4) Otherwise, the `i`th element equals an internal representation of `i`.
+4) Otherwise, the `i-1`th element equals an internal representation of `i`.
 
-Then, print out, separated by a newline, every element in the list, after converting them from their
-private representation to their expected string form.
+Then, print out, separated by a newline, every element in the list, after
+converting them from their private representation to their expected string
+form.
 :::
+
+Next time, we'll do this simple refactoring and then see where that leads us.
 
 ## Conclusion: how's the cage match going?
 
