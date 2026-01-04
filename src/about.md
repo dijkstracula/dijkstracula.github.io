@@ -4,8 +4,6 @@ title: About
 permalink: /about/
 ---
 
-<img src="/assets/me.jpg" alt="Nathan Taylor" class="headshot">
-
 I'm a staff software engineer at [Semgrep](https://semgrep.dev/), where I work
 on static analysis for code security.  Prior to joining Semgrep, I was a PhD
 student at UT Austin, where I worked on applying formal methods to concurrent
