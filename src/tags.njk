@@ -1,0 +1,42 @@
+---
+layout: base.njk
+title: Tags
+permalink: /tags/
+---
+
+<h1>Tags</h1>
+
+<p>Browse posts by tag:</p>
+
+<div class="tag-list">
+  <ul>
+  {%- for item in collections.tagList -%}
+    <li>
+      <a href="/tags/{{ item.tag | slugify }}/">
+        <strong>#{{ item.tag }}</strong>
+      </a>
+      <span style="color: var(--pico-muted-color);">({{ item.count }} post{% if item.count != 1 %}s{% endif %})</span>
+    </li>
+  {%- endfor -%}
+  </ul>
+</div>
+
+<style>
+  .tag-list ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .tag-list li {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .tag-list a {
+    text-decoration: none;
+  }
+
+  .tag-list a:hover {
+    text-decoration: underline;
+  }
+</style>

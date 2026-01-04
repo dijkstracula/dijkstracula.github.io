@@ -127,6 +127,29 @@ module.exports = function(eleventyConfig) {
       });
   });
 
+  // Tag list with counts
+  eleventyConfig.addCollection("tagList", function(collectionApi) {
+    const tagCounts = {};
+    collectionApi.getFilteredByGlob("src/posts/*.md")
+      .filter(post => !post.data.draft)
+      .forEach(post => {
+        if (post.data.tags) {
+          post.data.tags.forEach(tag => {
+            if (tag !== "post") {
+              tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            }
+          });
+        }
+      });
+
+    return Object.keys(tagCounts)
+      .sort()
+      .map(tag => ({
+        tag: tag,
+        count: tagCounts[tag]
+      }));
+  });
+
   return {
     dir: {
       input: "src",

@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Let's Build a Theorem Prover: SATvatar 2: the way of solver"
 date: 2022-12-16T22:02:43.482Z
-tags: [post, sat, logic, verification, dpll, cdcl]
+tags: [post, sat, logic, verification]
 excerpt: "From Davis-Putnam to DPLL to CDCL: improving SAT solvers with backtracking and conflict-driven clause learning"
 ---
 

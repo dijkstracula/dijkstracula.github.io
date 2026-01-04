@@ -2,7 +2,7 @@
 layout: post.njk
 title: "An Invitation to Liquid Types: Unifying Type Theory and Model Checking"
 date: 2024-01-15T00:00:00.000Z
-tags: [post, types, formal-methods, verification, liquid-types, smt]
+tags: [post, types, verification]
 ---
 
 _This was work for a graduate seminar in model checking that I wrote with

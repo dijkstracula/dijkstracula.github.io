@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Let's Build a Theorem Prover: SMT 2: Not(Eq(urne))"
 date: 2023-01-05T20:10:48.970Z
-tags: [post, smt, sat, logic, verification, equality, lazy-solving]
+tags: [post, sat, logic, verification]
 excerpt: "Lazy SMT solving: building an SMT solver with iterative refinement and blocking lemmas"
 ---
 

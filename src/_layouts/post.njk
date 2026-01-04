@@ -13,7 +13,7 @@ layout: base.njk
       <span> &middot; </span>
       {% for tag in tags %}
         {% if tag != "post" %}
-          <span class="tag">#{{ tag }}</span>
+          <a href="/tags/{{ tag | slugify }}/" class="tag">#{{ tag }}</a>
         {% endif %}
       {% endfor %}
       {% endif %}

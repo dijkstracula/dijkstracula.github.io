@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Let's Build A Theorem Prover: Satisfiability Modulo Theory: Digital Deduction Saga"
 date: 2022-12-19T16:19:44.248Z
-tags: [post, sat, smt, logic, verification, equality]
+tags: [post, sat, smt, logic, verification]
 excerpt: "From propositional logic to first-order logic: introducing theories and equality reasoning into SAT solvers"
 ---
 

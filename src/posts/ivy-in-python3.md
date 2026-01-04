@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Notes on setting up Ivy in Python 3"
 date: 2022-04-17T14:18:48-05:00
-tags: [post, [ivy, verification]]
+tags: [post, ivy, verification]
 excerpt: ""
 ---
 

@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Let's Build a Theorem Prover: Lazy and Basic? SAME"
 date: 2023-01-17T20:04:09.810Z
-tags: [post, smt, sat, logic, verification, equality, union-find]
+tags: [post, sat, logic, verification]
 excerpt: "Implementing the lazy CDCL(T) algorithm with Union-Find for equality reasoning"
 ---
 

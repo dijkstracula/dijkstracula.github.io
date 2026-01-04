@@ -1,0 +1,36 @@
+---
+pagination:
+  data: collections
+  size: 1
+  alias: tag
+  filter:
+    - all
+    - posts
+    - publishedPosts
+    - tagList
+  addAllPagesToCollections: true
+permalink: /tags/{{ tag | slugify }}/
+layout: base.njk
+eleventyComputed:
+  title: "Tag: {{ tag }}"
+---
+
+<h1>Posts tagged with #{{ tag }}</h1>
+
+<p><a href="/tags/">&larr; All tags</a></p>
+
+<ul class="post-list">
+{%- for post in collections.publishedPosts | reverse -%}
+  {%- if tag in post.data.tags -%}
+  <li>
+    <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
+    <time class="post-date" datetime="{{ post.date | isoDate }}">
+      {{ post.date | readableDate }}
+    </time>
+    {% if post.data.excerpt %}
+      <p>{{ post.data.excerpt }}</p>
+    {% endif %}
+  </li>
+  {%- endif -%}
+{%- endfor -%}
+</ul>
