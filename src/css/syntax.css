@@ -263,6 +263,10 @@ pre[class*="language-"] {
     color: var(--pico-color);
 }
 
+code {
+    padding: 0.1em
+}
+
 code[class*="language-"] {
     color: var(--pico-color);
     font-family: var(--pico-font-family-monospace, monospace);
