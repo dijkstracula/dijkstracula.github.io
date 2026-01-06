@@ -44,16 +44,26 @@ our `args` `List` is always well-defined; we don't have to worry about an
 exception or a `panic!` (or a segfault!).
 :::
 ```lean4
+-- our implementation 
 
-theorem fizzbuzz_of_3_example : fizzbuzz 3 = ["1", "2", "Fizz"] := rfl
+def fb_one (i : Nat) : String :=
+  if i % 15 = 0 then "Fizzbuzz" else
+  if i % 5 = 0 then "Buzz" else
+  if i % 3 = 0 then "Fizz" else
+  Nat.repr i
 
-theorem fizzbuzz_of_3_is_nonempty : 0 < (fizzbuzz 3).length := by
-  rw [fizzbuzz_of_3_example]
-  simp
+def fizzbuzz (n : Nat) : List String :=
+  List.range' 1 n |> List.map fb_one
+
+-- our specification
 
 theorem fizzbuzz_of_n_is_length_n (n : Nat) : (fizzbuzz n).length = n := by
   unfold fizzbuzz
   simp
+
+theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
+  unfold fizzbuzz
+  rw [List.length_map, List.length_range']
 
 def main (args : List String) : IO Unit :=
   match args[0]? >>= String.toNat? with
@@ -61,13 +71,8 @@ def main (args : List String) : IO Unit :=
   | some n => IO.println s!"fizzbuzz({n}) = {fizzbuzz n}"
 ```
 ```
-$ lean --run FB.lean
-No argument or invalid ℕ
-$ lean --run FB.lean 42
-fizzbuzz(42) = [1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz, 11, Fizz, 13, 14, Fizzbuzz, 16, 17, Fizz, 19, Buzz, 
-                Fizz, 22, 23, Fizz, Buzz, 26, Fizz, 28, 29, Fizzbuzz, 31, 32, Fizz, 34, Buzz, Fizz, 37, 38, 
-                Fizz, Buzz, 41, Fizz]
-$
+$ lean --run FB.lean 15
+fizzbuzz(15) = [1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz, 11, Fizz, 13, 14, Fizzbuzz]
 ```
 
 At the end of the last post, we noticed that while we're using Lean's fancy
@@ -88,71 +93,23 @@ and then write theorems for more fine-grained specifications.
 Okay, this is what was left on our todo list:
 
 ::: tip
-1) Encode the elements returned not as strings but as an enum-like type that
-forces a "fizz", "buzz", "fizzbuzz", or number value.
-2) Produce not just an ordinary `List` of values, but a special collection type
+1) Produce not just an ordinary `List` of values, but a special collection type
 that knows its own length at the type level, so just like with `add_one_pos`,
 the return type can _depend_ on the value of the function argument;
+2) Encode the elements returned not as strings but as a finite type that
+forces a "fizz", "buzz", "fizzbuzz", or number value.
 :::
-
-## Destringifying our computation
-
-We said before that having `fizzbuzz`'s return type be `List String` isn't all
-that precise - most valid `String`s are invalid for our problem.  (Another way
-to say this is that there are many invalid _inhabitants of `String`_).  A
-safer representation is to define a new type whose only inhabitants represent
-the strings "buzz", "fizz", "fizzbuzz", or a natural number:
-
-```lean4
-inductive FB : Type where
-  | Fizz
-  | Buzz
-  | FizzBuzz
-  | Num (i : Nat)
-```
-
-You might recognise this as a _sum type_ or an _enum_, depending on your
-background; we may see later on that Lean's _inductive types_ are more
-general, but that's a topic for another time.
-
-From a programming perspective, we can do all the things with this type
-that you'd expect.  We can _construct_ elements using its four defined data
-constructors, we can turn an element into something else by pattern match over
-it (we'll see that this is _eliminating_ an element), we can attach methods or
-implement typeclasses or traits based on them... in fact, why don't we do that
-last one right now:
-
-```lean4
-instance : ToString FB where
-  toString fb := match fb with
-    | .Fizz => "Fizz"
-    | .Buzz => "Buzz"
-    | .FizzBuzz => "Fizzbuzz"
-    | .Num i => toString i
-```
-
-::: margin-note
-In fact, our `main` function can be left unchanged, since implemeting `ToString
-FB` means anything we can do with a `String` (and subsequently a `List String`)
-we can also do with an `FB` (and also `List FB`).
-:::
-This definition makes `FB` an instance of the `ToString` typeclass (which is
-similar to associating a type with a trait in other languages), which gives us
-a way of implicitly stringifying to print out the `List FB`, just like we did
-with the earlier version's `List String`.  
 
 ## A proof that connects `fb_one`'s behaviour to `fizzbuzz`'s
 
-There were _two_ TODOs on our list, but I'm going to defer the second one for a
-moment.
-
-Okay, now it's time for a meatier proof that I'm going to guess will come in
-handy as a lemma for proofs down the road.  The bulk of our problem
-specification invoves statements relating how element `i` of the returned list
-relates to, well, what gets passed into the `fb_one` helper.  Having a proof
-that states that relationship more formally will help us connect later proofs
-about `fizzbuzz` to ones about `fb_one`.  Sometimes this is called a _bridge
-proof_.  Let's write it!
+Before we tackle our TODO list, though, let's write another theorem to get 
+our head back in the game; I'm going to guess this one will come in handy as a
+lemma for proofs down the road.  The bulk of our problem specification invoves
+statements relating how element `i` of the returned list relates to, well, what
+gets passed into the `fb_one` helper.  Having a proof that states that
+relationship more formally will help us connect later proofs about `fizzbuzz`
+to ones about `fb_one`.  Sometimes this is called a _bridge proof_.  Let's
+write it!
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
@@ -161,6 +118,9 @@ theorem fb_one_to_fizzbuzz :
 1 goal
 ⊢ ∀ (i n : ℕ), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1))
 ```
+
+Note the annoying off-by-one here, since the `0`th element of the returned list
+should be `fb_one 1`, and so on.
 
 ::: margin-note
 More generally we say that `[]?` is a _total_
@@ -181,23 +141,23 @@ operator, which we'll talk about very soon.)
 Notice that I've written this theorem with a "forall" quantifier instead
 of having it consume an argument, and when we start out our context has no
 hypotheses in scope.  The `intro` tactic lets us add things into our context
-in two cases:
+in two cases: one where the goal begins with a _quantified variable_ and
+another where it begins with an _implication_:
 
-::: margin-note
-We can combine multiple `intro`s on one line by using the `intros` tactic.
-:::
+::: note
 1) If our goal looks like `∀ (x: t), expr` (read: "for all `x`s of type `t`,
 `expr`"), `intro x` will add the proposition `x : t` (read: "suppose `x` is of
 type `t`") into our context, and changes the goal to `expr`:
+:::
 
 ```lean4
 theorem fb_one_to_fizzbuzz_x :
     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
-  intro i n
+  intros i n
 
 1 goal
 i n : ℕ
-⊢ ∀ (n : ℕ), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1))
+⊢ i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1))
 ```
 
 Of course, the context doesn't tell us anything about what values `i` and `n`
@@ -205,11 +165,13 @@ have, since the whole point of a forall-quantifier is that _the values don't
 matter_- whatever we're trying to prove better be true no matter what values
 they take!
 
+::: note
 2) If our goal looks like an implication of the form `x -> y`, then `intro x`
 adds `x` as a _hypothesis_ into our context and reduces the goal to just `y`.
 The interpretation of a logical implication here is that knowing `x` is
 _sufficent_ to prove `y`, so with `x` as an assumption, we need only prove `y`
 to complete our proof.
+:::
 
 Here, the antecedent in our implication is the bounds-check `i < n`, so with
 another `intro` we have that appear in our goal:
@@ -548,8 +510,8 @@ equality_ about the underlying collection.
 ## A dependently-typed `Fizzbuzz`
 
 Let's rewrite `fizzbuzz` to have a `Vector` return type.  The collection we
-return will hold `n` elements of type `FB`, and so our type signature is going
-to be `Nat -> Vector FB n`.  Straightforward enough, but is implementing this
+return will hold `n` elements of type `String`, and so our type signature is going
+to be `Nat -> Vector String n`.  Straightforward enough, but is implementing this
 function going to be harder than before?
 
 Turns out: with a bit of perusing of the `Vector` documentation, we in fact
@@ -565,7 +527,7 @@ wouldn't have been super onerous to do it ourselves.)
 Okay, here's our dependently-typed function:
 
 ```lean4
-def fb_vec (n : Nat) : Vector FB n := 
+def fb_vec (n : Nat) : Vector String n := 
   Vector.range' 1 n |> Vector.map fb_one
 ```
 
@@ -585,7 +547,8 @@ equvialent theorem that relates `fb_vec` to `fb_one` is way easier to write: we
 don't have to bother proving that the length of the returned collection is `n`,
 because in this case Lean can simply "read it off" from the `Vector`'s type.
 
-Here's the full proof.
+Here's the full proof.  Clearly `Vector`s give us a lot of built-in mechanism
+to simplify our proofs!
 
 ::: margin-note
 The `[i]'h` syntax here indicates that `h : i < n` is the proof that this is a
@@ -599,3 +562,154 @@ theorem fb_one_to_fb_vec :
   unfold fb_vec; simp
   rw [Nat.add_comm]
 ```
+
+
+## Destringifying our computation
+
+We said before that having `fizzbuzz`'s return type be `List String` isn't all
+that precise - most valid `String`s are invalid for our problem.  (Another way
+to say this is that there are many invalid _inhabitants of `String`_).  A
+safer representation is to define a new type whose only inhabitants represent
+the strings "buzz", "fizz", "fizzbuzz", or a natural number:
+
+```lean4
+inductive FB : Type where
+  | Fizz
+  | Buzz
+  | FizzBuzz
+  | Num (i : Nat)
+```
+
+You might recognise this as a _sum type_ or an _enum_, depending on your
+background; we may see later on that Lean's _inductive types_ are more
+general, but that's a topic for another time.
+
+From a programming perspective, we can do all the things with this type
+that you'd expect.  We can _construct_ elements using its four defined data
+constructors, we can turn an element into something else by pattern matching
+over it (we'll see that this is _eliminating_ an element), we can attach
+methods or implement typeclasses or traits based on them... in fact, why don't
+we do that last one right now:
+
+```lean4
+instance : ToString FB where
+  toString fb := match fb with
+    | .Fizz => "Fizz"
+    | .Buzz => "Buzz"
+    | .FizzBuzz => "Fizzbuzz"
+    | .Num i => toString i
+```
+
+::: margin-note
+In fact, our `main` function can be left unchanged, since implemeting `ToString
+FB` means anything we can do with a `String` (and subsequently a `List String`)
+we can also do with an `FB` (and also `List FB`).
+:::
+This definition makes `FB` an instance of the `ToString` typeclass (which is
+similar to associating a type with a trait in other languages), which gives us
+a way of implicitly stringifying to print out the `List FB`, just like we did
+with the earlier version's `List String`.  
+
+## At last, a real specification for Fizzbuzz
+
+In Dafny, our formal specification looked like this:
+
+::: tip
+<div class="dafny-code">
+<span class="line"><span class="cl"><span class="c1">// 1) If i is a multiple of 3 (but not of 5) then the `i`th element equals &#34;fizz&#34;;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kc">ensures</span> <span class="kc">forall</span> <span class="nx">i</span> <span class="p">::</span> <span class="nx">0</span> <span class="o">&lt;</span><span class="p">=</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">n</span> <span class="o">==&gt;</span> <span class="nx">i</span> <span class="o">%</span> <span class="nx">3</span> <span class="o">==</span> <span class="nx">0</span> <span class="o">&amp;&amp;</span> <span class="nx">i</span> <span class="o">%</span> <span class="nx">5</span> <span class="o">!=</span> <span class="nx">0</span> <span class="o">==&gt;</span> <span class="nx">ret</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&#34;fizz&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="c1">// This property ensures all integers i in the range of 0 to n for which i mod
+</span></span></span><span class="line"><span class="cl"><span class="c1">// three is zero and i mod five is not zero, ret[i] shall be &#34;fizz&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">// 2) If i is a multiple of 5 (but not of 3) then the `i`th element equals &#34;buzz&#34;;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kc">ensures</span> <span class="kc">forall</span> <span class="nx">i</span> <span class="p">::</span> <span class="nx">0</span> <span class="o">&lt;</span><span class="p">=</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">n</span> <span class="o">==&gt;</span> <span class="nx">i</span> <span class="o">%</span> <span class="nx">3</span> <span class="o">!=</span> <span class="nx">0</span> <span class="o">&amp;&amp;</span> <span class="nx">i</span> <span class="o">%</span> <span class="nx">5</span> <span class="o">==</span> <span class="nx">0</span> <span class="o">==&gt;</span> <span class="nx">ret</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&#34;buzz&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="c1">// This property ensures all integers i in the range of 0 to n for which i mod
+</span></span></span><span class="line"><span class="cl"><span class="c1">// five is zero and i mod three is not zero, ret[i] shall be &#34;buzz&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">// 3) If i is a multiple of 15 then the `i`th element equals &#34;fizzbuzz&#34;;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kc">ensures</span> <span class="kc">forall</span> <span class="nx">i</span> <span class="p">::</span> <span class="nx">0</span> <span class="o">&lt;</span><span class="p">=</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">n</span> <span class="o">==&gt;</span> <span class="nx">i</span> <span class="o">%</span> <span class="nx">15</span> <span class="o">==</span> <span class="nx">0</span>              <span class="o">==&gt;</span> <span class="nx">ret</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&#34;fizzbuzz&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="c1">// This property ensures all integers i in the range of 0 to n for which i mod
+</span></span></span><span class="line"><span class="cl"><span class="c1">// fifteen is zero, ret[i] shall be &#34;fizzbuzz&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">// 4) Otherwise, the `i`th element equals the string representation of `i`.
+</span></span></span><span class="line"><span class="cl"><span class="c1">// TODO: Will Dafny complain about the expression `ret[i] == i`?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kc">ensures</span> <span class="kc">forall</span> <span class="nx">i</span> <span class="p">::</span> <span class="nx">0</span> <span class="o">&lt;</span><span class="p">=</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">n</span> <span class="o">==&gt;</span> <span class="nx">i</span> <span class="o">%</span> <span class="nx">3</span> <span class="o">!=</span> <span class="nx">0</span> <span class="o">&amp;&amp;</span> <span class="nx">i</span> <span class="o">%</span> <span class="nx">5</span> <span class="o">!=</span> <span class="nx">0</span> <span class="o">==&gt;</span> <span class="nx">ret</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span> <span class="o">==</span> <span class="nx">i</span>
+</span></span><span class="line"><span class="cl"><span class="c1">// This property ensures all integers i in the range of 0 to n for which i mod
+</span></span></span><span class="line"><span class="cl"><span class="c1">// three and i mod 5 is zero, ret[i] shall be i
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</div>
+:::
+
+Dafny's automated prover meant we didn't have to actually _do anything_ to
+prove these propositions.  Lean, unfortunately, is going to make us put in the
+work. Let's try writing one of those - following the design of our "program",
+we'll first prove that `fb_one i`, when `i % 15 = 0`, is `Fizzbuzz`, and then
+extrapolate that to `vb_vec[i]` under the same constraint for `i`.
+
+::: margin-note
+Note that I've deliberately written this theorem slightly differently than how
+it appears in the implementation: here this theorem states a hypothesis about
+`i % 3 = 0` and `i % 5 = 0`, whereas `fb_one` does a single check that `i % 15
+= 0`.  Dafny had no trouble distinguishing without us explaining why that these
+are saying the same thing.
+:::
+```lean4
+theorem fb_one_i_mod_15_is_fizzbuzz:
+  ∀ (i : Nat) (H3: i % 3 = 0) (H5 : i % 5 = 0), fb_one i = FB.FizzBuzz := by ...
+
+1 goal
+⊢ ∀ (i : ℕ), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz
+```
+
+### When not to `intro` 
+
+As usual, our first tactic involves introducing statements into our context
+and unfolding some basic definitions.
+
+```lean4
+theorem mod_15_is_fizzbuzz : 
+  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+  intros i H3 H5 -- NEW 
+  unfold fb_one -- NEW
+
+1 goal
+i : ℕ
+H3 : i % 3 = 0
+H5 : i % 5 = 0
+⊢ (if i % 15 = 0 then FB.FizzBuzz else 
+   if i % 5 = 0 then FB.Buzz else 
+   if i % 3 = 0 then FB.Fizz else 
+   FB.Num i) = FB.FizzBuzz
+```
+
+Notice that there's clearly one situation that makes sense here: the left-hand
+side only matches the right-hand side when `i % 15 = 0`.  More subtly, though,
+it also needs to be the case that if `i % 15 != 0`, it better not be the case
+that our two hypothesis `i % 3 = 0` and `i % 5 = 0` also hold.
+
+Mathlib introduces a new tactic called `split_ifs` which can help us prove
+both those situations:
+
+```lean4
+theorem mod_15_is_fizzbuzz : 
+  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+  intros i H3 H5
+  unfold fb_one
+  split_ifs with H15 -- NEW
+
+2 goals
+case pos
+i : ℕ
+H3 : i % 3 = 0
+H5 : i % 5 = 0
+H15 : i % 15 = 0
+⊢ FB.FizzBuzz = FB.FizzBuzz
+
+case neg
+i : ℕ
+H3 : i % 3 = 0
+H5 : i % 5 = 0
+H15 : ¬i % 15 = 0
+⊢ False
+```
+

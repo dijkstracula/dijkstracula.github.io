@@ -670,6 +670,7 @@ and the return type, so: `Nat -> List String`).  Here's a thought experiment:
 in what ways could a broken Fizzbuzz implementation still satisfy this
 signature? I can think of at least a few different ways:
 
+::: tip
 1) It could return a list of length unequal to the input value.  (In other
 words, it would violate the theorem we just wrote.)  In the worst case, it could
 just unconditionally return the empty list!  The type checker might be satisified
@@ -677,6 +678,7 @@ but we certainly wouldn't be.
 2) The strings in the list might not relate to the the Fizzbuzz problem.  I could
 produce the first `n` words of Jabberwocky and in the absence of any theorems
 stating otherwise, Lean would be perfectly happy with it.  
+:::
 
 By contrast: a way this function could _not_ be broken is if we passed a
 negative number to the function.  That's because the input argument's type is
@@ -691,16 +693,18 @@ even be the best way to program in Scala or OCaml (or Java (or Python!)!)
 
 Perhaps the more "type-friendly" way to write this function would be to:
 
+::: tip
 1) Produce not just an ordinary `List` of values, but a special collection type
-that _depends_ on its own length, so just like with `add_one_pos`, the return type
-can be explicit about how many elements are returned by the function;
-2) Encode the elements returned not as strings but as an enum-like type that
-forces a specific "fizz", "buzz", "fizzbuzz", or number value.
+that knows its own length at the type level, so just like with `add_one_pos`,
+the return type can _depend_ on the value of the function argument;
+2) Encode the elements returned not as strings but as a finite type that
+forces a "fizz", "buzz", "fizzbuzz", or number value.
+:::
 
 So, we'll make a modification to our English-language specification:
 
 ::: tip
-First, construct a list of strings of length `n`, such that the following hold
+First, construct a list of values, of length `n`, such that the following hold
 for all values `i` from 1 through to n:
 
 1) If i is a multiple of 3 (but not of 5) then the `i-1`th element is an internal representation of "fizz";
