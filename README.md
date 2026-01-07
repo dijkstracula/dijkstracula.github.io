@@ -90,7 +90,6 @@ This blog generates static files that can be hosted anywhere:
 ## Tech Stack
 
 - [11ty](https://www.11ty.dev/) - Static site generator
-- [HTMX](https://htmx.org/) - Dynamic interactions
 - [Pico.css](https://picocss.com/) - Minimal CSS framework
 
 ## License
