@@ -7,7 +7,7 @@ tags: [post, types, verification]
 
 _This was work for a graduate seminar in model checking that I wrote with
 [Sammy Thomas](https://sgt-pl.com/).  I later adapted it into a [Papers We Love
-NYC](https://www.youtube.com/watch?v=C5PuBeiWaSA) presentation._  As it was
+NYC](https://www.youtube.com/watch?v=C5PuBeiWaSA) presentation.  As it was
 written for a specialist audience, the prose is a lot denser than my ordinary
 style, but some of you may find it interesting anyway._
 
@@ -19,19 +19,22 @@ Enterprising formal methods researchers could do worse than position their
 work in the type-theoretic space.  While inexpressive relative to their
 counterparts in research languages, even "simple" type systems[^1] enjoyed by
 conventional industrial languages like Java or C# provide a powerful mechanism
-to statically reject invalid programs.  Under the Curry-Howard correspondence[^2]
-we can consider, at least to a first approximation, that a program passing the
-typechecker corresponds to a proof in a constructive
-logic[^3].  Also, as a logical system, type systems enjoy
-strong metatheoretic properties.  Soundness (that is, invalid programs will
-always be rejected), reconstruction (that is, types can be inferred via terms'
-usage without human annotation), and termination are guaranteed, even when
-typechecking programs whose behaviour depends on runtime user input or data
-an
-_"well-typed programs don't go wrong"_[^4] has entered the
-programmer's popular lexicon[^5]; after all, type theory
-is inarguably the branch of formal methods that software developers most
-commonly exploit to reason about the behaviour of their programs.
+to statically reject invalid programs.  
+
+::: margin-note
+We call "simple" type systems those derived from the Hindley-Milner subset of System F, which we can intuit as being more or less equivalent in expressiveness to Scala, Haskell, or polymorphic Java. A critical feature of H-M type systems is that both typechecking and reconstruction (inference) is decidable and efficient.
+:::
+Under the Curry-Howard correspondence[^2] we can consider, at least to a first
+approximation, that a program passing the typechecker corresponds to a proof in
+a constructive logic[^3].  Also, as a logical system, type systems enjoy strong
+metatheoretic properties.  Soundness (that is, invalid programs will always be
+rejected), reconstruction (that is, types can be inferred via terms' usage
+without human annotation), and termination are guaranteed, even when
+typechecking programs whose behaviour depends on runtime user input or data an
+_"well-typed programs don't go wrong"_[^4] has entered the programmer's popular
+lexicon[^5]; after all, type theory is inarguably the branch of formal methods
+that software developers most commonly exploit to reason about the behaviour of
+their programs.
 
 By "not going wrong", informally, we mean that there is always a way to
 evaluate a program or program expression down to its final value.  A program
@@ -791,7 +794,6 @@ space of qualifiers is reduced to a finite lattice.
 
 ## References
 
-[^1]: In particular, those derived from the Hindley-Milner subset of System F, which we can intuit as being more or less equivalent in expressiveness to Scala, Haskell, or polymorphic Java. A critical feature of H-M type systems is that both typechecking and reconstruction (inference) is decidable and efficient.
 
 [^2]: Pierce, Benjamin C. "Types and Programming Languages" (2002). MIT Press.
 
