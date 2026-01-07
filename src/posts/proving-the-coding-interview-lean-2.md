@@ -1,9 +1,9 @@
 ---
 layout: post.njk
-title: "Proving the Coding Interview: Lean vs Dafny round two"
+title: "Leaning into the Coding Interview: Lean vs Dafny round two"
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
-excerpt: "Pls types?  No terms!  Only types!"
+excerpt: "Pls types?  No terms!  Only (indexed, dependent) types!"
 draft: true
 ---
 
@@ -20,8 +20,16 @@ with its definition;
 - The `apply` tactic lets us break down our goal if we have an
   appropriately-typed existing theorem on hand.
 
-This time, we'll refine our `fizzbuzz` implementation and write some more
-interesting proofs about it, and learn some more tactics along the way.
+::: note
+In this post, we'll refine our `fizzbuzz` implementation to be more idiomatic
+for a language like Lean.  We'll be introduced to some canonical dependent
+types and make use of them in our implementation, and then leverage those types
+to write some more interesting proofs about `fizzbuzz`.
+
+By the end of this post, we'll have a `fizzbuzz` that is closer to being
+_correct by construction_, and we'll be ready to prove the bulk of the
+specification.
+:::
 
 ## Previously, on...
 
@@ -512,7 +520,12 @@ structure Vector (α : Type u) (n : Nat) where
 ```
 
 What this _actually_ is is a structure type that also holds a _proof of
-equality_ about the underlying collection.
+equality_ about the underlying collection.  Notice the type of `size_toArray` -
+it's a proposition that relates how the backing array's size relates to the
+type-level `n`.  What this means is that any time a `Vector` is constructed,
+this proposition needs to be proven!  Luckily for us, since we're using
+`Vector` as a library, all the functions in that module that we will call will
+be responsible for constructing that proof.
 
 ## A dependently-typed `Fizzbuzz`
 
@@ -538,12 +551,15 @@ def fb_vec (n : Nat) : Vector String n :=
   Vector.range' 1 n |> Vector.map fb_one
 ```
 
-Just from reading off the type signature, we can see that there's really no
-need to write a theorem stating that the length of `fb_vec n` equals `n` - it's
-encoded right there in the type signature!
+TODO: examples of assigning variables from `fb_vec`, showing how the `n`
+variable works.
 
-I mean, we _can_ write it anyway, but it's going to be a pretty simple one - 
-`rfl` is enough to prove it!
+Just from reading off the function's type signature, we can see that there's
+really no need to write a theorem stating that the length of `fb_vec n` equals
+`n` - it's encoded right there in the type!
+
+Well, I mean, we _can_ write it anyway, but it's going to be a pretty simple
+one - `rfl` is enough to prove it!
 
 ```lean4
 theorem fb_vec_length (n : Nat) : (fb_vec n).size = n := by rfl
@@ -569,7 +585,6 @@ theorem fb_one_to_fb_vec :
   unfold fb_vec; simp
   rw [Nat.add_comm]
 ```
-
 
 ## Destringifying our computation
 
@@ -617,308 +632,25 @@ similar to associating a type with a trait in other languages), which gives us
 a way of implicitly stringifying to print out the `List FB`, just like we did
 with the earlier version's `List String`.  
 
-## At last, a real specification for Fizzbuzz
+## At last, we are ready to specify Fizzbuzz properly
 
-Let's try writing one a proof of one of our actual Fizzbuzz specifications -
-following the design of our "program", we'll first prove that `fb_one i`, when
-`i` is appropriately-chosen, is `Fizzbuzz`, and then extrapolate that to
-`vb_vec[i]` under the same constraint for `i`.
+In the [Dafny](/posts/proving-the-coding-interview/) series, we translated our
+four statements about Fizzbuzz's behaviour into invariants that Dafny's solver
+would then go and prove.  We've now built up enough mechanism to write those
+statements down as Lean theorems:
 
-::: margin-note
-Note that I've deliberately written this theorem slightly differently than how
-it appears in the implementation: here this theorem states a hypothesis about
-`i % 3 = 0` and `i % 5 = 0`, whereas `fb_one` does a single check that `i % 15
-= 0`.  Dafny had no trouble distinguishing without us explaining why that these
-are saying the same thing.
+```
+TODO
+```
+
+::: margin-warning
+`sorry` is dangerous because it lets us punch holes in Lean's logic.  Imagine
+if we introduced `theorem uhoh : 0 = 1 := by sorry` into a library somewhere:
+all of a sudden, we'll be able prove all sorts of arithmatic nonsense!
 :::
-```lean4
-theorem fb_one_i_mod_15_is_fizzbuzz:
-  ∀ (i : Nat) (H3: i % 3 = 0) (H5 : i % 5 = 0), fb_one i = FB.FizzBuzz := by ...
+The `sorry` tactic automatically discharges the proof - it's an unsafe
+admission that we haven't actually solved it yet.  No `sorry`s should exist in
+any of your theorems by the time you're done!
 
-1 goal
-⊢ ∀ (i : ℕ), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz
-```
-
-### Intro and unfold, like usual
-
-As usual, our first tactic involves introducing statements into our context
-and unfolding some basic definitions.
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 -- NEW 
-  unfold fb_one -- NEW
-
-1 goal
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-⊢ (if i % 15 = 0 then FB.FizzBuzz else 
-   if i % 5 = 0 then FB.Buzz else 
-   if i % 3 = 0 then FB.Fizz else 
-   FB.Num i) = FB.FizzBuzz
-```
-
-Notice that there's clearly one situation that makes sense here: the left-hand
-side only matches the right-hand side when `i % 15 = 0`.  More subtly, though,
-it also needs to be the case that if `i % 15 != 0`, it better not be the case
-that our two hypothesis `i % 3 = 0` and `i % 5 = 0` also hold.
-
-::: margin-note
-Yes, you can extend Lean with custom tactics if you're so inclined!  They're
-typically written as a macro that expands into operations over the Tactics
-Monad.  (Since Lean's a pure functional language, maybe you surmised that we
-would need something like the State Monad in order to remember and modify
-the goal and its context.)
-:::
-Mathlib introduces a new tactic called `split_ifs` which can help us prove
-both those situations:
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5
-  unfold fb_one
-  split_ifs with H15 -- NEW
-
-2 goals
-case pos
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-H15 : i % 15 = 0
-⊢ FB.FizzBuzz = FB.FizzBuzz
-
-case neg
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-H15 : ¬i % 15 = 0
-⊢ False
-```
-
-You might expect to see _four_ goals here because we have four branches in
-`fb_one`'s nested-if.  It turns out that this tactic will automatically
-simplify down and eliminate branches that it knows are logically impossible.
-(You can play with the simpler `split` tactic to see the difference: the two
-goals missing from our proof have obvious contradictions that `split_ifs` is
-able to eliminate right off the bat.
-
-### Focus in on subgoals with the `·` dot operator
-
-This is, I think, our first example of a _structured_ proof, where a tactic
-has broken our goal down into multiple subgoals for us to prove individually.
-
-We can focus on the first goal with the `·` "bullet" operator - this will take
-our context, which currently has two goals to prove, and "zooms in" on the
-first one in the list.  (This should remind you of proving a lemma that you've
-defined inline with `have`.)
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split_ifs with H15
-  · --NEW
-
-1 goal
-case pos
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-H15 : i % 15 = 0
-⊢ FB.FizzBuzz = FB.FizzBuzz
-```
-
-This is the "then" side of the `if` expression: when the conditional `i % 15 =
-0` is true, then `fb_one` produces `FB.FizzBuzz`, which is exactly the
-expression our theorem states it should.  A `rfl` is enough here.
-
-### Proving `false` means hunting for a contradiction
-
-The second subgoal is more complicated to solve, and introduces a really
-interesting concept about what falsity means:
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split_ifs with H15
-  · rfl 
-  · --NEW
-
-1 goal
-case neg
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-H15 : ¬i % 15 = 0
-⊢ False
-```
-
-Our goal is to prove that the proposition `False` is true.  That seems...
-actually impossible to do.  This whole time we've been crunching the goal down
-until it's something that Lean can reduce to `True`, after all!
-
-::: margin-note
-It's not a coincidence that we encountered the principle of explosion right
-about when we first encountered the _negation_ of a statement.  In Lean (as
-well as Rocq and other similar languages), `Not x` is
-[defined](https://github.com/leanprover/lean4/blob/2234c9116310b4c954ae42178e1f5d8e9795c682/src/Init/Prelude.lean#L223)
-as the implication `x -> False`.  In other words, "not x" means "it is a
-contradiction to be able to prove x"!
-:::
-There's an escape hatch of sorts here: by the logical principle known,
-spectacularly, as both the [principle of
-explosion](https://en.wikipedia.org/wiki/Principle_of_explosion) and _ex falso
-quodlibet_.  It states that any goal, no matter how absurd it seems, can be
-proven if you assume a contradiction.
-
-Less philosophically-speaking: the purpose of this goal _actually_ is to show
-that there's a contradition somewhere in our _context_.  It's hard not to see
-where the contradiction is: we have both `i % 3 = 0` and `i % 5 = 0`, but also
-`¬i % 15 = 0`.  If we can massage H3 and H5 into `i % 15 = 0`, then we've got
-our two contradictory statements.
-
-Well, let's do that, then: let's state that, actually, `i % 15 = 0`:
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split_ifs with H15
-  · rfl 
-  · have H_15': i % 15 = 0 := by
-
-1 goal
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-H15 : ¬i % 15 = 0
-⊢ i % 15 = 0
-```
-
-Notice that the goal has changed, because we've stated something with `have`
-that we are now going to prove.
-
-I'll admit that it's been long enough since my undergrad math classes that I
-wasn't entirely sure how to actually prove this!  I knew it had something to do
-with 3 and 5 being coprime, and so probably falls out of the Fundamental Theorem
-of Arithmetic or something.  I struggled for quite a while until I wondered
-whether, like Rocq, if Lean happens to have the `lia` tactic.  Turns out it
-does!
-
-`lia` is another automated tactic that specifically solves goals involving
-linear arithmetic, which is exactly what we've got on our hands here.  The docs
-say it's ["inspired by modern SMT
-solvers"](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Grind/Tactics.lean#L16)
-and uses cool research like
-[e-matching](https://leodemoura.github.io/files/ematching.pdf).  Automated
-tactics like `lia` bridge the gap between writing Lean proofs entirely by hand
-as we've been doing here, and handing off the entire proof burden to an
-automated solver, like we did with Dafny.
-
-All right, with our lemma proven, the trap's set:
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split_ifs with H15
-  · rfl 
-  · have H_15' : i % 15 = 0 := by lia -- NEW
-
-1 goal
-case neg
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-H15 : ¬i % 15 = 0
-H_15' : i % 15 = 0
-⊢ False
-``` 
-
-Our contradiction is clear: certainly hypotheses `H_15` and `H_15'` can't
-_both_ be true, so the only thing left to us is to close out the subgoal
-by marking it as a proof by contradiction:
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split_ifs with H15
-  · rfl 
-  · have H_15' : i % 15 = 0 := by lia
-    contradiction --NEW 
-
-Goals accomplished!
-```
-
-## Connecting it back to `fb_vec`
-
-OK, let's see if we can quickly connect the proof we just wrote to one about
-`fb_vec`.   Actually, you know what -- by now you've seen enough proofs that I
-think _you_ should give it a try! Here's the scaffholding to get you started:
-
-```lean4
-theorem mod_15_is_fizzbuzz' : 
-  ∀ (i n : Nat) (H : i < n), 
-    (i + 1) % 3 = 0 → 
-    (i + 1) % 5 = 0 → 
-    (fb_vec n)[i]'H = FB.FizzBuzz := by
-```
-
-(You might benefit from knowing about the `exact` tactic: `exact e` closes the
-goal if `e` is a proof of the goal.)
-
-## What if we'd gotten the implementation wrong?
-
-It's all fine and well if we prove something about an implementation we
-already knew was correct.  Let's introduce a bug into `fb_one` and see
-how our proof goes awry:
-
-```lean4
-def fb_one (i : Nat) :=
-    if i % 5 = 0 then FB.Buzz else       -- NEW: This line and the line below
-    if i % 15 = 0 then FB.FizzBuzz else  -- it were flipped!
-    if i % 3 = 0 then FB.Fizz else
-    FB.Num i
-...
-```
-
-Hopefully you can see what goes wrong here: we'll never print out `FizzBuzz`
-because the earlier `i % 5 = 0` check will satisfy cases where `i` is also
-divisible by 15.
-
-So what goes wrong when we try and prove our earlier theorem with a broken
-implementation?  We'll hit a snag when it comes time to split on all the nested
-`if`s:
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split_ifs
-
-1 goal
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-⊢ False
-```
-
-If this single remaining goal looks unsolvable, that's because ... it _is_
-unsolvable!  This makes sense when you consider that the statement we're
-trying to prove is fundamentally unsolvable.
-
-You might remember that when we broke our Dafny implementation in a similar way
-we got a lovely counterexample back from the solver.  Here we're not so lucky;
-we don't get an _error_, per se, so much as just a partial proof that's
-impossible to prove.
+Next time, we'll learn about Lean's support for custom tactics, splitting
+proofs into subgoals, and a new way to prove things: by contradiction.

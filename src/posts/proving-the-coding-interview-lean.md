@@ -74,6 +74,22 @@ compared non-pure programming to the antivaxxer movement.
 Of course, it also stands to reason that what was easy to do in Dafny might
 be problematic in Lean.  Shall we see if that's in fact true...?
 
+::: note
+In this post, we'll introduce the basics of Lean, both as a programming
+language and as a theorem prover.  We'll _implement_ fizzbuzz in
+Lean-the-programming-language and _specify_ parts of its behaviour in
+Lean-the-theorem-prover, learning some simple _proof tactics_ along the way.
+
+By the end of this series, you'll have enough experience with dependent types
+and theorem provers to verify simple programs, probably equivalent to the first
+several chapters of the excellent Rocq textbook [Software Foundations Vol.
+1](https://softwarefoundations.cis.upenn.edu/lf-current/toc.html).
+
+If you're familiar with languages like Rocq, you may want to skip straight to
+the next part in the series since most of what this post discusses will already
+be familiar to you.
+:::
+
 ## Our problem statement, revisited
 
 Fizzbuzz as a problem has not become any less familiar nor any less irritating
