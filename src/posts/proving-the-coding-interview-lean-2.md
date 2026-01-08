@@ -1,11 +1,19 @@
 ---
 layout: post.njk
-title: "Leaning into the Coding Interview: Lean vs Dafny round two"
-date: 2026-01-30T00:00:00-05:00
+title: "Leaning Into the Coding Interview: Lean 4 vs Dafny round two"
+date: 2026-01-09T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Pls types?  No terms!  Only (indexed, dependent) types!"
-draft: true
 ---
+
+::: tip
+_This is part of a two-part introduction to Lean 4 series: 
+  [Part one](/posts/proving-the-coding-interview-lean),
+  [Part two](/posts/proving-the-coding-interview-lean-2)_.
+
+All previous Proving The Coding Interview posts can be found
+[here](http://localhost:8080/tags/provingthecodinginterview/).
+:::
 
 In an [earlier](/posts/proving-the-coding-interview-lean/) post, we learned a
 bunch of Lean's syntax and saw how to write some simple theorems about the
@@ -27,8 +35,8 @@ types and make use of them in our implementation, and then leverage those types
 to write some more interesting proofs about `fizzbuzz`.
 
 By the end of this post, we'll have a `fizzbuzz` that is closer to being
-_correct by construction_, and we'll be ready to prove the bulk of the
-specification.
+_correct by construction_, and we'll use that construction to prove the bulk of
+the specification.
 :::
 
 ## Previously, on...
@@ -94,9 +102,10 @@ Functional programmers like to refer to the type system "making invalid states
 unrepresentable" - we are already doing this by, say, making it impossible to
 return a `List Int`; let's see how much farther we can push it!
 :::
-If we can reformulate the `fizzbuzz` function's type signature more precisely,
-maybe we can statically prevent the function from doing egregiously wrong things,
-and then write theorems for more fine-grained specifications.
+If we can reformulate the `fizzbuzz` and `fb_one` functions' type signature
+more precisely, maybe we can statically prevent the function from doing
+egregiously wrong things, and then write theorems for more fine-grained
+specifications.
 
 Okay, this is what was left on our todo list:
 
@@ -144,7 +153,7 @@ well-defined, but it will have the same value as calling `fb_one (i+1)`.
 _panic_ if we attempt to index out of bounds, and also a mysterious third `[]`
 operator, which we'll talk about very soon.)
 
-### `intro` introduces propositions into our context
+### `intro` introduces assumptions into our context
 
 Notice that I've written this theorem with a "forall" quantifier instead
 of having it consume an argument, and when we start out our context has no
@@ -161,7 +170,7 @@ type `t`") into our context, and changes the goal to `expr`:
 ```lean4
 theorem fb_one_to_fizzbuzz_x :
     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
-  intros i n
+  intro i n
 
 1 goal
 i n : ℕ
@@ -187,7 +196,7 @@ another `intro` we have that appear in our goal:
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n --NEW
+  intro i n H_i_lt_n --NEW
 
 i n : ℕ
 H_i_lt_n : i < n
@@ -244,7 +253,7 @@ let's use `rw` to transform it into the right-hand side.
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff] --NEW
 
 1 goal
@@ -295,7 +304,7 @@ with it:
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]
   exists H_i_lt_n --NEW
 ```
@@ -327,7 +336,7 @@ context, that we'll have to prove before we can proceed with the rest of our
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fb_list n) = n) := by -- NEW
 
@@ -358,7 +367,7 @@ apply a theorem to a hypothesis, though.  I'm not sure why!
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length --NEW
 
@@ -376,7 +385,7 @@ the bounds-check proof we need!
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
   rw [<- H_n_is_len] at H_i_lt_n -- NEW
@@ -395,7 +404,7 @@ that we didn't have before, we can use `exists` as before, and we'll see the
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
   rw [<- H_n_is_len] at H_i_lt_n
@@ -421,7 +430,7 @@ expanded definition would have been a lot harder to read.
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
   rw [<- H_n_is_len] at H_i_lt_n
@@ -452,7 +461,7 @@ reasonably guess what it's capable of doing "out of the box".
 ```lean4
 theorem fb_one_to_fizzbuzz :
     ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
-  intros i n H_i_lt_n
+  intro i n H_i_lt_n
   -- unfold fb_list
   rw [@List.getElem?_eq_some_iff]
   have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
@@ -466,7 +475,7 @@ Goals accomplished!
 
 Phew, that was a bit of a journey.
 
-## Lifting the length of a list into its own type
+## Lifting the length of a list into its type
 
 We did it!  We actually proved a pretty cool and nontrivial proof about
 `fizzbuzz`, putting us well on our way to being able to write the rest
@@ -505,12 +514,7 @@ As you might imagine, `Array a` is another basic collection type, just like
 with `List` instead, but I'll stick with the "standard" one here.
 :::
 ```lean4
-/-!
-# Vectors
-
-`Vector α n` is a thin wrapper around `Array α` for arrays of fixed size `n`.
--/
-
+/-! `Vector α n` is a thin wrapper around `Array α` for arrays of fixed size `n`. -/
 structure Vector (α : Type u) (n : Nat) where
   /-- The underlying array. -/
   toArray : Array α
@@ -540,9 +544,7 @@ have replacements for
 and
 [List.map](https://github.com/leanprover/lean4/blob/master/src/Init/Data/Vector/Basic.lean#L237-L238),
 making our dependently-typed Fizzbuzz look almost identical to the one that
-returns a List!  (If you look at those two functions, they're not complicated
-in their own right, so if the standard library didn't expose them for us it
-wouldn't have been super onerous to do it ourselves.)
+returns a List!  
 
 Okay, here's our dependently-typed function:
 
@@ -551,8 +553,76 @@ def fb_vec (n : Nat) : Vector String n :=
   Vector.range' 1 n |> Vector.map fb_one
 ```
 
-TODO: examples of assigning variables from `fb_vec`, showing how the `n`
-variable works.
+We can define some vectors using this function and see what the type checker has
+to say:
+
+::: tip
+```lean4
+def fb_3 : Vector FB 3 := fb_vec 3
+def fb_4 := fb_vec 4 -- Type of `Vector FB 4` can be inferred by Lean here!
+```
+:::
+
+But, if we tried to use a `fb_vec` in a setting where a different length was
+expected, we'll get a typechecking error:
+
+::: warning
+```lean4
+def fb_5 : Vector FB 18 := fb_vec 5
+
+Type mismatch
+  fb_vec 5
+has type
+  Vector FB 5
+but is expected to have type
+  Vector FB 18
+```
+:::
+
+Some non-dependent type systems can reason about numeric literals in types
+(consider const generics in Rust) but fall down when an arbitrary or symbolic
+numeric value is in play.  Lean doesn't have that problem: the following
+ill-typed function (which concatenates two calls to `fb_vec`) produces a clear
+and useful type error:
+
+
+::: warning
+```lean4
+def fb_twice (n : Nat) : Vector FB n := Vector.append (fb_vec n) (fb_vec n)
+
+Type mismatch
+  (fb_vec n).append (fb_vec n)
+has type
+  Vector FB (n + n)
+but is expected to have type
+  Vector FB n
+```
+:::
+
+### How do the types work out??
+
+It's worth taking a minute to look at those two library functions that we used,
+to see why `fb_vec`'s return type of `Vector String n` makes sense:
+
+::: tip
+```lean4
+/-- The vector `#v[start, start + step, start + 2 * step, ..., start + (size-1) * step]`. -/
+def range' (start size : Nat) (step : Nat := 1) : Vector Nat size := ...
+```
+```lean4
+/-- Maps elements of a vector using the function `f`. -/
+def map (f : α → β) (xs : Vector α n) : Vector β n := ...
+```
+:::
+
+`Vector.range`'s return type depends on the `size` argument to the function, so
+`Vector.range 1 n` produces a `Vector Nat n`.  This `Vector` gets piped into
+`Vector.map` next - we mentioned before that it better be the case that when
+you map over a collection, its size doesn't change, and the type signature
+proves that for us here!  The only difference is that the input `Vector`'s
+element type changes depending on the function `f`: since `fb_one` has type
+`Nat -> String`, we can see that this will return a `Vector String n`, exactly
+as we expect.
 
 Just from reading off the function's type signature, we can see that there's
 really no need to write a theorem stating that the length of `fb_vec n` equals
@@ -581,7 +651,7 @@ safe access to the `Vector`.  By giving it a name, like we did with `i` and
 ```lean4
 theorem fb_one_to_fb_vec :
     ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (i + 1) := by
-  intros i n h
+  intro i n h
   unfold fb_vec; simp
   rw [Nat.add_comm]
 ```
@@ -632,6 +702,10 @@ similar to associating a type with a trait in other languages), which gives us
 a way of implicitly stringifying to print out the `List FB`, just like we did
 with the earlier version's `List String`.  
 
+As a forward reference to the next entry in this series, think about ways that
+we could misuse values of type `FB`: in particular, is `Num 9` or `Num 15` ever
+a valid state for the purposes of our program?
+
 ## At last, we are ready to specify Fizzbuzz properly
 
 In the [Dafny](/posts/proving-the-coding-interview/) series, we translated our
@@ -639,9 +713,29 @@ four statements about Fizzbuzz's behaviour into invariants that Dafny's solver
 would then go and prove.  We've now built up enough mechanism to write those
 statements down as Lean theorems:
 
+::: note
+```lean4
+theorem thm1 : ∀ (i n : Nat) (H : i < n), 
+    (i + 1) % 3 = 0 → 
+    (i + 1) % 5 != 0 → 
+    (fb_vec n)[i]'H = FB.Fizz := by sorry
+
+theorem thm2 : ∀ (i n : Nat) (H : i < n), 
+    (i + 1) % 3 != 0 → 
+    (i + 1) % 5 = 0 → 
+    (fb_vec n)[i]'H = FB.Buzz := by sorry
+
+theorem thm3 : ∀ (i n : Nat) (H : i < n), 
+    (i + 1) % 3 = 0 → 
+    (i + 1) % 5 = 0 → 
+    (fb_vec n)[i]'H = FB.FizzBuzz := by sorry
+
+theorem thm4 : ∀ (i n : Nat) (H : i < n), 
+    (i + 1) % 3 != 0 → 
+    (i + 1) % 5 != 0 → 
+    (fb_vec n)[i]'H = FB.Num (i + 1) := by sorry
 ```
-TODO
-```
+:::
 
 ::: margin-warning
 `sorry` is dangerous because it lets us punch holes in Lean's logic.  Imagine

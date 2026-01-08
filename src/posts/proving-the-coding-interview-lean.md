@@ -1,10 +1,19 @@
 ---
 layout: post.njk
-title: "Proving the Coding Interview: Lean vs Dafny cage-match"
+title: "Leaning Into the Coding Interview: Lean 4 vs Dafny cage-match"
 date: 2026-01-02T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Is Fizzbuzz easier to write in Lean, or just differently hard?"
 ---
+
+::: tip
+_This is part of a two-part introduction to Lean 4 series: 
+  [Part one](/posts/proving-the-coding-interview-lean),
+  [Part two](/posts/proving-the-coding-interview-lean-2)_.
+
+All previous Proving The Coding Interview posts can be found
+[here](http://localhost:8080/tags/provingthecodinginterview/).
+:::
 
 Back in grad school, I ran a [directed reading
 group](https://sites.google.com/view/utdirp) for undergrads interested in the
@@ -733,7 +742,7 @@ converting them from their private representation to their expected string
 form.
 :::
 
-Next time, we'll do this simple refactoring and then see where that leads us.
+[Next time](/posts/proving-the-coding-interview-lean-2), we'll do this simple refactoring and then see where that leads us.
 
 ## Conclusion: how's the cage match going?
 

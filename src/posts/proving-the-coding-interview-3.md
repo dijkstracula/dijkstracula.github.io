@@ -6,10 +6,15 @@ tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "A faster, but just as correct, nat -> string converter"
 ---
 
+::: tip
 This is the third of a three part series:
 [Part 1](/posts/proving-the-coding-interview/) | 
 [Part 2](/posts/proving-the-coding-interview-2/) |
 Part 3
+
+All previous Proving The Coding Interview posts can be found
+[here](http://localhost:8080/tags/provingthecodinginterview/).
+:::
 
 Welcome back to the final installment of Proving The Coding Interview!  In the
 [previous article](/posts/proving-the-coding-interview-2/) we

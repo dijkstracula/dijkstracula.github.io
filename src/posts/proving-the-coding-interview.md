@@ -2,14 +2,19 @@
 layout: post.njk
 title: "Proving the Coding Interview"
 date: 2022-04-17T14:18:48-05:00
-tags: [post, dafny, verification]
+tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "Applying interesting research to uninteresting interview problems"
 ---
 
+::: tip
 This is the first of a three part series:
 Part 1 |
 [Part 2](/posts/proving-the-coding-interview-2/) |
 [Part 3](/posts/proving-the-coding-interview-3/)
+
+All previous Proving The Coding Interview posts can be found
+[here](http://localhost:8080/tags/provingthecodinginterview/).
+:::
 
 Enjoying programming interview questions is one of those things that nobody
 should admit to in polite company.  But as with so many other things in life, a
