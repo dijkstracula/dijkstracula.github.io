@@ -7,7 +7,7 @@ excerpt: "Is Fizzbuzz easier to write in Lean, or just differently hard?"
 ---
 
 ::: tip
-_This is part of a two-part introduction to Lean 4 series: 
+_This is part of an ongoing introduction to Lean 4 series: 
   [Part one](/posts/proving-the-coding-interview-lean),
   [Part two](/posts/proving-the-coding-interview-lean-2)_.
 

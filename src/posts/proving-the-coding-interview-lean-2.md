@@ -7,7 +7,7 @@ excerpt: "Pls types?  No terms!  Only (indexed, dependent) types!"
 ---
 
 ::: tip
-_This is part of a two-part introduction to Lean 4 series: 
+_This is part of an ongoing introduction to Lean 4 series: 
   [Part one](/posts/proving-the-coding-interview-lean),
   [Part two](/posts/proving-the-coding-interview-lean-2)_.
 
@@ -585,7 +585,13 @@ numeric value is in play.  Lean doesn't have that problem: the following
 ill-typed function (which concatenates two calls to `fb_vec`) produces a clear
 and useful type error:
 
-
+::: margin-note
+Something for you to pause and ponder about: based on what you've seen about
+Lean's type system and innate knowledge of linear arithmetic, if we "corrected"
+the type signature of `fb_twice` to `Vector FB (2 * n)` instead of `Vector FB
+(n + n)`, would you expect the type system to complain?  If so, how might we
+convince it that `2 * n` denotes the same concept as `n + n`?
+:::
 ::: warning
 ```lean4
 def fb_twice (n : Nat) : Vector FB n := Vector.append (fb_vec n) (fb_vec n)

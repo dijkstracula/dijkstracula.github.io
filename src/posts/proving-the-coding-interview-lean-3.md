@@ -7,6 +7,16 @@ excerpt: "Time to actually prove our specification!"
 draft: true
 ---
 
+::: tip
+_This is part of an ongoing introduction to Lean 4 series: 
+  [Part one](/posts/proving-the-coding-interview-lean),
+  [Part two](/posts/proving-the-coding-interview-lean-2)_.
+  [Part three](/posts/proving-the-coding-interview-lean-3)_.
+
+All previous Proving The Coding Interview posts can be found
+[here](http://localhost:8080/tags/provingthecodinginterview/).
+:::
+
 ## Welcome back!
 
 TODO
