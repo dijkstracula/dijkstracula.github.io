@@ -1,15 +1,17 @@
 ---
 layout: post.njk
-title: "Leaning Into the Coding Interview: Lean 4 vs Dafny round two"
+title: "Leaning Into the Coding Interview 2: static bounds checks and dependent types"
 date: 2026-01-09T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Pls types?  No terms!  Only (indexed, dependent) types!"
 ---
 
 ::: tip
-_This is part of an ongoing introduction to Lean 4 series: 
-  [Part one](/posts/proving-the-coding-interview-lean),
-  [Part two](/posts/proving-the-coding-interview-lean-2)_.
+_This is part of an ongoing introduction to Lean 4 series_: 
+  * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
+  * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
+  * Part three - completing the spec with tactics combinators
+  * Part four - certified programming with proof carrying code
 
 All previous Proving The Coding Interview posts can be found
 [here](http://localhost:8080/tags/provingthecodinginterview/).
@@ -761,11 +763,11 @@ statements down as Lean theorems:
 ```lean4
 theorem thm1 : ∀ (i n : Nat) (H : i < n), 
     (i + 1) % 3 = 0 → 
-    (i + 1) % 5 != 0 → 
+    (i + 1) % 5 ≠ 0 → 
     (fb_vec n)[i]'H = FB.Fizz := by sorry
 
 theorem thm2 : ∀ (i n : Nat) (H : i < n), 
-    (i + 1) % 3 != 0 → 
+    (i + 1) % 3 ≠ 0 → 
     (i + 1) % 5 = 0 → 
     (fb_vec n)[i]'H = FB.Buzz := by sorry
 
@@ -775,8 +777,8 @@ theorem thm3 : ∀ (i n : Nat) (H : i < n),
     (fb_vec n)[i]'H = FB.FizzBuzz := by sorry
 
 theorem thm4 : ∀ (i n : Nat) (H : i < n), 
-    (i + 1) % 3 != 0 → 
-    (i + 1) % 5 != 0 → 
+    (i + 1) % 3 ≠ 0 → 
+    (i + 1) % 5 ≠ 0 → 
     (fb_vec n)[i]'H = FB.Num (i + 1) := by sorry
 ```
 :::

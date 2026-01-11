@@ -7,9 +7,11 @@ excerpt: "Is Fizzbuzz easier to write in Lean, or just differently hard?"
 ---
 
 ::: tip
-_This is part of an ongoing introduction to Lean 4 series: 
-  [Part one](/posts/proving-the-coding-interview-lean),
-  [Part two](/posts/proving-the-coding-interview-lean-2)_.
+_This is part of an ongoing introduction to Lean 4 series_: 
+  * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
+  * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
+  * Part three - completing the spec with tactics combinators
+  * Part four - certified programming with proof carrying code
 
 All previous Proving The Coding Interview posts can be found
 [here](http://localhost:8080/tags/provingthecodinginterview/).
@@ -383,9 +385,13 @@ for this tradeoff.
 :::
 
 To prove a goal means to simplify it down, step by step, to something that Lean
-axiomatically knows to be true.  (We did this earlier with `rfl`; having an
+axiomatically knows to be True.  (We did this earlier with `rfl`; having an
 equality where both sides are "the same" is enough to satisfy the proof
 assistant.)
+
+A note: `true` is a value of type `Bool`, the usual boolean type.  `True` is,
+by contrast, a logical proposition (that is, a type, whose type is of type
+`Prop`).
 
 ## Tackling the proof with some basic tactics
 

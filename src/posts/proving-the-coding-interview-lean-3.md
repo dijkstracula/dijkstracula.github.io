@@ -1,17 +1,18 @@
 ---
 layout: post.njk
-title: "Leaning into the Coding Interview: Lean vs Dafny round three"
+title: "Leaning into the Coding Interview 3: completing our spec with tacticals"
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
-excerpt: "Time to actually prove our specification!"
+excerpt: "Time to actually write our end-to-end specification!"
 draft: true
 ---
 
 ::: tip
-_This is part of an ongoing introduction to Lean 4 series: 
-  [Part one](/posts/proving-the-coding-interview-lean),
-  [Part two](/posts/proving-the-coding-interview-lean-2).
-  [Part three](/posts/proving-the-coding-interview-lean-3)_.
+_This is part of an ongoing introduction to Lean 4 series_: 
+  * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
+  * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
+  * [Part three - completing the spec with tactics combinators](/posts/proving-the-coding-interview-lean-3).
+  * Part four - certified programming with proof carrying code
 
 All previous Proving The Coding Interview posts can be found
 [here](http://localhost:8080/tags/provingthecodinginterview/).
@@ -23,6 +24,8 @@ Last time, we got our dependently-typed `fizzbuzz` implementation to a point
 where we felt ready to prove our problem specifications:
 
 ```lean4
+import Mathlib.Data.Nat.Basic
+
 -- implementation
 
 inductive FB : Type where
@@ -56,11 +59,11 @@ theorem fb_one_to_fb_vec :
   rw [Nat.add_comm]
 
 theorem thm1 : ∀ (i n : Nat) (H : i < n), 
-    (i + 1) % 3 = 0 → (i + 1) % 5 != 0 → 
+    (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → 
     (fb_vec n)[i]'H = FB.Fizz := by sorry
 
 theorem thm2 : ∀ (i n : Nat) (H : i < n), 
-    (i + 1) % 3 != 0 → (i + 1) % 5 = 0 → 
+    (i + 1) % 3 ≠ 0 → (i + 1) % 5 = 0 → 
     (fb_vec n)[i]'H = FB.Buzz := by sorry
 
 theorem thm3 : ∀ (i n : Nat) (H : i < n), 
@@ -68,7 +71,7 @@ theorem thm3 : ∀ (i n : Nat) (H : i < n),
     (fb_vec n)[i]'H = FB.FizzBuzz := by sorry
 
 theorem thm4 : ∀ (i n : Nat) (H : i < n), 
-    (i + 1) % 3 != 0 → (i + 1) % 5 != 0 → 
+    (i + 1) % 3 ≠ 0 → (i + 1) % 5 ≠ 0 → 
     (fb_vec n)[i]'H = FB.Num (i + 1) := by sorry
 ```
 
@@ -129,7 +132,7 @@ In which cases does the left-hand side of the goal equality match the right?
 There's clearly one situation that makes sense here: the left-hand side only
 matches the right-hand side when `i % 15 = 0`.  
 
-More subtly, though, it also needs to be the case that if `i % 15 != 0` (that is,
+More subtly, though, it also needs to be the case that if `i % 15 ≠ 0` (that is,
 if we were to fall through the first `if...then`), it better not be the case
 that `i % 3 = 0` and `i % 5 = 0` also hold.  (Given that those are the two
 hypotheses `H3` and `H5` that we've introduced, this is kind of like saying
@@ -141,7 +144,8 @@ Yes, you can extend Lean with custom tactics if you're so inclined!  They're
 typically written as a macro that expands into operations over the Tactics
 Monad.  (Since Lean's a pure functional language, maybe you surmised that we
 would need something like the State Monad in order to remember and modify
-the goal and its context.)
+the goal and its context.)  We'll soon be introduced to the `lia` tactic,
+which is a custom tactic from the Mathlib library.
 :::
 
 When we have control flow like an `if...then` or `match` expression that
@@ -172,10 +176,12 @@ h✝ : ¬i % 15 = 0
 
 ::: margin-note
 There's actually a shorter path to proving this theorem, by simply applying
-`ite_cond_eq_true`, which reduces the goal to `(i % 15 = 0) = true`, but taking
-a slightly longer path will both introduce some important new tactics, help
-generalise the proof to the other three core theorems, and make the proof a bit
-easier to understand when it comes time to "prove" a buggy implementation.
+`ite_cond_eq_true`, which reduces the goal to `(i % 15 = 0) = true`.
+
+Doing it the way we're doing, with manual case-splitting, is taking
+a slightly longer path, but: it'll introduce some important new tactics, help
+generalise the proof to the other three core theorems, and keep the proof
+working for later on when we refactor our `FB` data definition.
 :::
 You might expect to see _four_ goals here because we have four branches in
 `fb_one`'s nested-if.  It turns out that this tactic will automatically
@@ -183,7 +189,7 @@ simplify down and eliminate branches that it knows are logically impossible
 given the assumptions `H3` and `H5`.  You can play around with handing the full
 if/else ladder manually by _generalizing_ the proof: don't introduce `H3` and
 `H5` right off the bat but wait until after you've started splitting each `if`;
-you'll see goals with both, for instance, `i % 5 = 0` and `i % 5 != 0`; these
+you'll see goals with both, for instance, `i % 5 = 0` and `i % 5 ≠ 0`; these
 are the ones that have been pruned away for us automatically here.
 
 ### Focus in on subgoals with the `·` dot operator
@@ -215,7 +221,7 @@ H15 : i % 15 = 0
 
 This is the "then" side of the `if` expression: when the conditional `i % 15 =
 0` is true, then `fb_one` produces `FB.FizzBuzz`, which is exactly the
-expression our theorem states it should.  A `rfl` is enough here.
+expression our theorem states it should.  A `rfl` or `simp` is enough here.
 
 ### Proving `false` means hunting for a contradiction
 
@@ -242,10 +248,15 @@ h✝ : ¬i % 15 = 0
 
 Our goal, `FB.Buzz = FB.FizzBuzz`, should feel problematic to you: an axiom
 of inductive datatypes like `FB` is that they're _disjoint_ - every element
-of a given type can only be constructed in one way.  We should believe that
-this statement is false, and by `simp`lifying our goal, we can see that Lean
-agrees with us.
+of a given type can only be constructed in one way, so there's no way for
+two different constructors of `FB` to produce "an equivalent" value.  We should
+believe that the statement in the goal is false, and by `simp`lifying our goal,
+we can see that Lean agrees with us.
 
+::: margin-note
+The `simp` isn't strictly necessary for Lean to understand what's going on,
+but as a good rule of thumb it's helpful for _us_ to understand what's going on.
+:::
 ```lean4
 theorem mod_15_is_fizzbuzz : 
   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
@@ -320,9 +331,9 @@ of Arithmetic or something.  I struggled for quite a while until I wondered
 whether, like Rocq, if Lean happens to have the `lia` tactic.  Turns out it
 does!
 
-`lia` is another automated tactic that specifically solves goals involving
-linear arithmetic, which is exactly what we've got on our hands here.  The docs
-say it's ["inspired by modern SMT
+`lia` is another automated tactic that comes with Mathlib, that specifically
+solves goals involving linear arithmetic, which is exactly what we've got on
+our hands here.  The docs say it's ["inspired by modern SMT
 solvers"](https://github.com/leanprover/lean4/blob/2fcce7258eeb6e324366bc25f9058293b04b7547/src/Init/Grind/Tactics.lean#L16)
 and uses cool research like
 [e-matching](https://leodemoura.github.io/files/ematching.pdf).  Automated
@@ -348,13 +359,20 @@ i : ℕ
 H3 : i % 3 = 0
 H5 : i % 5 = 0
 h✝ : ¬i % 15 = 0
-H15 : ¬i % 15 = 0
+H15 : i % 15 = 0
 ⊢ False
 ``` 
 
+::: margin-note
+In Dafny, you can also prove things by contradiction: you'd write a lemma
+that ends up with an `assert false`.  I like this because the computational
+equivalent, of a function that ends up firing an assert, feels a lot more
+natural than the principle of explosion.
+:::
 Our contradiction is clear: certainly hypotheses `H_15` and `H+` can't
-_both_ be true, so the only thing left to us is to close out the subgoal
-by marking it as a proof by contradiction:
+_both_ be true, since one's the negation of the other.  So, we have two statements
+that contradict in our context!  The only thing left to us is to close out the
+subgoal by marking it as a proof by contradiction:
 
 ```lean4
 theorem mod_15_is_fizzbuzz : 
@@ -370,30 +388,11 @@ theorem mod_15_is_fizzbuzz :
 Goals accomplished!
 ```
 
-## Connecting it back to `fb_vec`
-
-OK, let's see if we can quickly connect the proof we just wrote to one about
-`fb_vec`.   Actually, you know what -- by now you've seen enough proofs that I
-think _you_ should give it a try! Here's the scaffholding to get you started:
-
-```lean4
-theorem thm3 : 
-  ∀ (i n : Nat) (H : i < n), 
-    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → 
-    (fb_vec n)[i]'H = FB.FizzBuzz := by
-```
-
-This will involve both rewriting the goal based on `fb_one_to_fb_vec` and
-applying `mod_15_is_fizzbuzz`, the theorem we just proved.
-
-(You might benefit from knowing about the `exact` tactic: `exact e` closes the
-goal if `e` is a proof of the goal.)
-
 ## What if we'd gotten the implementation wrong?
 
-It's all fine and well if we prove something about an implementation we
-already knew was correct.  Let's introduce a bug into `fb_one` and see
-how our proof goes awry:
+It's all fine and well if we prove something about an implementation we already
+knew was correct.  Let's introduce a bug into `fb_one` and see how our proof
+goes awry:
 
 ```lean4
 def fb_one (i : Nat) :=
@@ -442,117 +441,191 @@ really hard about whether you've missed a strategy to prove something that's
 actually correct, or if you've exhausted all the options proving something
 that's ultimately wrong.
 
-## A proof-carrying FB
+## Simplifying our proofs with tactics combinators
 
-Last time we looked at the data definition of `Vector a n`, and saw that it was
-a structure containing its runtime data (the backing `Array a` of elements) and
-a compile time-only proof relating the size of the array to `n`.  One way to
-think about this data type is that every instance carries that proof along with
-it (in practice, remember that owing to _proof irrelevance_, these sorts of
-logica propositions get erased after typechecking, so these statements aren't
-actually stored in memory and carried around as the program runs.)
+Before proceeding, you should try and write the equivalent theorems
+for the other `FB` constructors.
 
-We can do the same thing with the `FB` type.  Currently it's not
-dependently-typed (it isn't even polymorphic), but imagine if we made it thus:
+This is what I got:
 
 ```lean4
--- in other words, defining a "polymorphic" type like `FB<i>`
-inductive FB (i : Nat) : Type where
-  -- TODO: our constructors Fizz, Buzz, Fizzbuzz, and Num
+theorem mod_15_is_fizzbuzz :
+  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+  intros i H3 H5
+  unfold fb_one
+  split 
+  · rfl
+  · simp
+    have H15 : i % 15 = 0 := by lia
+    contradiction
+
+
+theorem mod_5_is_buzz : 
+  ∀ (i : Nat), i % 3 ≠ 0 → i % 5 = 0 → fb_one i = FB.Buzz := by
+  intros i H3 H5
+  unfold fb_one 
+  split 
+  · simp
+    have H3' : i % 3 = 0 := by lia
+    contradiction
+  · rfl 
+  
+theorem mod_3_is_fizz : 
+  ∀ (i : Nat), i % 3 = 0 → i % 5 ≠ 0 → fb_one i = FB.Fizz := by
+  intros i H3 H5
+  unfold fb_one 
+  split 
+  · simp
+    have H5' : i % 5 = 0 := by lia
+    contradiction
+  · rfl 
+
+theorem else_is_num : 
+  ∀ (i : Nat), i % 3 ≠ 0 → i % 5 ≠ 0 → fb_one i = FB.Num i := by
+  intros i H3 H5
+  unfold fb_one 
+  split 
+  · simp
+    have H5' : i % 5 = 0 := by lia
+    contradiction
+  · simp
 ```
 
-This makes FB a _type family_: it defines an infinite number of types, for each
-possible `Nat` value.  OK, for a given `i`, what can we say about each of our
-constructors?  Well, to construct a `Fizzbuzz` of type `FB i`, it better be the
-case that `i % 15 = 0`.  For a `Num` to be a valid `FB i`, `i` must not divide
-3 nor 5.  If each constructor took a _proof_ as argument for the relevant `i`,
-then, a `FizzBuzz` could never be used in place where an `FB 12` was expected,
-for instance.  Let's write that dependent type:
+Just from a quick visual inspection you can see how similar the shape of these
+proofs look: Up until the `split` they're identical, and the two subgoals
+involve a proof by contradiction and a straightforward "simplify and refl".
+What differs between the proofs is which subgoal is trivally-solvable
+and which requires a proof by contradiction, and which requires introducing
+an additional hypothesis to direct the contradiction.
+
+We can structure these four proofs around their commonalities by using _tactics
+combinators_ (also called _tacticals_).  Just like how a function combinator in
+functional programming is a higher-order function that combines, manipulates,
+or produces functions, a tactical lets us compose multiple tactics into new
+ones.
+
+### `all_goals`, `any_goals`, and `;` apply a tactic to all the open subgoals
+
+Here's a useful observation: For the contradictory subgoal, we always start by
+applying `simp`, and while we use `rfl` for the trivial subgoal, `simp` is
+smart enough to complete a proof that we have been using `rfl` for.  This means
+that if we could tell Lean "run `split`, and then `simp` all the subgoals", our
+proof becomes a lot shorter!  We wouldn't even have to manually prove the
+trivial subgoal, and we'd be able to skip manually `simp`ing the contradictory
+goal.
+
+The `all_goals` tactical can do this for us: it takes as argument the name of
+a tactic to apply on all open subgoals.  Let's try this:
 
 ```lean4
-inductive FB (i : Nat) : Type where
-  | Fizz     (w : i % 3 = 0 ∧ i % 5 ≠ 0)
-  | Buzz     (w : i % 3 ≠ 0 ∧ i % 5 = 0)
-  | FizzBuzz (w : i % 15 = 0           )
-  | Num      (w : i % 3 ≠ 0 ∧ i % 5 ≠ 0)
+theorem mod_15_is_fizzbuzz :
+  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+  intros i H3 H5
+  unfold fb_one
+  split
+  all_goals simp
 
-instance (i : Nat) : ToString (FB i) where
-  toString fb := match fb with
-    | .Fizz _     => "Fizz"
-    | .Buzz _     => "Buzz"
-    | .FizzBuzz _ => "Fizzbuzz"
-    | .Num _      => toString i
-```
-
-### `fb_one` must _witness_ the valid construction of each FB
-
-Okay, `fb_one` no longer typechecks.  Let's start rewriting it.  Already, we
-can see we hit a snag pretty quickly: in the "then" arm of the first `if`, we
-need to pass a proof term to the FB.FizzBuzz constructor, but, where are we
-going to find one?
-
-```lean4
-def fb_one (i : Nat) : FB i :=
-    if i % 15 = 0 then FB.FizzBuzz ??? -- TODO: what proof do we pass to the constructor?
-```
-
-Whatever pass to the constructor needs to be a proof that `i % 15 = 0`.
-Of course, this is _exactly_ the proposition we know to be true, because
-it's right there in the `if` conditional.  
-
-So, here's fun thing we can do in Lean that I've never seen in any other
-language: we can use a _dependent if_: at runtime, this behaves identically
-to a good old-fashioned `if` statement, but at _typechecking time_, it
-acts as an assumption in our proof context.  Take a look!
-
-```lean4
-def fb_one (i : Nat) : FB i:=
-    if h15 : i % 15 = 0 then FB.FizzBuzz -- NEW
-
+1 goal
+case isFalse
 i : ℕ
-h15 : i % 15 = 0
-⊢ FB i
+H3 : i % 3 = 0
+H5 : i % 5 = 0
+h✝ : ¬i % 15 = 0
+⊢ False
 ```
 
-Note that our context doesn't say anything about goals, because we're not
-writing tactics to prove a theorem right now.  But we can see that inside
-the "then" branch, we have the proposition `h : i % 15 = 0`.  That's exactly
-the right argument to `FB.FizzBuzz`! 
+::: margin-note
+It's common enough in proofs to "create a bunch of subgoals, and then apply the
+same tactics to all the goals" that there's a nice shorthand for this: `t1 <;>
+t2` first performs `t1`, and then for however many subgoals exist afterwards,
+`t2` is applied to those.  (`<;>`'s a bit like `xargs(1)` in that sense.)
+:::
+As we expected, the trivial goal has been eliminated completely, and we see the
+result of the simplification on the remaining contradictory goal.  (This tactic
+is called `all_goals` because it will fail if, say, `simp` failed to apply in
+any of the goaisl.  There's also an `any_goals t` that applies `t` to all
+subgoals, but only fails if _all_ subgoals rejected `t`.)
+
+This works for all our theorems here: the only thing that changes between them
+is which particular hypothesis we introduce to force the proof by contradiction:
 
 ```lean4
-def fb_one (i : Nat) : FB i:=
-    if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
-    -- TOOD: the remaining three cases
+theorem mod_15_is_fizzbuzz :
+  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+  intros i H3 H5
+  unfold fb_one
+  split <;> simp
+  have H15 : i % 15 = 0 := by lia
+  contradiction
+
+theorem mod_5_is_buzz : 
+  ∀ (i : Nat), i % 3 ≠ 0 → i % 5 = 0 → fb_one i = FB.Buzz := by
+  intros i H3 H5
+  unfold fb_one
+  split <;> simp
+  have H3' : i % 3 = 0 := by lia
+  contradiction
+  
+theorem mod_3_is_fizz : 
+  ∀ (i : Nat), i % 3 = 0 → i % 5 ≠ 0 → fb_one i = FB.Fizz := by
+  intros i H3 H5
+  unfold fb_one 
+  split <;> simp
+  have H5' : i % 5 = 0 := by lia
+  contradiction
+
+theorem else_is_num : 
+  ∀ (i : Nat), i % 3 ≠ 0 → i % 5 ≠ 0 → fb_one i = FB.Num i := by
+  intros i H3 H5
+  unfold fb_one 
+  split <;> simp
+  have H5' : i % 5 = 0 := by lia
+  contradiction
 ```
 
-OK, let's keep going:
+The amount of repetition here might now be driving you to distraction (though
+in many cases it's [okay to repeat yourself,
+actually](https://programmingisterrible.com/post/176657481103/repeat-yourself-do-more-than-one-thing-and)).
+
+## Your turn: Connecting it back to `fb_vec`
+
+OK, let's see if we can quickly connect the proof we just wrote to one about
+`fb_vec`.   Actually, you know what -- by now you've seen enough proofs that I
+think _you_ should give it a try before continuing! 
+
+Here's the scaffholding to get you started:
 
 ```lean4
-def fb_one (i : Nat) : FB i:=
-    if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
-    if h5 : i % 5 = 0 then FB.Buzz --TODO: ok now which proof here??
-
-i : ℕ
-h15 : ¬i % 15 = 0
-h5 : i % 5 = 0
-⊢ FB i
+theorem thm3 : 
+  ∀ (i n : Nat) (H : i < n), 
+    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.FizzBuzz := by
 ```
 
-Notice that because we're in the "else" branch of the `i % 15 = 0` `if`,
-our `h15` hypothesis is changed!  This makes sense because we know here
-that the first hypothesis must be false, but the `i % 5 = 0` one must
-be true.
+This will involve both rewriting the goal based on `fb_one_to_fb_vec` and
+applying `mod_15_is_fizzbuzz`, the theorem we just proved.
 
-Remember that `lia`, the linear arithmetic solver-backed tactic, is powerful
-enough to derive  `i % 3 ≠ 0 ∧ i % 5 = 0` from what we have in our context.
-So, the proof argument for `FB.Buzz` is simply `by lia`!
+(You might benefit from knowing about the
+[exact](https://lean-lang.org/doc/reference/4.26.0/Tactic-Proofs/Tactic-Reference/#exact)
+tactic: `exact p` completes the proof if `p` is a proof of the goal.  Don't
+forget that a proof can take _arguments_.)
 
-In fact, `lia` will be our workhorse for the remaining two cases:
+OK, here's what _I_ wrote:
 
 ```lean4
-def fb_one (i : Nat) : FB i:=
-    if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
-    if h5 : i % 5 = 0 then FB.Buzz (by lia) else
-    if h3 : i % 3 = 0 then FB.Fizz (by lia) else
-    FB.Num (by lia)
+theorem thm3 : 
+  ∀ (i n : Nat) (H : i < n), 
+    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.FizzBuzz := by
+    intros i n H H3 H5
+    rw [fb_one_to_fb_vec]
+    exact mod_15_is_fizzbuzz (i + 1) H3 H5
 ```
+
+Completing the remaining three theorems is as simple as swapping out the
+appropriate final theorem to apply (e.g. `mod_5_is_buzz` for `thm2`, etc).
+
+## Next time...
+
+This was actually a pretty productive session!  We wrote our Fizzbuzz
+specification and our implementation successfully checks against it.
+
+
