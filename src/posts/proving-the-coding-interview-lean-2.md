@@ -646,6 +646,44 @@ equvialent theorem that relates `fb_vec` to `fb_one` is way easier to write: we
 don't have to bother proving that the length of the returned collection is `n`,
 because in this case Lean can simply "read it off" from the `Vector`'s type.
 
+::: note
+You might be wondering what representation `n` has at runtime - after all, 
+types are usually _erased_ after typechecking, but it doesn't seem as though
+there's anything preventing us from implementing an O(1) length function by
+"extracting" the `n` parameter from the type:
+
+```lean4
+def vlen (_ : Vector α n) : Nat := n
+
+#eval vlen (fb_vec 42) -- produces, unsurprisingly, 42
+```
+
+In dependently-typed languages, we say that in this case `n` is a _relevant_
+parameter to the type.  This means that `n` for `fb_vec 42` needs to be somehow
+retained so that we can extract it out in the subsequent #eval.
+
+Some dependently-typed languages (like Agda) make the programmer decide whether
+a parameter is relevant or irrelevant, whereas others (Idris, if my
+understanding is correct) do a program analysis pass to see if, say, `n` is
+exposed in a computation, like we did with `vlen`.
+
+I'm not exactly sure what Lean does, but, Rocq is kind of like the latter in
+that it distinguishes visibility at the type level: propositions (of type
+`Prop`, which are the types of all our theorems) are _always_ irrelevant and
+thus invisible (which means we can't write programs that, at runtime,
+pattern-match over a logical proposition).  The technical term for this
+is "proof irrelvance".  
+
+My guess is that Lean does a similar thing, but you should let me know if I'm
+wrong.  Inhabitants of types of Non-`Prop` type (which in Rocq are called `Set`
+and in Lean, I think, are called `Type`), may or may not be considered relevant
+and thus have runtime semantics.  If you know, you should also let me know what
+mechanisms Lean can use to retain "42" in the case above - you could imagine,
+for instance, adding a runtime field for `n` for all constructed `Vector`s, or
+perhaps the compiler can constant-fold the literal `42` down.  I don't know but
+I'm curious!
+:::
+
 Here's the full proof.  Clearly `Vector`s give us a lot of built-in mechanism
 to simplify our proofs!
 
