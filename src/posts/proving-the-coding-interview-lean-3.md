@@ -202,6 +202,11 @@ our context, which currently has two goals to prove, and "zooms in" on the
 first one in the list.  (This should remind you of proving a lemma that you've
 defined inline with `have`.)
 
+::: margin-warning
+Since `split` is doing case-analysis on the first `if`, it constructs a new
+hypothesis named `h✝`, which is a terrible, Unicode symbol-laden name!  What's
+worse, `split` seemingly does not let you give it a better name.  Argh.
+:::
 ```lean4
 theorem mod_15_is_fizzbuzz : 
   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
@@ -215,13 +220,16 @@ case pos
 i : ℕ
 H3 : i % 3 = 0
 H5 : i % 5 = 0
-H15 : i % 15 = 0
+h✝ : i % 15 = 0
 ⊢ FB.FizzBuzz = FB.FizzBuzz
 ```
 
 This is the "then" side of the `if` expression: when the conditional `i % 15 =
 0` is true, then `fb_one` produces `FB.FizzBuzz`, which is exactly the
 expression our theorem states it should.  A `rfl` or `simp` is enough here.
+
+(Note that we didn't actually have to use anyhting in our context to prove this
+goal!  The solution was right there in front of us, the whole time.)
 
 ### Proving `false` means hunting for a contradiction
 
@@ -233,7 +241,7 @@ theorem mod_15_is_fizzbuzz :
   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
   intros i H3 H5 
   unfold fb_one
-  split_ifs with H15
+  split
   · rfl 
   · --NEW
 
@@ -546,46 +554,40 @@ is called `all_goals` because it will fail if, say, `simp` failed to apply in
 any of the goaisl.  There's also an `any_goals t` that applies `t` to all
 subgoals, but only fails if _all_ subgoals rejected `t`.)
 
+### `lia` is magic, but opaque if you rely on it too much
+
 This works for all our theorems here: the only thing that changes between them
 is which particular hypothesis we introduce to force the proof by contradiction:
+
+But it turns out we're being more explicit than we need to be: it's actually
+sufficient to just apply `lia` after we unfold, avoiding all the
+case-splitting!
 
 ```lean4
 theorem mod_15_is_fizzbuzz :
   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
   intros i H3 H5
   unfold fb_one
-  split <;> simp
-  have H15 : i % 15 = 0 := by lia
-  contradiction
+  lia
 
 theorem mod_5_is_buzz : 
   ∀ (i : Nat), i % 3 ≠ 0 → i % 5 = 0 → fb_one i = FB.Buzz := by
   intros i H3 H5
   unfold fb_one
-  split <;> simp
-  have H3' : i % 3 = 0 := by lia
-  contradiction
+  lia
   
 theorem mod_3_is_fizz : 
   ∀ (i : Nat), i % 3 = 0 → i % 5 ≠ 0 → fb_one i = FB.Fizz := by
   intros i H3 H5
   unfold fb_one 
-  split <;> simp
-  have H5' : i % 5 = 0 := by lia
-  contradiction
+  lia 
 
 theorem else_is_num : 
   ∀ (i : Nat), i % 3 ≠ 0 → i % 5 ≠ 0 → fb_one i = FB.Num i := by
   intros i H3 H5
   unfold fb_one 
-  split <;> simp
-  have H5' : i % 5 = 0 := by lia
-  contradiction
+  lia
 ```
-
-The amount of repetition here might now be driving you to distraction (though
-in many cases it's [okay to repeat yourself,
-actually](https://programmingisterrible.com/post/176657481103/repeat-yourself-do-more-than-one-thing-and)).
 
 ## Your turn: Connecting it back to `fb_vec`
 
@@ -623,9 +625,122 @@ theorem thm3 :
 Completing the remaining three theorems is as simple as swapping out the
 appropriate final theorem to apply (e.g. `mod_5_is_buzz` for `thm2`, etc).
 
+If you wanted, you could even go one step farther and just inline the
+definition of `mod_15_is_fizzbuzz`:
+
+```lean4
+theorem thm3 : ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.FizzBuzz := by
+    intros i n H H3 H5
+    rw [fb_one_to_fb_vec]
+    unfold fb_one
+    lia
+```
+
+At this point, `lia` handles all the particulars of the proof, so the body of
+all our theorems would be identical! The amount of repetition here might now be
+driving you to distraction (though in many cases it's [okay to repeat yourself,
+actually](https://programmingisterrible.com/post/176657481103/repeat-yourself-do-more-than-one-thing-and)), so you might argue that this is okay.  
+
+::: margin-note
+I've never actually observed this in practice, but another argument against
+this kind of proof is that there are performance considerations to handing off
+the proof to automated tactics like `simp` and `lia`.  Being explicit not only
+means it's clearer for you, the reader, but the typechecker doesn't have to go
+off and do some proof search through all the in-scope theorems to figure it out
+either.  There can be, in theory, serious performance consequences to this.
+
+This is notably an issue with writing real software in Dafny, which of course
+tries to be as automated as possible by default; a [popular research
+paper](https://www.andrew.cmu.edu/user/bparno/papers/ironfleet.pdf) that
+implemented verified distributed systems in Dafny reports that they had to
+do the opposite to what we've just done: they had to manually hide definitions
+from Dafny's prover to avoid doing more proof search than necessary.
+
+An interesting tradeoff!
+:::
+
+Short as it is, I actually like this proof a lot less, though, since it's a lot
+more mysterious to the reader about _why_ the proof is correct. Sure, it relies
+on some property of linear arithmetic, because we're using `lia`, but beyond
+that, I don't think I could explain this proof to another person; reading this
+proof without the context of us starting with the longer one feels like when
+you see a bit-twiddling hack - totally opaque as to how the programmer derived
+it!  I likely could explain the longer one, though.
+
+It all goes back to who your audience is!  If you're writing these proofs
+strictly for the typechecker, then fine, go with the shortest, most opaque
+proof; heck, at that point, run a code golf competition and see who on your
+team can find the shortest proof.  If you want to use the specification as an
+implementation and debugging aid, though, maybe you want to optimise for
+something other than character count.
+
 ## Next time...
+
+OK, here's our implementation and specification:
+
+```lean4
+import Mathlib.Data.Nat.Basic
+
+inductive FB : Type where
+  | Fizz
+  | Buzz
+  | FizzBuzz
+  | Num (i : Nat)
+
+instance : ToString FB where
+  toString fb := match fb with
+    | .Fizz => "Fizz"
+    | .Buzz => "Buzz"
+    | .FizzBuzz => "Fizzbuzz"
+    | .Num i => toString i
+
+def fb_one (i : Nat) :=
+    if i % 15 = 0 then FB.FizzBuzz else
+    if i % 5 = 0 then FB.Buzz else
+    if i % 3 = 0 then FB.Fizz else
+    FB.Num i
+
+def fb_vec (n : Nat) : Vector FB n :=
+  Vector.range' 1 n |> Vector.map fb_one
+
+-- specification
+
+theorem fb_one_to_fb_vec :
+    ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (i + 1) := by
+  intros i n h
+  unfold fb_vec; simp
+  rw [Nat.add_comm]
+    
+theorem thm1 : ∀ (i n : Nat) (H : i < n),
+  (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by
+  intros i n H H3 H5
+  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+
+theorem thm2 : 
+    ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 ≠ 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.Buzz := by
+  intros i n H H3 H5
+  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+
+theorem thm3 : 
+    ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.FizzBuzz := by
+  intros i n H H3 H5
+  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+
+theorem thm4 : 
+    ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 ≠ 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Num (i + 1) := by
+  intros i n H H3 H5
+  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+```
 
 This was actually a pretty productive session!  We wrote our Fizzbuzz
 specification and our implementation successfully checks against it.
 
-
+We found our specification ended up being pretty tedious, though, because we
+had a bunch of work to verify that, in essence, we were constructing valid `FB`
+values in the right setting.  Next time, we'll see how we can improve this and
+maybe converge on an implementation and specification that is both succinct
+as well as clear to the reader!
