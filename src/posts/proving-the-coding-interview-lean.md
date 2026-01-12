@@ -10,11 +10,11 @@ excerpt: "Is Fizzbuzz easier to write in Lean, or just differently hard?"
 _This is part of an ongoing introduction to Lean 4 series_: 
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
-  * Part three - completing the spec with tactics combinators
+  * Part three - completing the spec with tactic combinators
   * Part four - certified programming with proof carrying code
 
 All previous Proving The Coding Interview posts can be found
-[here](http://localhost:8080/tags/provingthecodinginterview/).
+[here](/tags/provingthecodinginterview/).
 :::
 
 Back in grad school, I ran a [directed reading

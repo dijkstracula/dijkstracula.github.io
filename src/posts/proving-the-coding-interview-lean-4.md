@@ -11,11 +11,11 @@ draft: true
 _This is part of an ongoing introduction to Lean 4 series_: 
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
-  * [Part three - completing the spec with tactics combinators](/posts/proving-the-coding-interview-lean-3).
-  * [Part four - proof-carrying code](/posts/proving-the-coding-interview-lean-4).
+  * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
+  * [Part four - proof-carrying code](/posts/proving-the-coding-interview-lean-4)
 
 All previous Proving The Coding Interview posts can be found
-[here](http://localhost:8080/tags/provingthecodinginterview/).
+[here](/tags/provingthecodinginterview/).
 :::
 
 ## A proof-carrying FB

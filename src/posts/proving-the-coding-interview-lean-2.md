@@ -1,7 +1,7 @@
 ---
 layout: post.njk
 title: "Leaning Into the Coding Interview 2: static bounds checks and dependent types"
-date: 2026-01-09T00:00:00-05:00
+date: 2026-01-11T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Pls types?  No terms!  Only (indexed, dependent) types!"
 ---
@@ -10,11 +10,11 @@ excerpt: "Pls types?  No terms!  Only (indexed, dependent) types!"
 _This is part of an ongoing introduction to Lean 4 series_: 
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
-  * Part three - completing the spec with tactics combinators
+  * Part three - completing the spec with tactic combinators
   * Part four - certified programming with proof carrying code
 
 All previous Proving The Coding Interview posts can be found
-[here](http://localhost:8080/tags/provingthecodinginterview/).
+[here](/tags/provingthecodinginterview/).
 :::
 
 In an [earlier](/posts/proving-the-coding-interview-lean/) post, we learned a
