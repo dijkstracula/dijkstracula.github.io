@@ -18,15 +18,24 @@ All previous Proving The Coding Interview posts can be found
 [here](/tags/provingthecodinginterview/).
 :::
 
+Last time we finished our Fizzbuzz specification, so we're arguably done with
+this series!
+
+In this lagniappe of a final post, I wanted to experiment with an alternate way
+of implementing the problem that more aggressively leverages the features of 
+dependent types.  By the end of the post, we'll hopefully have an opinion on
+whether we've improved our design or not!
+
 ## A proof-carrying FB
 
 Last time we looked at the data definition of `Vector a n`, and saw that it was
-a structure containing its runtime data (the backing `Array a` of elements) and
-a compile time-only proof relating the size of the array to `n`.  One way to
-think about this data type is that every instance carries that proof along with
-it (in practice, remember that owing to _proof irrelevance_, these sorts of
-logica propositions get erased after typechecking, so these statements aren't
-actually stored in memory and carried around as the program runs.)
+a structure type containing its runtime data (the backing `Array a` of
+elements) and a compile time-only proof relating the size of the array to `n`.
+One way to think about this data type is that every `Vector` instance carries
+that proof along with it (in practice, remember that owing to _proof
+irrelevance_, these sorts of logical propositions get erased after
+typechecking, so these statements aren't actually stored in memory and carried
+around as the program runs.)
 
 We can do the same thing with the `FB` type.  Currently it's not
 dependently-typed (it isn't even polymorphic), but imagine if we made it thus:
@@ -62,8 +71,8 @@ instance (i : Nat) : ToString (FB i) where
 
 The proof associated with each `FB` constructor is the evidence for that
 contructor: it's not enough to simply construct some particular `FB i` like
-`Fizzbuzz : FB 15`; we have to provide proof to the type system that our
-choice of `i` is a correct one.
+`Fizzbuzz : FB 15`; we have to provide proof (in the sense of providing _a
+proof_!) to the type system that our choice of `i` is a correct one.
 
 We can see this in action in our IDE: if we define a variable representing
 what should be our 42nd entry in our produced Vector, what type should it
@@ -106,6 +115,11 @@ out `simp` is smart enough to simplify this down too!
 ```lean4
 def my_favourite_fb : FB 42 := FB.Fizz (by simp)
 ```
+
+This maybe gives us a sense of what the `by` keyword is all about: we've seen
+it start the proofs of all our theorems: `by` drops us into _tactics mode_ for
+the remainder of the current expression.  (This means we can prove a theorem
+_without_ `by`; maybe we'll see an example of that someday.)
 
 If I forgot my multiples of three and tried to define a `FB 42` with the
 `FB.Fizzbuzz` constructor instead, what do I get, by contrast?  Lean gives us

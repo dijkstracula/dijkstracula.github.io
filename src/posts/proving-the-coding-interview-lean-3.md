@@ -638,9 +638,11 @@ theorem thm3 : ∀ (i n : Nat) (H : i < n),
 ```
 
 At this point, `lia` handles all the particulars of the proof, so the body of
-all our theorems would be identical! The amount of repetition here might now be
-driving you to distraction (though in many cases it's [okay to repeat yourself,
-actually](https://programmingisterrible.com/post/176657481103/repeat-yourself-do-more-than-one-thing-and)), so you might argue that this is okay.  
+all our four theorems would be identical! The amount of repetition here might
+now be driving you to distraction (though in many cases it's [okay to repeat
+yourself,
+actually](https://programmingisterrible.com/post/176657481103/repeat-yourself-do-more-than-one-thing-and)),
+so you might argue that this is okay.  
 
 ::: margin-note
 I've never actually observed this in practice, but another argument against
@@ -675,6 +677,65 @@ team can find the shortest proof.  If you want to use the specification as an
 implementation and debugging aid, though, maybe you want to optimise for
 something other than character count.
 
+## Adding our own definitions to `simp`'s proof search
+
+That said, let's see what we can do to reduce the amount of _nontrivial_
+boilerplate in our four main theorems.  Those nontrivial things are twofold: we
+have to explicitly tell Lean that:
+
+1) expanding the definition of `fb_one` simplifies our goal;
+2) rewriting the equality in `fb_one_to_fb_vec` simplifies our goal.
+
+The `@[simp]` annotation can be placed on definitions of functions and
+theorems; adding it means that definition will be added to Lean's proof
+search database.
+
+```lean4
+@[simp] -- NEW: `simp` will try to unfold this def'n when appropriate
+def fb_one (i : Nat) :=
+    if i % 15 = 0 then FB.FizzBuzz else
+    if i % 5 = 0 then FB.Buzz else
+    if i % 3 = 0 then FB.Fizz else
+    FB.Num i
+
+@[simp] --NEW: `simp` will attempt to apply this theorem when appropriate
+theorem fb_one_to_fb_vec :
+    ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (i + 1) := by
+  intros i n h
+  unfold fb_vec
+  simp
+  rw [Nat.add_comm]
+```
+
+(We say that `fb_one_to_fb_vec`, as well as the equality relating the function
+name `fb_one` to its body, have become "simp lemmas".)
+
+This _really_ pays off in our four main specification theorem: the only
+thing they have to do now is introduce the relevant hypotheses, simplify
+the goal, and tidy up the linear arithmetic with `lia`!
+
+::: margin-note
+As you can imagine, adding new facts to the proof database could have some real
+performance impacts, so `@[simp]` adds pretty restricted rewrite rules.
+It happens to work out of the box here but more complicated rewrites might
+require variations on the annotation.  You might need to use a variant of the
+annotation, or in the worst case [write your
+own](https://leanprover-community.github.io/mathlib_docs/commands.html#mk_simp_attribute)!
+:::
+```lean4
+theorem thm1 : ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by
+    intros; 
+    simp; -- NEW: No need to rewrite `fb_one_to_fb_vec` or unfold `fb_one`!
+    lia
+```
+
+Could we have _also_, in order to simplify `fb_one_to_fb_vec`, tagged `fb_vec`
+as `@[simp]`?  For sure.  But, I like leaving the proofs that are more integral
+to the implementation explicit, and only relying on the mechanics of
+proof automation when there's tonnes of repetition, or when being explicit
+doesn't elucidate the thinking behind the proof.
+
 ## Next time...
 
 OK, here's our implementation and specification:
@@ -695,45 +756,39 @@ instance : ToString FB where
     | .FizzBuzz => "Fizzbuzz"
     | .Num i => toString i
 
-def fb_one (i : Nat) :=
-    if i % 15 = 0 then FB.FizzBuzz else
-    if i % 5 = 0 then FB.Buzz else
-    if i % 3 = 0 then FB.Fizz else
-    FB.Num i
+@[simp] def fb_one (i : Nat) :=
+  if i % 15 = 0 then FB.FizzBuzz else
+  if i % 5 = 0 then FB.Buzz else
+  if i % 3 = 0 then FB.Fizz else
+  FB.Num i
 
 def fb_vec (n : Nat) : Vector FB n :=
   Vector.range' 1 n |> Vector.map fb_one
 
 -- specification
 
-theorem fb_one_to_fb_vec :
+@[simp] theorem fb_one_to_fb_vec :
     ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (i + 1) := by
   intros i n h
-  unfold fb_vec; simp
+  unfold fb_vec
+  simp
   rw [Nat.add_comm]
     
 theorem thm1 : ∀ (i n : Nat) (H : i < n),
-  (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by
-  intros i n H H3 H5
-  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+    (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by
+  intros; simp; lia 
 
-theorem thm2 : 
-    ∀ (i n : Nat) (H : i < n),
+theorem thm2 : ∀ (i n : Nat) (H : i < n),
     (i + 1) % 3 ≠ 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.Buzz := by
-  intros i n H H3 H5
-  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+  intros; simp; lia 
 
-theorem thm3 : 
-    ∀ (i n : Nat) (H : i < n),
+theorem thm3 : ∀ (i n : Nat) (H : i < n),
     (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.FizzBuzz := by
-  intros i n H H3 H5
-  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+  intros; simp; lia 
 
-theorem thm4 : 
-    ∀ (i n : Nat) (H : i < n),
+theorem thm4 : ∀ (i n : Nat) (H : i < n),
     (i + 1) % 3 ≠ 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Num (i + 1) := by
-  intros i n H H3 H5
-  rw [fb_one_to_fb_vec]; unfold fb_one; lia
+  intros; simp; lia
 ```
 
 This was actually a pretty productive session!  We wrote our Fizzbuzz
