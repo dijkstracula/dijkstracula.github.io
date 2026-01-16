@@ -127,14 +127,18 @@ that verifying our implementation against this specification can help me get
 this right!
 :::
 
-## A starting non-solution solution
-
-::: margin-note
 A note to the Lean experts: I'm new to the language and most of my proof
 assistant experience has been in Coq, and I'll be avoiding opaque `crunch`-like
 automated tactics and tacticals in favour of clear and explicit steps, so
 please don't get too upset if my solution here is not super idomatic or
 character-count optimised!
+
+## A starting non-solution solution
+
+::: margin-note
+Another note to the Lean experts: I'm conflating `=` (propositional equality)
+with `==` (boolean equality) in this implementation because I don't want to get
+too in the weeds with `beq_iff_eq` bridges.
 :::
 If you're comfortable with more, ahem, "popular" functional languages like
 Scala or OCaml, you might write Fizzbuzz in such a way:
