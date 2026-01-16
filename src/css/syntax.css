@@ -62,15 +62,17 @@
     margin-top: 3rem;
 }
 
-/* On smaller screens, display inline */
+/* On smaller screens, display inline with visual distinction */
 @media (max-width: 1200px) {
     .callout-margin {
         position: static;
         right: auto;
         width: auto;
-        margin: 1.5rem 0;
+        margin: 1.5rem 0 1.5rem 2rem;
         padding: 1rem 1.5rem;
-        font-size: 1rem;
+        font-size: 0.95rem;
+        border-left: 3px solid var(--pico-primary);
+        font-style: italic;
     }
 }
 
