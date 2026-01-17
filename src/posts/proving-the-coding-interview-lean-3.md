@@ -766,7 +766,19 @@ Tactic `isl` has not been implemented
 ```
 :::
 
-Sensible error message.  Let's go ahead and give `isl` meaning.  TODO
+Sensible error message.  Let's go ahead and give `isl` meaning.  `macro_rules`
+is a command that lets us specify syntactic patterns to match on, and to indicate
+how a matching pattern should be transformed.  Our goal here is to transform
+`isl` into `intros; simp; lia`:
+
+```lean4
+macro_rules
+| `(tactic| isl) => `(tactic| intros; simp; lia)
+```
+
+If this reminds you of the syntax of a pattern match, I'm sure this is by
+design! With our macro defined, we can now change the proof of all our theorems
+into a single `isl` call.
 
 ## Next time...
 
@@ -799,6 +811,11 @@ def fb_vec (n : Nat) : Vector FB n :=
 
 -- specification
 
+syntax (name := isl) "isl" : tactic
+
+macro_rules
+| `(tactic| isl) => `(tactic| intros; simp; lia)
+
 @[simp] theorem fb_one_to_fb_vec :
     ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (i + 1) := by
   intros i n h
@@ -807,20 +824,16 @@ def fb_vec (n : Nat) : Vector FB n :=
   rw [Nat.add_comm]
     
 theorem thm1 : ∀ (i n : Nat) (H : i < n),
-    (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by
-  intros; simp; lia 
+    (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by isl
 
 theorem thm2 : ∀ (i n : Nat) (H : i < n),
-    (i + 1) % 3 ≠ 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.Buzz := by
-  intros; simp; lia 
+    (i + 1) % 3 ≠ 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.Buzz := by isl
 
 theorem thm3 : ∀ (i n : Nat) (H : i < n),
-    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.FizzBuzz := by
-  intros; simp; lia 
+    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → (fb_vec n)[i]'H = FB.FizzBuzz := by isl
 
 theorem thm4 : ∀ (i n : Nat) (H : i < n),
-    (i + 1) % 3 ≠ 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Num (i + 1) := by
-  intros; simp; lia
+    (i + 1) % 3 ≠ 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Num (i + 1) := by isl
 ```
 
 This was actually a pretty productive session!  We wrote our Fizzbuzz
