@@ -19,12 +19,255 @@ All previous Proving The Coding Interview posts can be found
 :::
 
 Last time we finished our Fizzbuzz specification, so we're arguably done with
-this series!
+this series!  Even with a problem as silly as Fizzbuzz, though, there's still
+plenty of interesting avenues to go down.
 
 In this lagniappe of a final post, I wanted to experiment with an alternate way
-of implementing the problem that more aggressively leverages the features of 
+of implementing the problem that more aggressively leverages the features of
 dependent types.  By the end of the post, we'll hopefully have an opinion on
 whether we've improved our design or not!
+
+## Proving two implementations are equal
+
+You and I might well have arrived at different implementations of our `fb_one`
+functions.  Stephen Diehl's superb [From Zero To
+One](https://sdiehl.github.io/zero-to-qed/07_control_flow.html#fizzbuzz) page
+has a different but probably-equivalent implementation to ours:
+
+```lean4
+def fb_one_sdiehl (n : Nat) : String :=
+  match n % 3 == 0, n % 5 == 0 with
+  | true,  true  => "FizzBuzz"
+  | true,  false => "Fizz"
+  | false, true  => "Buzz"
+  | false, false => toString n
+
+def fb_one_ntaylor (i : Nat) : String :=
+  if i % 3 = 0 ∧ i % 5 = 0 then "Fizzbuzz" else
+  if i % 5 = 0 then "Buzz" else
+  if i % 3 = 0 then "Fizz" else
+  Nat.repr i
+```
+
+::: margin-note
+I'm going back to our original version that returned a String rather than a
+`FB`, to simplify the proof and to make the (spoiler alert!) counterexample we
+get back more obvious, though you can certainly write your own version that
+proves that `toString (fb_one i) = fb_one_sdiehl i`.
+:::
+It doesn't look all that different to ours - at a quick glance, it uses a
+`match` statement instead of our `if`-ladder, and calls `Nat.repr` instead of
+using the `ToString` typeclass, but we should be somewhat convinced that no
+matter what `Nat` we give it, we'll get the same String returned to us.
+
+In most languages, it doesn't even make sense to ask what two functions being
+"equal" means - in C, we could certainly compare a _function pointer_ for
+referential equality, but that's as good as we can do statically.  Conceptually
+we'd have to "run the functions on all inputs" and manually validate that the
+returned values are the same.  (The "two functions are the same if you get the
+same output for the same input" is called _function extensionality_, or
+sometimes _pointwise equality_.) But, in the presence of mutable state, we'd
+have to also make sure that their _side effects_ are also "equal" (whatever
+that means??)
+
+Lean, of course, doesn't have side effects.  And, we've seen the power that
+one gains by having a theorem prover write statements about programs.  It
+turns out that function extensionality _is_ a notion Lean is familiar with,
+and we can write proofs to that effect!
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
+  intros i
+
+1 goal
+i : ℕ
+⊢ fb_one_ntaylor i = fb_one_sdiehl i
+```
+
+::: margin-note
+Technically I did think of applying
+[funext](https://lean-lang.org/doc/reference/latest/The-Type-System/Functions/#funext),
+but let's pretend I don't know about that one.
+:::
+We've heard this song before.  I can't think of anything else to do but
+`unfold` our two implementations.
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
+  intros i
+  unfold fb_one_ntaylor --NEW
+  unfold fb_one_sdiehl  --NEW
+
+1 goal
+i : ℕ
+⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "Fizzbuzz" else 
+   if i % 5 = 0 then "Buzz" else 
+   if i % 3 = 0 then "Fizz" else 
+   i.repr) =
+  match i % 3 == 0, i % 5 == 0 with
+  | true, true => "FizzBuzz"
+  | true, false => "Fizz"
+  | false, true => "Buzz"
+  | false, false => toString i
+```
+
+Now's a good time to handle one of our differences: `fb_one_sdiehl` converts
+`i` to a string by `Nat.repr` whereas we used `Nat.toString`.  Luckily,
+even though those functions are not nominally the same, it's a simple matter
+to `have` a theorem that states they are, and `rfl` is enough to prove it.
+Then we can rewrite `toString` away using that theorem.
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_sdiehl
+  have repr_eq : toString i = Nat.repr i := by rfl -- NEW
+  rw [repr_eq] --NEW
+
+1 goal
+i : ℕ
+repr_eq : toString i = i.repr
+⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "Fizzbuzz" else 
+   if i % 5 = 0 then "Buzz" else 
+   if i % 3 = 0 then "Fizz" else 
+   i.repr) =
+  match i % 3 == 0, i % 5 == 0 with
+  | true, true => "FizzBuzz"
+  | true, false => "Fizz"
+  | false, true => "Buzz"
+  | false, false => i.repr
+```
+
+### `repeat` reapplies a tactic until the goal stops changing
+
+Remember from last time that `split` decomposed the goal into different paths
+that the progrma could go down; we used this while proving `mod_15_is_fizzbuzz`.
+Our goal here is to keep `split`ting the `if` ladder until we've decomposed all
+the code paths into subgoals.  `repeat` is a tactical that will do this for us:
+it takes as argument a tactic, and keeps applying it until it reaches a _fixpoint_
+(in other words, the goal stops changing.)
+
+This expands out to, after trivial auto-simplification, six subgoals:
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_sdiehl
+  have repr_eq : toString i = Nat.repr i := by rfl
+  rw [repr_eq]
+  repeat split -- NEW
+
+6 goals
+case isTrue
+i : ℕ
+repr_eq : toString i = i.repr
+h✝ : i % 3 = 0 ∧ i % 5 = 0
+⊢ "Fizzbuzz" =
+  match i % 3 == 0, i % 5 == 0 with
+  | true, true => "FizzBuzz"
+  | true, false => "Fizz"
+  | false, true => "Buzz"
+  | false, false => i.repr
+
+...
+
+case isFalse.isFalse.isFalse
+i : ℕ
+repr_eq : toString i = i.repr
+h✝² : ¬(i % 3 = 0 ∧ i % 5 = 0)
+h✝¹ : ¬i % 5 = 0
+h✝ : ¬i % 3 = 0
+⊢ i.repr =
+  match i % 3 == 0, i % 5 == 0 with
+  | true, true => "FizzBuzz"
+  | true, false => "Fizz"
+  | false, true => "Buzz"
+  | false, false => i.repr
+```
+
+So far that looks good: we have banished the `if` ladder from our goal, at the
+expense of having a bunch of subgoals to prove individually.  Now we need to,
+for every subgoal, `repeat split` the _match_ expression away. Recall the `<;>`
+"xargs" tactical that will do this for us:
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_sdiehl
+  have repr_eq : toString i = Nat.repr i := by rfl
+  rw [repr_eq]
+  repeat split <;> repeat split --NEW
+
+5 goals
+case h_1
+i : ℕ
+repr_eq : toString i = i.repr
+h✝ : i % 3 = 0 ∧ i % 5 = 0
+x✝¹ x✝ : Bool
+heq✝¹ : (i % 3 == 0) = true
+heq✝ : (i % 5 == 0) = true
+⊢ "Fizzbuzz" = "FizzBuzz"
+
+case h_2
+i : ℕ
+repr_eq : toString i = i.repr
+h✝ : i % 3 = 0 ∧ i % 5 = 0
+x✝¹ x✝ : Bool
+heq✝¹ : (i % 3 == 0) = true
+heq✝ : (i % 5 == 0) = false
+⊢ "Fizzbuzz" = "Fizz"
+...
+```
+
+Great!  Looks like we have either trivial goals (like in `h_1`) or obvious
+contradictions involving modular arithmetic in our proof context.  We know
+`lia` can handle both of those situations, so that tactic should let us prove
+all our subgoals!  Let's try that and declare victory:
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_sdiehl
+  have repr_eq : toString i = Nat.repr i := by rfl
+  rw [repr_eq]
+  repeat split <;> repeat split <;> lia --NEW 
+
+unsolved goals
+case h_1
+i : ℕ
+repr_eq : toString i = i.repr
+h✝ : i % 3 = 0 ∧ i % 5 = 0
+x✝¹ x✝ : Bool
+heq✝¹ : (i % 3 == 0) = true
+heq✝ : (i % 5 == 0) = true
+⊢ "Fizzbuzz" = "FizzBuzz"
+```
+
+Wait, why didn't all our goals discharge...?
+
+D'oh!!!  Stephen spelled his string "FizzBuzz", whereas I used a lowercase 'b'.
+Not a bad reason to model your domain more abstractly (as we did with the `FB`
+datatype), to avoid silly irrelevant string differences like this!  Yet another
+reason why as an interview problem this is a clasically-bad one.  Does our
+choice of capitalisation _really_ matter that much?
+
+(By making this correction in either function, we get to see the final goal
+solved and enjoy the "No goals" message in our editor.)
+
+::: note
+Interestingly, it seems like Dafny does _not_ support the notion of function
+extensionality, so making the equivalent statement in Dafny wouldn't be
+possible.  Given that we're free to mutate state in Dafny programs, maybe this
+shouldn't come as a surprise to us.  There could well be other factors that
+limit extensionality -- maybe there's some aspect of how Dafny's solver models
+functions? -- but I'm not sure.  Again, interesting tradeoff between the two
+languages, the style of programming they allow, and the second-order effects
+of those design choices.
+:::
 
 ## A proof-carrying FB
 
