@@ -27,6 +27,59 @@ of implementing the problem that more aggressively leverages the features of
 dependent types.  By the end of the post, we'll hopefully have an opinion on
 whether we've improved our design or not!
 
+## What if we'd gotten the implementation wrong?
+
+It's all fine and well if we prove something about an implementation we already
+knew was correct.  Let's introduce a bug into `fb_one` and see how our proof
+goes awry:
+
+```lean4
+def fb_one (i : Nat) :=
+    if i % 5 = 0 then FB.Buzz else       -- NEW: This line and the line below
+    if i % 15 = 0 then FB.FizzBuzz else  -- it were flipped!
+    if i % 3 = 0 then FB.Fizz else
+    FB.Num i
+...
+```
+
+Hopefully you can see what goes wrong here: we'll never print out `FizzBuzz`
+because the earlier `i % 5 = 0` check will satisfy cases where `i` is also
+divisible by 15.
+
+So what goes wrong when we try and prove our earlier theorem with a broken
+implementation?  We'll hit a snag when it comes time to split on all the nested
+`if`s:
+
+```lean4
+theorem mod_15_is_fizzbuzz : 
+  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+  intros i H3 H5
+  unfold fb_one
+  split
+  · 
+
+1 goal
+i : ℕ
+H3 : i % 3 = 0
+H5 : i % 5 = 0
+⊢ FB.Buzz = FB.FizzBuzz
+```
+
+We could, as before, apply `simp` to turn that obviously-false equality into
+`False`, and then seeing about doing another proof by contradiction.  The
+problem is: we don't have anything in our context that leads to a
+contradiction, and so we're stuck!  We simply cannot proceed with proving
+this proof.  This makes sense when you consider that the statement we're trying
+to prove is fundamentally unsolvable.
+
+You might remember that when we broke our Dafny implementation in a similar way
+we got a lovely counterexample back from the solver.  Here we're not so lucky;
+we don't get an _error_, per se, so much as just a partial proof that's
+impossible to prove.  Just like with pen and paper proofs, you have to think
+really hard about whether you've missed a strategy to prove something that's
+actually correct, or if you've exhausted all the options proving something
+that's ultimately wrong.
+
 ## Proving two implementations are equal
 
 You and I might well have arrived at different implementations of our `fb_one`
@@ -70,6 +123,10 @@ sometimes _pointwise equality_.) But, in the presence of mutable state, we'd
 have to also make sure that their _side effects_ are also "equal" (whatever
 that means??)
 
+Even if we considered non-local mutation out of scope, most languages don't
+give us much more robust mechanisms than property-based testing to
+(probabilistically) validate statements of equivalence like this.
+
 Lean, of course, doesn't have side effects.  And, we've seen the power that
 one gains by having a theorem prover write statements about programs.  It
 turns out that function extensionality _is_ a notion Lean is familiar with,
@@ -77,7 +134,7 @@ and we can write proofs to that effect!
 
 ```lean4
 theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
-  intros i
+  intros i --NEW
 
 1 goal
 i : ℕ
@@ -160,18 +217,19 @@ theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
   repeat split -- NEW
 
 6 goals
-case isTrue
+...
+case isFalse.isFalse.isTrue
 i : ℕ
 repr_eq : toString i = i.repr
-h✝ : i % 3 = 0 ∧ i % 5 = 0
-⊢ "Fizzbuzz" =
+h✝² : ¬(i % 3 = 0 ∧ i % 5 = 0)
+h✝¹ : ¬i % 5 = 0
+h✝ : i % 3 = 0
+⊢ "Fizz" =
   match i % 3 == 0, i % 5 == 0 with
   | true, true => "FizzBuzz"
   | true, false => "Fizz"
   | false, true => "Buzz"
   | false, false => i.repr
-
-...
 
 case isFalse.isFalse.isFalse
 i : ℕ
@@ -189,8 +247,9 @@ h✝ : ¬i % 3 = 0
 
 So far that looks good: we have banished the `if` ladder from our goal, at the
 expense of having a bunch of subgoals to prove individually.  Now we need to,
-for every subgoal, `repeat split` the _match_ expression away. Recall the `<;>`
-"xargs" tactical that will do this for us:
+for every subgoal, `repeat split` the _match_ expression away (and, again,
+discharging goals that are trivially provable). Recall the `<;>` "xargs"
+tactical that will do this for us:
 
 ```lean4
 theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
@@ -201,31 +260,35 @@ theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
   rw [repr_eq]
   repeat split <;> repeat split --NEW
 
-5 goals
-case h_1
-i : ℕ
-repr_eq : toString i = i.repr
-h✝ : i % 3 = 0 ∧ i % 5 = 0
-x✝¹ x✝ : Bool
-heq✝¹ : (i % 3 == 0) = true
-heq✝ : (i % 5 == 0) = true
-⊢ "Fizzbuzz" = "FizzBuzz"
-
-case h_2
-i : ℕ
-repr_eq : toString i = i.repr
-h✝ : i % 3 = 0 ∧ i % 5 = 0
-x✝¹ x✝ : Bool
-heq✝¹ : (i % 3 == 0) = true
-heq✝ : (i % 5 == 0) = false
-⊢ "Fizzbuzz" = "Fizz"
+20 goals
 ...
+case h_3
+i : ℕ
+repr_eq : toString i = i.repr
+h✝² : ¬(i % 3 = 0 ∧ i % 5 = 0)
+h✝¹ : ¬i % 5 = 0
+h✝ : ¬i % 3 = 0
+x✝¹ x✝ : Bool
+heq✝¹ : (i % 3 == 0) = false
+heq✝ : (i % 5 == 0) = true
+⊢ i.repr = "Buzz"
+
+case h_4
+i : ℕ
+repr_eq : toString i = i.repr
+h✝² : ¬(i % 3 = 0 ∧ i % 5 = 0)
+h✝¹ : ¬i % 5 = 0
+h✝ : ¬i % 3 = 0
+x✝¹ x✝ : Bool
+heq✝¹ : (i % 3 == 0) = false
+heq✝ : (i % 5 == 0) = false
+⊢ i.repr = i.repr
 ```
 
-Great!  Looks like we have either trivial goals (like in `h_1`) or obvious
-contradictions involving modular arithmetic in our proof context.  We know
-`lia` can handle both of those situations, so that tactic should let us prove
-all our subgoals!  Let's try that and declare victory:
+Great!  Looks like we have either trivial goals (like in `h_4`) or obvious
+contradictions (like in `h_3`) involving modular arithmetic in our proof
+context.  We know `lia` can handle both of those situations, so that tactic
+should let us prove all our subgoals!  Let's try that and declare victory:
 
 ```lean4
 theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
@@ -249,7 +312,11 @@ heq✝ : (i % 5 == 0) = true
 
 Wait, why didn't all our goals discharge...?
 
-D'oh!!!  Stephen spelled his string "FizzBuzz", whereas I used a lowercase 'b'.
+::: margin-note
+If you spotted this difference already, well, good for you.
+:::
+D'oh!!!  Stephen spelled his string "FizzBuzz", whereas I used a lowercase 'b!
+
 Not a bad reason to model your domain more abstractly (as we did with the `FB`
 datatype), to avoid silly irrelevant string differences like this!  Yet another
 reason why as an interview problem this is a clasically-bad one.  Does our

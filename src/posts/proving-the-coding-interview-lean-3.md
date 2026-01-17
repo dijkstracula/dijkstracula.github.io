@@ -396,59 +396,6 @@ theorem mod_15_is_fizzbuzz :
 Goals accomplished!
 ```
 
-## What if we'd gotten the implementation wrong?
-
-It's all fine and well if we prove something about an implementation we already
-knew was correct.  Let's introduce a bug into `fb_one` and see how our proof
-goes awry:
-
-```lean4
-def fb_one (i : Nat) :=
-    if i % 5 = 0 then FB.Buzz else       -- NEW: This line and the line below
-    if i % 15 = 0 then FB.FizzBuzz else  -- it were flipped!
-    if i % 3 = 0 then FB.Fizz else
-    FB.Num i
-...
-```
-
-Hopefully you can see what goes wrong here: we'll never print out `FizzBuzz`
-because the earlier `i % 5 = 0` check will satisfy cases where `i` is also
-divisible by 15.
-
-So what goes wrong when we try and prove our earlier theorem with a broken
-implementation?  We'll hit a snag when it comes time to split on all the nested
-`if`s:
-
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5
-  unfold fb_one
-  split
-  · 
-
-1 goal
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-⊢ FB.Buzz = FB.FizzBuzz
-```
-
-We could, as before, apply `simp` to turn that obviously-false equality into
-`False`, and then seeing about doing another proof by contradiction.  The
-problem is: we don't have anything in our context that leads to a
-contradiction, and so we're stuck!  We simply cannot proceed with proving
-this proof.  This makes sense when you consider that the statement we're trying
-to prove is fundamentally unsolvable.
-
-You might remember that when we broke our Dafny implementation in a similar way
-we got a lovely counterexample back from the solver.  Here we're not so lucky;
-we don't get an _error_, per se, so much as just a partial proof that's
-impossible to prove.  Just like with pen and paper proofs, you have to think
-really hard about whether you've missed a strategy to prove something that's
-actually correct, or if you've exhausted all the options proving something
-that's ultimately wrong.
-
 ## Simplifying our proofs with tactics combinators
 
 Before proceeding, you should try and write the equivalent theorems
@@ -512,7 +459,7 @@ functional programming is a higher-order function that combines, manipulates,
 or produces functions, a tactical lets us compose multiple tactics into new
 ones.
 
-### `all_goals`, `any_goals`, and `;` apply a tactic to all the open subgoals
+### `all_goals`, `any_goals`, and `<;>` apply a tactic to all the open subgoals
 
 Here's a useful observation: For the contradictory subgoal, we always start by
 applying `simp`, and while we use `rfl` for the trivial subgoal, `simp` is
@@ -542,17 +489,21 @@ h✝ : ¬i % 15 = 0
 ⊢ False
 ```
 
-::: margin-note
-It's common enough in proofs to "create a bunch of subgoals, and then apply the
-same tactics to all the goals" that there's a nice shorthand for this: `t1 <;>
-t2` first performs `t1`, and then for however many subgoals exist afterwards,
-`t2` is applied to those.  (`<;>`'s a bit like `xargs(1)` in that sense.)
-:::
 As we expected, the trivial goal has been eliminated completely, and we see the
 result of the simplification on the remaining contradictory goal.  (This tactic
 is called `all_goals` because it will fail if, say, `simp` failed to apply in
 any of the goaisl.  There's also an `any_goals t` that applies `t` to all
 subgoals, but only fails if _all_ subgoals rejected `t`.)
+
+::: margin-note
+Don't confuse `<;>` with `;`, which just lets us have multiple separate tactics
+appear on the same line.
+:::
+It's common enough in proofs to "create a bunch of subgoals, and then apply the
+same tactics to all the goals" that there's a nice shorthand for this: `t1 <;>
+t2` first performs `t1`, and then for however many subgoals exist afterwards,
+`t2` is applied to those.  You can think of it as similar to `t1 ; all_goals
+t2`. (`<;>`'s a bit like `xargs(1)` in that sense.).  
 
 ### `lia` is magic, but opaque if you rely on it too much
 
@@ -735,6 +686,87 @@ as `@[simp]`?  For sure.  But, I like leaving the proofs that are more integral
 to the implementation explicit, and only relying on the mechanics of
 proof automation when there's tonnes of repetition, or when being explicit
 doesn't elucidate the thinking behind the proof.
+
+## Metaprogramming time: Extending Lean with custom tactics
+
+::: margin-note
+Do I also like to do C preprocessor crimes like [X macros](https://bbs.archlinux.org/viewtopic.php?id=272242)?  Well, if the shoes fits...
+:::
+One of my favourite languages, despite its dynamic typing, is Racket, not least
+because it's so much fun, but also safe and well-defined, to extend the
+language's syntax with the language itself.  The mechanism Racket uses for letting
+programmers add new syntactic forms is called a syntax transformer: it takes in as
+input an AST and produces a new, transformed AST, before passing it along to to
+the rest of the interpreter.  And, critically, the language in which one specifies
+language extensions is...the language itself!
+
+::: margin-note
+I've long wondered whether fine-tuning an LLM to understand a DSL embedded in a
+general-purpose language nets you better results than trying to write and
+reason about the full language itself.
+:::
+Lean's support for metaprogramming is similarly
+[excellent](https://leanprover-community.github.io/lean4-metaprogramming-book/main/01_intro.html)
+too!  Macros are used to define new tactics - we can have high-level syntax
+transformers that expand out into more tactics, or, at a lower-level, into the
+raw underlying monadic operations that implement tactics.  The latter, which we
+call _elaborator-based macros_, is important if we really want to customise the
+behaviour of the tactic, like fiddling with the proof state to manipulate
+hypotheses.  While it would be fun to write an elaborator-based macro for this,
+overkill as it would be, I don't assume fluency with monads and `do`-notation,
+so let's keep it simple today.
+
+::: margin-note
+There's a similar saying for systems: every problem is a matter of _policy_
+("what is the thing supposed to do?" or of _mechanism_ ("how does it go about
+it"?).
+:::
+There's an old canard that every problem in programming languages is a matter
+of syntax and of semantics.  Defining a new tactic involves defining both
+to Lean.
+
+Let's create a new tactic called `isl` - this will simply run `intros`,
+followed by `simp`, concluding with `lia`.  Since we only want to expand one
+tactic into three, let's stick with the high level macro-based tactic
+definition for now.  This means the only meaning that our new syntax has is
+purely in terms of existing syntax, which is fine for us.
+
+### Specifying new syntax with `syntax`
+
+The `syntax` "command" lets us add `isl` to the tactic syntatic category thus:
+
+::: margin-note
+The `name := isl` bit just lets us control how the tactic is pretty-printed in
+error messages.
+:::
+```lean4
+-- This defines a new _syntax object_ - think of it as telling
+-- the Lean parser that the `isl` token should be allowed wherever 
+-- in the grammar a tactic is.
+syntax (name := isl) "isl" : tactic
+```
+
+This is such a simple use of `syntax` that we are kind of doing it dirty here!
+It's flexible enough to account for surrounding context like arguments,
+customised precedence levels, new operators (prefix, infix, or postfix!)...
+certainly anything I can think of.
+
+### Specifying new semantics with `macro_rules`
+
+Okay, so we have defined `isl` syntactically.  The Lean parser rejects us
+from using it in a context where a tactic isn't expected,  but we still
+can't use it in a place where a tactic _is_ expected:
+
+::: warning
+```lean4
+theorem thm1 : ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by isl
+
+Tactic `isl` has not been implemented
+```
+:::
+
+Sensible error message.  Let's go ahead and give `isl` meaning.  TODO
 
 ## Next time...
 
