@@ -1,10 +1,9 @@
 ---
 layout: post.njk
 title: "Leaning into the Coding Interview 3: completing our spec with tacticals"
-date: 2026-01-30T00:00:00-05:00
+date: 2026-01-19T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Time to actually write our end-to-end specification!"
-draft: true
 ---
 
 ::: tip
@@ -779,6 +778,21 @@ macro_rules
 If this reminds you of the syntax of a pattern match, I'm sure this is by
 design! With our macro defined, we can now change the proof of all our theorems
 into a single `isl` call.
+
+::: tip
+```lean4
+theorem thm1 : ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 = 0 → (i + 1) % 5 ≠ 0 → (fb_vec n)[i]'H = FB.Fizz := by isl
+
+Goals accomplished!
+```
+:::
+
+In a lot of ways this example undercuts how expressive metaprogramming in Lean
+can be; we really haven't used a macro for anything fancier than what a
+`#define` could do for us.  This is just scratching the surface; maybe in a
+future post we'll find an opportunity to write a non-trivial elaborator-based
+macro.
 
 ## Next time...
 
