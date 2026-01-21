@@ -94,11 +94,15 @@ Lean-the-theorem-prover, learning some simple _proof tactics_ along the way.
 By the end of this series, you'll have enough experience with dependent types
 and theorem provers to verify simple programs, probably equivalent to the first
 several chapters of the excellent Rocq textbook [Software Foundations Vol.
-1](https://softwarefoundations.cis.upenn.edu/lf-current/toc.html).
+1](https://softwarefoundations.cis.upenn.edu/lf-current/toc.html).  No prior
+experience with theorem proving is assumed, though you should probably read
+the earlier _Proving The Coding Interview_ Dafny series if you're unfamiliar
+with Dafny, since I'll contrasting the two languages fairly extensively.
+(Plus, Dafny is very different but nonetheless very neat, anyway.)
 
-If you're familiar with languages like Rocq, you may want to skip straight to
-the next part in the series since most of what this post discusses will already
-be familiar to you.
+If you're familiar with similar languages like Rocq, you may want to skip
+straight to the next part in the series since most of what this post discusses
+will already be familiar to you.
 :::
 
 ## Our problem statement, revisited

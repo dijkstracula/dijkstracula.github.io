@@ -1,6 +1,6 @@
 ---
 layout: post.njk
-title: "Leaning into the Coding Interview 3: completing our spec with tacticals"
+title: "Leaning into the Coding Interview 3: completing our spec with tacticals and metaprogramming"
 date: 2026-01-19T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Time to actually write our end-to-end specification!"

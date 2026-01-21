@@ -1,6 +1,6 @@
 ---
 layout: post.njk
-title: "Leaning into the Coding Interview 4: Proof-carrying code"
+title: "Leaning into the Coding Interview 4: Alternate implementations and proof-carrying code"
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Time to actually our end-to-end specification!"
