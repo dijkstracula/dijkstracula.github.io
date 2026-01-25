@@ -3,7 +3,7 @@ layout: post.njk
 title: "Leaning into the Coding Interview: proving equality of different implementations"
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
-excerpt: "There are lots of different ways to implement Fizzbuzz - how robust is our specification to different implementations (of varying degrees of correctness)?"
+excerpt: "There are lots of different ways to implement Fizzbuzz - how can we prove different implementations are actually the same, and what does it look like when they're actually not?"
 draft: true
 ---
 
@@ -13,7 +13,7 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
   * [Intermezzo - contrasting different implementations](/posts/proving-the-coding-interview-lean-intermezzo]
-  * [Part four - proof-carrying code](/posts/proving-the-coding-interview-lean-4)
+  * Part four - proof-carrying code
 
 All previous Proving The Coding Interview posts can be found
 [here](/tags/provingthecodinginterview/).
@@ -324,7 +324,8 @@ Wait, why didn't all our goals discharge...?
 ::: margin-note
 If you spotted this difference already, well, good for you.
 :::
-D'oh!!!  Stephen spelled his string "FizzBuzz", whereas I used a lowercase 'b!
+D'oh!!!  Stephen spelled his string "Fizzbuzz", whereas I used an uppercase
+'B`!
 
 Not a bad reason to model your domain more abstractly (as we did with the `FB`
 datatype), to avoid silly irrelevant string differences like this!  Yet another

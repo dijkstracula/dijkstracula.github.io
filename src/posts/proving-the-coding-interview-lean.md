@@ -11,6 +11,7 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3).
+  * Intermezzo - contrasting different implementations
   * Part four - certified programming with proof carrying code
 
 All previous Proving The Coding Interview posts can be found
@@ -502,15 +503,14 @@ theorem add_one_pos (n : Nat) : 0 < n + 1 := ...
 
 ::: margin-note
 Another way, perhaps more natural to mathematicians than programmers, to write
-this theorem is to use the `forall` keyword in the proposition:
-`∀ n : Nat, 0 < n + 1`.  To the best of my knowledge, Lean treats these two
-propositions as identical under the hood.
+this theorem is to use the `forall` keyword in the proposition: `∀ n : Nat, 0 <
+n + 1`.  To the best of my knowledge, Lean treats these two propositions as
+identical under the hood.
 :::
 Unlike our theorems so far, `add_one_pos` takes an `n`, just like a function of
 one argument would. And interestingly, `n` also appears in the return type
 (that is, the theorem's proposition)!  You could read this theorem aloud as
 "for all natural numbers `n`, zero is less than the successor of `n`."
-
 
 ::: note
 We say that the type _depends_ on the term `n`; even though would also be
@@ -521,6 +521,10 @@ to this one, we'll see (and maybe write?) a few more types like this.
 Type systems that allow you to express such types are, perhaps unsurprisingly,
 called _dependent type systems_, and they're about as powerful and expressive
 as type systems get.
+
+(We'll also see in a few chapters down the road that there's a deep connection
+between `forall` and functions with dependently-typed return values, but that's
+a story for another time.)
 :::
 
 ::: margin-note
@@ -570,6 +574,19 @@ as push-button as it would have in Dafny.  But, when we got stuck in Dafny with
 a missing invariant, the error messages often didn't guide us to what needed to
 be added.  By contrast, Lean will always show us the state of the incomplete
 proof, leaving us a trail of breadcrumbs to follow at every step.
+
+This is an interesting tradeoff here between Dafny, which figures out these
+properties automatically, and us having to explicitly go hunt for them.  We are
+essentially never in a position where we have to wonder _why_ something is
+true, because we can go and read the proof of all the theorems we might ever
+want to make use of, and the proofs of all the theorems _they_ use, all the way
+down to the [core
+axioms](https://www.cs.cornell.edu/courses/cs6120/2022sp/blog/coc/) of Lean
+itself!  The "why is this true" question becomes a lot more opaque in Dafny; it
+will happily show you its work in the form of its underlying solver's
+intermediary representation, but it's a little bit like trying to
+reverse-engineer optimised assembly language; not really fit for human
+consumption.
 
 ## Our first Fizzbuzz specification
 
@@ -672,6 +689,29 @@ theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
 0 goals
 Goals accomplished!
 ```
+
+::: note
+Usually, when students start learning about automated theorem provers, they
+define inductive datatypes like `List`, write recursive functions that operate
+on values of that type, and then write proofs by induction to state things
+about those functions (So much so that "uh, how do we start this proof?
+_INDUCTION!_" becomes a running joke). I'm intentionally taking a different
+strategy here: By being a _consumer_ of the standard library's `List`, not only
+did we not need to write a recursive function to build up the list, we could
+prove properties about our functions by composing already-made theorems
+together.  This division of labour is super powerful and pays dividends when it
+comes time to write our theorems.
+
+Functional programming often gets unfairly maligned as "just being a bunch of
+recursion", but clearly "real-world" FP doesn't have to feel this way.  (If you
+know what the `State` monad is, you also know that the "FP is annoying because
+every value is immutable" canard doesn't have to be entirely true either.
+We'll get there soon enough.)
+
+I don't know how long this series will go, but it wouldn't surprise me if we
+finish the final installment without having written a single recursive function
+or proof by induction.
+:::
 
 ## Simplifying proof-writing with automation tactics
 
