@@ -172,7 +172,7 @@ the conditional is, it acts as an assumption in our proof context.  Take a
 look!
 
 ```lean4
-def fb_one (i : Nat) : FB i:=
+def fb_one (i : Nat) : FB i :=
     if h15 : i % 15 = 0 then FB.FizzBuzz -- NEW
 
 i : ℕ
@@ -186,15 +186,15 @@ the "then" branch, we have the proposition `h : i % 15 = 0`.  That's exactly
 the right argument to `FB.FizzBuzz`! 
 
 ```lean4
-def fb_one (i : Nat) : FB i:=
+def fb_one (i : Nat) : FB i :=
     if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
-    -- TOOD: the remaining three cases
+    -- TODO: the remaining three cases
 ```
 
 OK, let's keep going:
 
 ```lean4
-def fb_one (i : Nat) : FB i:=
+def fb_one (i : Nat) : FB i :=
     if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
     if h5 : i % 5 = 0 then FB.Buzz --TODO: ok now which proof here??
 
@@ -216,7 +216,7 @@ So, the proof argument for `FB.Buzz` is simply `by lia`!
 In fact, `lia` will be our workhorse for the remaining three cases:
 
 ```lean4
-def fb_one (i : Nat) : FB i:=
+def fb_one (i : Nat) : FB i :=
     if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
     if h5 : i % 5 = 0 then FB.Buzz (by lia) else
     if h3 : i % 3 = 0 then FB.Fizz (by lia) else
@@ -239,7 +239,7 @@ But in the return type for `fb_vec`, what should the argument be?
 def fb_vec (n : Nat) : Vector (FB ???) n :=
 ```
 
-### We're producing a `Vector` of ... what, exactly?
+## We're producing a `Vector` of ... what, exactly?
 
 So far, when we've defined a dependent type, the term "argument" for the type
 constructor was already obvious.  For instance, where did we get the `i` in the
@@ -264,10 +264,24 @@ needs to describe a `Vector` whose elements have types that _vary_:
   FizzBuzz : FB 15] : Vector (??? FB (...????...) ) 15
 ```
 
+### Sigma types relate a value with a dependently-typed value
+
 We can write a type like this down by defining `i` _inside_ the parameter
 to the vector - it's a bit like moving a global variable inside a function
-definition, sorta.  I'll show you the syntax first and then explain 
-what it's saying, and then move on to what it _means_:
+definition, sorta.  We can't actually write it this way, but we could perhaps
+imagine something like:
+
+```lean4
+[ Num 1    : FB 1, 
+  Num 2    : FB 2, 
+  Fizz     : FB 3, 
+  Num 4    : FB 4,
+  ... 
+  FizzBuzz : FB 15] : Vector (let (i:Nat) be some number in FB i) 15
+```
+
+I'll show you the _actual_ syntax first and then explain what it's saying, and
+then after that, move on to what it _means_:
 
 ```lean4
 [ <1, Num 1>     : (1, FB 1)
@@ -278,9 +292,39 @@ what it's saying, and then move on to what it _means_:
   <15, FizzBuzz> : (15, FB 15)] : Vector (Σ i, FB i) 15
 ```
 
+::: margin-note
+We construct datatypes like records and tuples with the angle brackets `⟨` and
+`⟩`: the first element of the pair is the `i` value that will fix the type `FB
+i`, and the second element is the expression that typeschecks to `FB i`. 
+:::
 The elements of this Vector are no longer just `FB _`s, but a _dependent
 pair_: We can read this _sigma type_ as saying "the elements of this Vector
-are `FB i` _for some varying i_".
+are `FB i` _for some varying i_".  In this construction, each element is now
+two values: some number `i`, and the `i`th element of the Fizzbuzz sequence!
+The first element is sometimes called the _witness_ of the type: it's another
+form of evidence to the type system, namely a proof that a value of type `FB i`
+is constructable!
+
+Note that our runtime representation of what `fb_vec` returns has now changed:
+Even though propositions and types are erased at runtime, the witness is _not_
+erased at runtime!  So, this representation _does_ take up more memory. (This
+makes sense when you consider that `i` is used both in the type-level but also
+in computation, when we print out `FB.num i`.)
+
+## `fb_vec` must now produce a dependent pair
+
+The change for `vb_vec` is pretty mechanical: rather than just mapping over
+the `Vector` of `[1, 2, ... n]` with `fb_one`, we said just now that instead
+we need to produce a _dependent pair_.  
+
+We know for sure that an `FB i` is constructable because that's the return
+type of `fb_one i`.  So, our `fb_vec` function is now:
+
+```lean4
+def fb_vec (n : Nat) : Vector (Σ i, FB i) n :=
+  Vector.range' 1 n |> Vector.map (fun i => ⟨i, fb_one i⟩)
+
+```
 
 ::: note
 It's worth pausing and pondering about what Vectors this type rejects but also
@@ -290,21 +334,19 @@ of the `i`s, or uniqueness?  Does every element of `Vector (FB n) n` (that is,
 correspondence with elements in `Vector (Σ i, FB i) 15`?
 :::
 
-## `fb_vec` must now produce a dependent pair
+## Pi types map values to dependent types
 
-The change for `vb_vec` is pretty mechanical: rather than just mapping over
-the `Vector` of `[1, 2, ... n]` with `fb_one`, we said just now that instead
-we need to produce a _dependent pair_.  Such a pair is constructed with
-the angle brackets `⟨` and `⟩`: the first element of the pair is the `i` 
-value that will fix the type `FB i`, and the second element is the expression
-that produces the `FB i` itself.  This second element is sometimes called
-the _witness_ of the type: it's another form of evidence to the type system,
-namely a proof that a value of type `FB i` is constructable!
+Note that because Lean doesn't implement `ToString` for sigma types, even
+if each element in the pair does, if we want to print Vectors returned 
+by `fb_vec` directly, we have to do so ourselves.
 
-We know for sure that an `FB i` is constructable because that's the return
-type of `fb_one i`.  So, our `fb_vec` function is now:
+Our goal is to write an `instance ToString` for sigma types of witness type `α`
+and dependent type `β α`, which we would write as `(Σ (x : α), β x)`. (In our
+particular sigma type, `(Σ i, FB i)`, `α` is `Nat` and `β` is `FB`.)
 
 ```lean4
-def fb_vec (n : Nat) : Vector (Σ i, FB i) n :=
-  Vector.range' 1 n |> Vector.map (fun i => ⟨i, fb_one i⟩)
+instance [ToString α] [∀ x, ToString (β x)] : ToString (Σ (x : α), β x) where
+  toString := fun ⟨a, b⟩ => s!"⟨{toString a}, {toString b}⟩"
 ```
+
+
