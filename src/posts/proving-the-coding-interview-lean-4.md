@@ -12,21 +12,11 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
-  * [Intermezzo - contrasting different implementations](/posts/proving-the-coding-interview-lean-intermezzo]
-  * [Part five - proof-carrying code](/posts/proving-the-coding-interview-lean-4)
+  * [Part four - proof-carrying code](/posts/proving-the-coding-interview-lean-4)
 
 All previous Proving The Coding Interview posts can be found
 [here](/tags/provingthecodinginterview/).
 :::
-
-Last time we finished our Fizzbuzz specification, so we're arguably done with
-this series!  Even with a problem as silly as Fizzbuzz, though, there's still
-plenty of interesting avenues to go down.
-
-In this lagniappe of a final post, I wanted to experiment with an alternate way
-of implementing the problem that more aggressively leverages the features of
-dependent types.  By the end of the post, we'll hopefully have an opinion on
-whether we've improved our design or not!
 
 ## A proof-carrying FB
 
@@ -48,13 +38,25 @@ inductive FB (i : Nat) : Type where
   -- TODO: our constructors Fizz, Buzz, Fizzbuzz, and Num
 ```
 
-This makes FB a _type family_: it defines an infinite number of types, for each
-possible `Nat` value.  OK, for a given `i`, what can we say about each of our
-constructors?  Well, to construct a `Fizzbuzz` of type `FB i`, it better be the
-case that `i % 15 = 0`.  For a `Num` to be a valid `FB i`, `i` must not divide
-3 nor 5.  If each constructor took a _proof_ as argument for the relevant `i`,
-then, a `FizzBuzz` could never be used in place where an `FB 12` was expected,
-for instance.  Let's write that dependent type:
+This makes FB a _type family_ (or _type constructor_): it defines an infinite
+number of types, for all possible `Nat` values.  it's a function at the type
+level with type `Nat → Type`. For each natural number i, `FB i` is a distinct
+type. So `FB 3`, `FB 5`, and `FB 15` are three different types.  So, `(i : Nat)
+→ FB i` is a dependent function type: the type of functions that produce `FB i`
+for any i.  Hey, as it happens, `fb_one` is a function of that type!
+
+Unsurprisingly, Lean's type system lets us express a
+type family in terms of a `forall` universal quantifier, so `∀ (i: Nat), FB i`
+refers to the same concept.  (Another way to express this that
+bit more like function notation is `Π (i: Nat) . FB i` - this is just like the
+lambda calculus, but with `Π` (Pi) instead of lambda).
+
+OK, for a given `i`, what can we say about each of our constructors?  Well, to
+construct a `Fizzbuzz` of type `FB i`, it better be the case that `i % 15 = 0`.
+For a `Num` to be a valid `FB i`, `i` must not divide 3 nor 5.  If each
+constructor took a _proof_ as argument for the relevant `i`, then, a `FizzBuzz`
+could never be used in place where an `FB 12` was expected, for instance.
+Let's write that dependent type:
 
 ```lean4
 inductive FB (i : Nat) : Type where
@@ -342,7 +344,21 @@ by `fb_vec` directly, we have to do so ourselves.
 
 Our goal is to write an `instance ToString` for sigma types of witness type `α`
 and dependent type `β α`, which we would write as `(Σ (x : α), β x)`. (In our
-particular sigma type, `(Σ i, FB i)`, `α` is `Nat` and `β` is `FB`.)
+particular sigma type, `(Σ i, FB i)`, `α` is `Nat` and `β` is `FB`.)  
+
+```lean4
+instance : ToString (Σ (x : α), β x) where
+  toString := -- TODO
+```
+
+In order to print out this pair, what needs to be true?  Certainly, the witness
+needs to be printable, so we have to constrain our typeclass definition to say
+`α` must be an instance of `ToString`: we say this with 
+
+```lean4
+instance [ToString α] : ToString (Σ (x : α), β x) where
+  toString := -- TODO
+```
 
 ```lean4
 instance [ToString α] [∀ x, ToString (β x)] : ToString (Σ (x : α), β x) where
