@@ -8,6 +8,9 @@
   <!-- Pico.css for minimal, beautiful styling -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
 
+  <!-- Computer Modern font -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/computer-modern@1.0.0/cmun-serif.css">
+
   <!-- Syntax highlighting for code blocks -->
   <link rel="stylesheet" href="/css/syntax.css">
 
@@ -44,11 +47,14 @@
     /* Reduce overall font size */
     :root {
       --pico-font-size: 16px;
+      /* Override Pico.css font with Computer Modern */
+      --pico-font-family: "Computer Modern Serif", serif;
     }
 
     body {
       padding: 2rem 1rem;
       font-size: 16px;
+      font-family: "Computer Modern Serif", serif;
     }
 
     main {
