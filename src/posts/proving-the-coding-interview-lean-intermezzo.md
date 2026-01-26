@@ -346,3 +346,293 @@ languages, the style of programming they allow, and the second-order effects
 of those design choices.
 :::
 
+## What about an imperative version?
+
+Back when we were programming in Dafny, we contrasted verifying a traditional
+`if`-ladder implementation against one that incrementally builds up the string
+to be returned (see [this post](posts/proving-the-coding-interview/), under "A
+A verifiable “optimisation”".)  Using Lean's support for monadic stateful
+computation, we can write a similar such implementation!
+
+### `do`-notation lets us mimic imperative programming, functionally
+
+If you've read upwards of 20,000 words about a theorem prover, either you 
+already know what the State monad is, or you are actively uninterested in
+knowing what the State monad is.  If you're in the first camp, you can
+skip this subsection, and if you're in the second camp, don't worry, I will
+lean on intuition to the point of not explaining what a monad is.
+
+::: margin-note
+If you would like to learn how monads _actually_ work, the relevant chapter
+in [Functional Programming in Lean](https://leanprover.github.io/functional_programming_in_lean/monads.html) does a pretty good job of it.
+:::
+The point of monads as a datatype is to encode something side-effectful (like
+propagating an exception-like error, or performing file IO, or, indeed,
+handling mutable state) in a pure language, where normally these things
+would be impossible.  The most important way to operate on a monad is by chaining
+operations together in a sequence: for a piece of mutable state, those
+operations are probably going to involve sequencing modifications to that piece
+of mutable state.  (For IO, it might be "read the contents of a file" and
+"write out the contents to another file" or something.)
+
+::: margin-note
+Probably means that theorems written about arbitrary monads could be applied
+for a proof about some _particular_ monadic operation, too!
+:::
+The reason why functional programmers get jazzed about monads is that they
+use the same underlying primitive to implement wildly different kinds of
+effects.  One wouldn't think that an API for external IO would be shaped the
+same way as one for, say, mimicing exceptions, but turns out it is, so long as
+your monads all behave properly in a fairly common-sense way (we say a correct
+implementation "follows the [monad
+laws](https://wiki.haskell.org/index.php?title=Monad_laws)").
+
+Ordinarily, each operation on a monad would be written as a function passed
+into the monad. (This is the famous `bind` or `>>=` function, but Elm and
+Rust's choice to call it
+[`and_then`](https://doc.rust-lang.org/rust-by-example/error/option_unwrap/and_then.html)
+instead is in my opinion an inspired one).  This can get unwieldy pretty fast
+if we are easily overwhemed; `do`-notation is syntactic sugar that lets us
+forget that all this monad stuff is happening under the hood, which is exactly
+the thing we want if you don't want to learn what a monad actually is.
+
+### Our monadic `fb_one`
+
+OK, here's how I used `do`-notation:  As before, I'll show you the new syntax
+first and then explain it.
+
+```lean4
+def fb_one_monadic (i : Nat) := Id.run do 
+ let mut ret := ""
+ if i % 3 = 0 then
+   ret := ret ++ "Fizz"
+ if i % 5 = 0 then
+   ret := ret ++ "Buzz"
+ if String.length ret = 0 then
+   return Nat.repr i
+ return ret
+
+def fb n := Vector.range' 1 n |>.map fb_one_monadic
+```
+
+(This was the secret _other_ reason I went back to producing `String`s
+directly: we can implicitly build up `FizzBuzz` from overwriting `ret`
+twice in a way that we really can't with `FB`s.)
+
+There's a bunch of new syntax here:  
+
+`let mut` is a pretty surprising one for a pure functional language!  This is
+syntacic sugar for "please initialize a State monad with the initial value
+`""`, and make that value visible in the `do` block under the variable name
+`ret`.  (This means that `let mut` isn't syntacially valid outside a `do`
+block, sort of how like tactics aren't syntacically valid outside a `by` block.
+The big take-home lesson is that if you see a `let mut` in Lean, it better
+appear inside a `do` block, and that a State monad is being constructed under
+the hood.
+
+Next, of course, `val := expr` "mutates" the value of `val`.  For the purposes
+of the State monad, mutations are the operation that gets sequenced.
+
+`return` is also a bit of a funny one - we've seen that like good functional
+languages, Lean is _expression-based_, so since every expression reduces to
+some value, even bodies of functions, it doesn't really make sense to think
+about "returning" anything.  Think of it instead as returning the value "out of
+the `do` block" instead.  Notice that we can have early `return`s, just like
+in a non-functional language.
+
+### Proving equality, once more
+
+Hopefully you are fairly convinced that this is a very differently-shaped
+`fb_one` than either the one we wrote or the one from sdiehl's website.  After
+all, we have all these monadic operations hidden behind `do`-notation; is
+it realistic to try to prove anything about this implementation and the
+original one?
+
+Well, we're gonna try, that's for sure:
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by -- TODO
+
+1 goal
+⊢ ∀ (i : ℕ), fb_one_ntaylor i = fb_one_monadic i
+```
+
+Let's do the usual thing: intro our variables and hypotheses, and unfold both
+functions:
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_monadic
+  
+1 goal
+i : ℕ
+⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "FizzBuzz" else 
+   if i % 5 = 0 then "Buzz" else 
+   if i % 3 = 0 then "Fizz" else 
+   i.repr) 
+  =
+  (have ret := "";
+    have __do_jp := fun ret y ↦
+      have __do_jp := fun ret y ↦
+        have __do_jp := fun y ↦ pure ret;
+        if ret.length = 0 then pure i.repr
+        else do
+          let y ← pure PUnit.unit
+          __do_jp y;
+      if i % 5 = 0 then
+        have ret := ret ++ "Buzz";
+        do
+        let y ← pure PUnit.unit
+        __do_jp ret y
+      else do
+        let y ← pure PUnit.unit
+        __do_jp ret y;
+    if i % 3 = 0 then
+      have ret := ret ++ "Fizz";
+      do
+      let y ← pure PUnit.unit
+      __do_jp ret y
+    else do
+      let y ← pure PUnit.unit
+      __do_jp ret y).run
+```
+
+Oh lord, this is a scary looking goal.  Luckily, this is where well-behaved
+monads following the monad laws comes into play: they've been [proven for
+us](https://github.com/leanprover/lean4/blob/0e28043ec6749ab227d84b690fbb10375dcf714c/src/Init/Control/Lawful/Basic.lean#L114-L144), and critically, those theorems
+have been marked `@[simp]`, so simplifying monadic code _automatically takes
+advantage of the monad laws_:
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_monadic
+  simp --NEW
+
+1 goal
+i : ℕ
+⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "FizzBuzz" else 
+   if i % 5 = 0 then "Buzz" else 
+   if i % 3 = 0 then "Fizz" else 
+   i.repr) =
+  (if i % 3 = 0 then
+      if i % 5 = 0 then 
+        if "FizzBuzz".length = 0 then pure i.repr else 
+        pure "FizzBuzz"
+      else if "Fizz".length = 0 then pure i.repr else 
+      pure "Fizz" else 
+   if i % 5 = 0 then if "Buzz".length = 0 then pure i.repr else pure "Buzz" else 
+   pure i.repr).run
+```
+
+OK, that looks _a lot_ more reasonable.  There's still a bunch of `pure` and
+`.run` calls which we haven't defined but are probably related to monads somehow,
+but we've got the body of each function on either side of an equality, which was
+all but the home stretch last time we proved functional equality.
+
+### A quick diversion into a proof about the empty string
+
+Before we go down this road, though, I want to write one quick lemma that
+will be useful to us:  We have a lot of `"...".length = 0` checks owing to the 
+potential "should we return `i.repr`" branch.  We know that those have to be false
+because only the empty string has length zero, and none of those do.  Let's write
+a lemma to help Lean simplify this down further:
+
+```lean4
+@[simp]
+lemma s_empty_len : ∀ (s : String), s.length = 0 ↔ s = "" := by --TODO
+
+1 goal
+⊢ ∀ (s : String), s.length = 0 ↔ s = ""
+```
+
+Remember way back in the first Lean post, we unfolded the definition of
+`List.length` and saw that it was recursively defined.  Let's do the same here
+with `String.length`:
+
+```lean4
+@[simp]
+lemma s_empty_len : ∀ (s : String), s.length = 0 ↔ s = "" := by
+  intros s --NEW
+  unfold String.length --NEW
+
+1 goal
+s : String
+⊢ s.toList.length = 0 ↔ s = ""
+```
+
+Hm, so `String.length` is implemented _in terms of `List.length`.  I'm not
+convinced that's the choice _I_ would have made, but that's fine - in fact,
+reducing the problem to stating "only the empty `List` has length 0" might
+actually be good for us!  Indeed, we just needed to do some cheeky rewrites
+and we're good to go.
+
+```lean4
+@[simp]
+lemma s_empty_len : ∀ (s : String), s.length = 0 ↔ s = "" := by
+  intros s
+  unfold String.length 
+  rw [List.length_eq_zero_iff, String.toList_eq_nil_iff] --NEW
+
+Goals accomplished!
+```
+
+Since we've marked this lemma as `@[simp]`, once we've proven it, we can see
+that Lean automatically makes use of it in our main theorem:
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_monadic
+  simp
+
+1 goal
+i : ℕ
+⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "FizzBuzz" else 
+   if i % 5 = 0 then "Buzz" else 
+   if i % 3 = 0 then "Fizz" else 
+   i.repr) 
+  =
+  (if i % 3 = 0 then 
+    if i % 5 = 0 then pure "FizzBuzz" else pure "Fizz" else 
+   if i % 5 = 0 then pure "Buzz" else 
+   pure i.repr).run
+```
+
+Fantastic!  We've banished all those unnecessary `if "...".length = 0 then
+i.repr` checks with a carefully-chosen lemma which we taught `simp` about.
+
+### The home stretch towards discharging the proof
+
+We'll proceed the same way we did before: we'll repeatedly unfold the left and
+right-hand side's `if` expressions into subgoals, throwing away the ones that
+are trivially solvable (or obviously contradictory):
+
+```lean4
+theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
+  intros i
+  unfold fb_one_ntaylor
+  unfold fb_one_monadic
+  simp
+  repeat split <;> repeat split <;> repeat split
+
+12 goals
+
+case isTrue.isTrue
+i : ℕ
+h✝¹ : i % 3 = 0 ∧ i % 5 = 0
+h✝ : i % 3 = 0
+⊢ "FizzBuzz" = (if i % 5 = 0 then pure "FizzBuzz" else pure "Fizz").run
+
+case isTrue.isFalse
+i : ℕ
+h✝¹ : i % 3 = 0 ∧ i % 5 = 0
+h✝ : ¬i % 3 = 0
+⊢ "FizzBuzz" = (if i % 5 = 0 then pure "Buzz" else pure i.repr).run
+
+...
+```
