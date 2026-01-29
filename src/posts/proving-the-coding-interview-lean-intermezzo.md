@@ -1,6 +1,6 @@
 ---
 layout: post.njk
-title: "Leaning into the Coding Interview: proving equality of different implementations"
+title: "Leaning into the Coding Interview: proving equality of different Fuzzbuzzes"
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "There are lots of different ways to implement Fizzbuzz - how can we prove different implementations are actually the same, and what does it look like when they're actually not?"
@@ -12,7 +12,7 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
-  * [Intermezzo - contrasting different implementations](/posts/proving-the-coding-interview-lean-intermezzo]
+  * [Intermezzo - proofs between implementations](/posts/proving-the-coding-interview-lean-intermezzo]
   * Part four - proof-carrying code
 
 All previous Proving The Coding Interview posts can be found
@@ -142,25 +142,35 @@ programs.  It turns out that function extensionality _is_ a notion Lean is
 familiar with, and we can write proofs to that effect!
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
-  intros i --NEW
+theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
 
 1 goal
-i : ℕ
-⊢ fb_one_ntaylor i = fb_one_sdiehl i
+⊢ fb_one_ntaylor = fb_one_sdiehl
 ```
 
 ::: margin-note
-Technically I did think of applying
-[funext](https://lean-lang.org/doc/reference/latest/The-Type-System/Functions/#funext),
-but let's pretend I don't know about that one.
+In this case, this is equivalent to proving the theorem
+` ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i` by `intro i`ing.
 :::
+Normally we would `intro` any arguments or universally-quantified variables,
+but we don't have any here! The `funext` tactic lets us exploit the property of
+functional extensionality: giving `funext` the argument `i` introduces `i` as
+the argument to the two function calls:
+```lean4
+theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+  funext i -- NEW
+
+1 goal
+i : ℕ
+⊢ fb_one_ntaylor i = fb_one_sdiehl i 
+```
+
 We've heard this song before.  I can't think of anything else to do but
 `unfold` our two implementations.
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+  funext i
   unfold fb_one_ntaylor --NEW
   unfold fb_one_sdiehl  --NEW
 
@@ -184,8 +194,8 @@ to `have` a theorem that states they are, and `rfl` is enough to prove it.
 Then we can rewrite `toString` away using that theorem.
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_sdiehl
   have repr_eq : toString i = Nat.repr i := by rfl -- NEW
@@ -217,8 +227,8 @@ it takes as argument a tactic, and keeps applying it until it reaches a _fixpoin
 This expands out to, after trivial auto-simplification, six subgoals:
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_sdiehl
   have repr_eq : toString i = Nat.repr i := by rfl
@@ -261,8 +271,8 @@ discharging goals that are trivially provable). Recall the `<;>` "xargs"
 tactical that will do this for us:
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_sdiehl
   have repr_eq : toString i = Nat.repr i := by rfl
@@ -300,8 +310,8 @@ context.  We know `lia` can handle both of those situations, so that tactic
 should let us prove all our subgoals!  Let's try that and declare victory:
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_sdiehl i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_sdiehl
   have repr_eq : toString i = Nat.repr i := by rfl
@@ -334,6 +344,10 @@ choice of capitalisation _really_ matter that much?
 
 (By making this correction in either function, we get to see the final goal
 solved and enjoy the "No goals" message in our editor.)
+
+I don't know about you but it feels so amazing to be able to see
+`fb_one_ntaylor = fb_one_sdiehl`, a statement over _functions_, successfully
+proved!
 
 ::: note
 Interestingly, it seems like Dafny does _not_ support the notion of function
@@ -451,18 +465,18 @@ original one?
 Well, we're gonna try, that's for sure:
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by -- TODO
+theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by -- TODO
 
 1 goal
-⊢ ∀ (i : ℕ), fb_one_ntaylor i = fb_one_monadic i
+⊢ ∀ (i : ℕ), fb_one_ntaylor = fb_one_monadic
 ```
 
-Let's do the usual thing: intro our variables and hypotheses, and unfold both
+Let's do the usual thing: `funext` to introduce our arguments, and unfold both
 functions:
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_monadic
   
@@ -506,8 +520,8 @@ have been marked `@[simp]`, so simplifying monadic code _automatically takes
 advantage of the monad laws_:
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_monadic
   simp --NEW
@@ -584,8 +598,8 @@ Since we've marked this lemma as `@[simp]`, once we've proven it, we can see
 that Lean automatically makes use of it in our main theorem:
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_monadic
   simp
@@ -613,8 +627,8 @@ right-hand side's `if` expressions into subgoals, throwing away the ones that
 are trivially solvable (or obviously contradictory):
 
 ```lean4
-theorem fb_one_eq : ∀ (i : Nat), fb_one_ntaylor i = fb_one_monadic i := by
-  intros i
+theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
+  funext i
   unfold fb_one_ntaylor
   unfold fb_one_monadic
   simp
@@ -633,6 +647,5 @@ i : ℕ
 h✝¹ : i % 3 = 0 ∧ i % 5 = 0
 h✝ : ¬i % 3 = 0
 ⊢ "FizzBuzz" = (if i % 5 = 0 then pure "Buzz" else pure i.repr).run
-
 ...
 ```

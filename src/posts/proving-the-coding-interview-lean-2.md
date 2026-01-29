@@ -527,12 +527,13 @@ structure Vector (α : Type u) (n : Nat) where
 ```
 
 What this _actually_ is is a structure type that also holds a _proof of
-equality_ about the underlying collection.  Notice the type of `size_toArray` -
-it's a proposition that relates how the backing array's size relates to the
-type-level `n`.  What this means is that any time a `Vector` is constructed,
-this proposition needs to be proven!  Luckily for us, since we're using
-`Vector` as a library, all the functions in that module that we will call will
-be responsible for constructing that proof.
+equality_ about the underlying collection (which is the component that will get
+erased at runtime). Notice the type of `size_toArray` - it's a proposition that
+relates how the backing array's size relates to the type-level `n`.  What this
+means is that any time a `Vector` is constructed, this proposition needs to be
+proven! Luckily for us, since we're using `Vector` as a library, all the
+functions in that module that we will call will be responsible for constructing
+that proof.
 
 ## A dependently-typed `Fizzbuzz`
 

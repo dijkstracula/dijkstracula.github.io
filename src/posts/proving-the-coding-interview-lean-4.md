@@ -45,11 +45,11 @@ type. So `FB 3`, `FB 5`, and `FB 15` are three different types.  So, `(i : Nat)
 → FB i` is a dependent function type: the type of functions that produce `FB i`
 for any i.  Hey, as it happens, `fb_one` is a function of that type!
 
-Unsurprisingly, Lean's type system lets us express a
-type family in terms of a `forall` universal quantifier, so `∀ (i: Nat), FB i`
-refers to the same concept.  (Another way to express this that
-bit more like function notation is `Π (i: Nat) . FB i` - this is just like the
-lambda calculus, but with `Π` (Pi) instead of lambda).
+Unsurprisingly, Lean's type system lets us express a type family in terms of a
+`forall` universal quantifier, so `∀ (i: Nat), FB i` refers to the same
+concept.  (Another way to express this that bit more like function notation is
+`Π (i: Nat) . FB i` - this is just like the lambda calculus, but with `Π` (Pi)
+instead of lambda - it's a "map" from Nat to some type in the `FB` family).
 
 OK, for a given `i`, what can we say about each of our constructors?  Well, to
 construct a `Fizzbuzz` of type `FB i`, it better be the case that `i % 15 = 0`.
@@ -336,33 +336,39 @@ of the `i`s, or uniqueness?  Does every element of `Vector (FB n) n` (that is,
 correspondence with elements in `Vector (Σ i, FB i) 15`?
 :::
 
-## Pi types map values to dependent types
-
 Note that because Lean doesn't implement `ToString` for sigma types, even
 if each element in the pair does, if we want to print Vectors returned 
 by `fb_vec` directly, we have to do so ourselves.
 
-Our goal is to write an `instance ToString` for sigma types of witness type `α`
-and dependent type `β α`, which we would write as `(Σ (x : α), β x)`. (In our
-particular sigma type, `(Σ i, FB i)`, `α` is `Nat` and `β` is `FB`.)  
+Our goal could be to write an `instance ToString` for sigma types of witness
+type `α` and dependent type `β α`, which we would write as `(Σ (x : α), β x)`.
+(In our particular sigma type, `(Σ i, FB i)`, `α` is `Nat` and `β` is `FB`.)  
 
 ```lean4
 instance : ToString (Σ (x : α), β x) where
   toString := -- TODO
 ```
 
-In order to print out this pair, what needs to be true?  Certainly, the witness
-needs to be printable, so we have to constrain our typeclass definition to say
-`α` must be an instance of `ToString`: we say this with 
+Just to simplify things for this post, rather than writing a `ToString` for
+_all_ dependent pairs (which means we have to show that `α` and `β` are
+`ToString`able, let's just specialise this for our exact pair:
 
 ```lean4
-instance [ToString α] : ToString (Σ (x : α), β x) where
-  toString := -- TODO
+instance : ToString (Σ i, FB i) where
+  toString := fun ⟨_, fb⟩ => s!"{toString fb}"
 ```
 
+:::margin-warning
+Strangely, `Vector` doesn't seem to implement `ToString`, so I'm printing it
+out by pulling out its backing `Array`.  I wonder if this is just an omission
+or if there's a good reason for this.
+:::
 ```lean4
-instance [ToString α] [∀ x, ToString (β x)] : ToString (Σ (x : α), β x) where
-  toString := fun ⟨a, b⟩ => s!"⟨{toString a}, {toString b}⟩"
+#eval (fb_vec 5).toArray
+
+#[1, 2, Fizz, 4, Buzz]
 ```
 
+## Caching out by simplifying our spec
 
+All right!  We've pushed a lot of formal complexity into the implementation.
