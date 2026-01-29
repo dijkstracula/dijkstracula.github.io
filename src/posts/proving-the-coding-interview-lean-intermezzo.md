@@ -4,7 +4,6 @@ title: "Leaning into the Coding Interview: proving equality of different Fuzzbuz
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "There are lots of different ways to implement Fizzbuzz but this one is mine - how can we prove different implementations are actually the same, and what does it look like when they're actually not?"
-draft: true
 ---
 
 ::: tip
@@ -720,10 +719,12 @@ type `s`), so we'd have a pair of values returned in `State.run : State s α →
 It also doesn't make sense for every monad to have a "run" - what should some
 hypothetical `List.run : List α → α` return?  An empty list has no `α` to
 return at all, and a list with more than one element has a _choice_ of which
-one to return...
+one to return... For `List`, `Option`, and other such monads, we typically
+_eliminate_ by pattern matching (e.g. match on the empty list, and then on the
+head and tail of the list) rather than having a `run` function.
 :::
 
-```
+```lean4
 theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
   funext i
   unfold fb_one_ntaylor
@@ -757,7 +758,7 @@ Rewriting with this theorem transforms, say, `"FizzBuzz" = (pure "FizzBuzz").run
 into `"FizzBuzz" = "FizzBuzz"` and then immediately discharges it, leaving us only
 with the contradictory goals.  We know `lia` will do the job there.
 
-```
+```lean4
 theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
   funext i
   unfold fb_one_ntaylor
