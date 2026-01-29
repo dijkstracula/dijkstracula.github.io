@@ -3,7 +3,7 @@ layout: post.njk
 title: "Leaning into the Coding Interview: proving equality of different Fuzzbuzzes"
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
-excerpt: "There are lots of different ways to implement Fizzbuzz - how can we prove different implementations are actually the same, and what does it look like when they're actually not?"
+excerpt: "There are lots of different ways to implement Fizzbuzz but this one is mine - how can we prove different implementations are actually the same, and what does it look like when they're actually not?"
 draft: true
 ---
 
@@ -12,7 +12,7 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
-  * [Intermezzo - proofs between implementations](/posts/proving-the-coding-interview-lean-intermezzo]
+  * [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
   * Part four - proof-carrying code
 
 All previous Proving The Coding Interview posts can be found
@@ -270,6 +270,10 @@ for every subgoal, `repeat split` the _match_ expression away (and, again,
 discharging goals that are trivially provable). Recall the `<;>` "xargs"
 tactical that will do this for us:
 
+::: margin-note
+In the next proof, we'll see an arguably superior way of unfolding all `if`s
+than chaining together `repeat split`s.
+:::
 ```lean4
 theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
   funext i
@@ -390,8 +394,14 @@ of mutable state.  (For IO, it might be "read the contents of a file" and
 "write out the contents to another file" or something.)
 
 ::: margin-note
-Probably means that theorems written about arbitrary monads could be applied
-for a proof about some _particular_ monadic operation, too!
+We'll see shortly that the monad laws are logical propositions that typically
+can't be captured in most type systems.  Many libraries in other languages that
+define monads use [random
+testing](https://chrisphelps.github.io/scala/2016/11/30/Cats-Law-Checking-With-Discipline/)
+to make sure their implementations adhere to the monad laws.  But, we have a
+proof assistant in Lean!  This means we can write the monad laws down formally
+and prove them for all the monads we have in the standard library, or new ones
+that we choose to design.
 :::
 The reason why functional programmers get jazzed about monads is that they
 use the same underlying primitive to implement wildly different kinds of
@@ -405,10 +415,11 @@ Ordinarily, each operation on a monad would be written as a function passed
 into the monad. (This is the famous `bind` or `>>=` function, but Elm and
 Rust's choice to call it
 [`and_then`](https://doc.rust-lang.org/rust-by-example/error/option_unwrap/and_then.html)
-instead is in my opinion an inspired one).  This can get unwieldy pretty fast
-if we are easily overwhemed; `do`-notation is syntactic sugar that lets us
-forget that all this monad stuff is happening under the hood, which is exactly
-the thing we want if you don't want to learn what a monad actually is.
+instead is in my opinion a way more intuitive description of what's going on).
+This can get unwieldy pretty fast if we are easily overwhemed; `do`-notation is
+syntactic sugar that lets us forget that all this monad stuff is happening
+under the hood, which is exactly the thing we want if you don't want to learn
+what a monad actually is.
 
 ### Our monadic `fb_one`
 
@@ -445,7 +456,11 @@ appear inside a `do` block, and that a State monad is being constructed under
 the hood.
 
 Next, of course, `val := expr` "mutates" the value of `val`.  For the purposes
-of the State monad, mutations are the operation that gets sequenced.
+of the State monad, mutations are the operation that gets sequenced, so you can
+think of our function is saying is: "start with `ret` being defined as `""`;
+_and then_ do the `i % 3` check with conditional mutation; _and then_ do the `i
+% 5` check with conditional mutation, _and then_ return the final value
+depending on the length of `ret`".
 
 `return` is also a bit of a funny one - we've seen that like good functional
 languages, Lean is _expression-based_, so since every expression reduces to
@@ -453,6 +468,12 @@ some value, even bodies of functions, it doesn't really make sense to think
 about "returning" anything.  Think of it instead as returning the value "out of
 the `do` block" instead.  Notice that we can have early `return`s, just like
 in a non-functional language.
+
+Lastly, `Id` is the specific monad that we're using to sequence our mutable
+computations.  It's not exactly the State monad, but we get the `let mut` and
+`return` syntax from it, so we'll use it here instead of the more traditional
+State monad (which has more of a getter/setter-like API.  Not bad, just
+different, and I wanted to show off `let mut` specifically here.)
 
 ### Proving equality, once more
 
@@ -624,7 +645,17 @@ i.repr` checks with a carefully-chosen lemma which we taught `simp` about.
 
 We'll proceed the same way we did before: we'll repeatedly unfold the left and
 right-hand side's `if` expressions into subgoals, throwing away the ones that
-are trivially solvable (or obviously contradictory):
+are trivially solvable (or obviously contradictory).
+
+In the last proof, we composed multiple `repeat split` with the `<;>` tactical.
+Some of you asked why we needed `repeat split <;> repeat split` - after all,
+shouldn't one occurrence keep splitting until we reach a fixpoint?  The reason
+is that `split` only operates on the _current subgoal_, so we keep splitting
+until we reach a fixpoint for the first subgoal, but all the subsequent ones
+may still have `if`s to split up.
+
+Really, the thing we want to do is "keep splitting on every subgoal until every
+subgoal reaches a fixpoint".  `repeat all_goals split` will do just this for us!
 
 ```lean4
 theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
@@ -632,20 +663,126 @@ theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
   unfold fb_one_ntaylor
   unfold fb_one_monadic
   simp
-  repeat split <;> repeat split <;> repeat split
+  repeat all_goals split
 
-12 goals
+8 goals
 
-case isTrue.isTrue
-i : ℕ
-h✝¹ : i % 3 = 0 ∧ i % 5 = 0
-h✝ : i % 3 = 0
-⊢ "FizzBuzz" = (if i % 5 = 0 then pure "FizzBuzz" else pure "Fizz").run
+case h.isTrue.isTrue.isTrue
+i : Nat
+h✝² : i % 3 = 0 ∧ i % 5 = 0
+h✝¹ : i % 3 = 0
+h✝ : i % 5 = 0
+⊢ "FizzBuzz" = (pure "FizzBuzz").run
 
-case isTrue.isFalse
-i : ℕ
-h✝¹ : i % 3 = 0 ∧ i % 5 = 0
-h✝ : ¬i % 3 = 0
-⊢ "FizzBuzz" = (if i % 5 = 0 then pure "Buzz" else pure i.repr).run
+case h.isTrue.isTrue.isFalse
+i : Nat
+h✝² : i % 3 = 0 ∧ i % 5 = 0
+h✝¹ : i % 3 = 0
+h✝ : ¬i % 5 = 0
+⊢ "FizzBuzz" = (pure "Fizz").run
 ...
 ```
+
+The left hand side of these equalities is the returned value from our plain vanilla `if`,
+and the right hand side is from the monadic one.  
+
+I intentionally did not want to have to explain what the monad laws guarantee,
+but you can think of `pure` as "puts a value into the monad" and `run` is
+"extracts a value out from the monad".  It shouldn't surprise us that "putting
+a value and then taking it right out again leaves us the original value. And
+there's a
+[proof](https://github.com/leanprover/lean4/blob/5b0b365406a713fba68b5e817c9f852174ad0b18/src/Init/Control/Lawful/Basic.lean#L253)
+of that!
+
+::: note
+An optional diversion for the mathematically-curious:
+
+`pure : α → M α` is the monadic _unit_, the neutral operation that just embeds
+a value without transforming it.  The type signature for the Monad typeclass
+guarantees that this function will exist for every monad, and the monad laws
+constrain its behaviour so that `pure` is "nicely-behaved".  An example of a
+"badly-behaved" monad whose `pure` typechecks, but violates the monad laws,
+would be a `Option` whose `pure` just discards the value and always produces a
+`None`, rather than a `Some x`.  (We'd say that this unit violates the _left
+identity_ law.)
+
+By contrast, `run` is the _interpreter_ or sometimes the _eliminator_ of the
+monad.  It isn't actually defined in terms of the monad laws because its type
+signature really depends on what monad we're talking about: 
+
+"running" an IO monad means asking the language runtime and the operating
+system to read a file or whatever, so we might have the type signature `IO.run
+: IO α → α`.  Running the State monad by comparison would return the final
+computation (of type `α`) along with the final value of the piece of state (of
+type `s`), so we'd have a pair of values returned in `State.run : State s α → s
+→ (α × s)`.
+
+It also doesn't make sense for every monad to have a "run" - what should some
+hypothetical `List.run : List α → α` return?  An empty list has no `α` to
+return at all, and a list with more than one element has a _choice_ of which
+one to return...
+:::
+
+```
+theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
+  funext i
+  unfold fb_one_ntaylor
+  unfold fb_one_monadic
+  simp
+  repeat all_goals split
+  all_goals rw [Id.run_pure] --NEW
+
+4 goals
+case h.isTrue.isTrue.isFalse
+i : Nat
+h✝² : i % 3 = 0 ∧ i % 5 = 0
+h✝¹ : i % 3 = 0
+h✝ : ¬i % 5 = 0
+⊢ "FizzBuzz" = "Fizz"
+
+case h.isTrue.isFalse.isTrue
+i : Nat
+h✝² : i % 3 = 0 ∧ i % 5 = 0
+h✝¹ : ¬i % 3 = 0
+h✝ : i % 5 = 0
+⊢ "FizzBuzz" = "Buzz"
+```
+
+::: margin-note
+If we wanted to use `<;>` on the same line as the `repeat`, we'd have to wrap
+the latter in parentheses to ensure correct order of operations, e.g. `(repeat
+all_goals split) <;> rw [Id.run_pure]`.
+:::
+Rewriting with this theorem transforms, say, `"FizzBuzz" = (pure "FizzBuzz").run`,
+into `"FizzBuzz" = "FizzBuzz"` and then immediately discharges it, leaving us only
+with the contradictory goals.  We know `lia` will do the job there.
+
+```
+theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
+  funext i
+  unfold fb_one_ntaylor
+  unfold fb_one_monadic
+  simp
+  repeat all_goals split
+  all_goals rw [Id.run_pure] <;> lia -- NEW
+
+0 goals
+Goals accomplished!
+```
+
+As cool as `fb_one_ntaylor = fb_one_sdiehl` was, this one feels even cooler.
+(Your turn: given the two proofs we wrote today, prove that `fb_one_sdiehl` is
+equal to the monadic version - the proof should be super-short.)
+
+## Next time...
+
+OK, so we're going to return next time to our original implementation, which
+returns our `FB` custom datatype and the specification we wrote with our custom
+tactic.
+
+We found our specification ended up being pretty tedious, though, because we
+had a bunch of work to verify that, in essence, we were constructing valid `FB`
+values in the right setting.  Next time, we're going to learn a bunch more
+about implemeting our own _dependently-typed_ `FB` and see how leaning on the
+type system in the _implementation_ makes the _specification_ less difficult to
+write.  See you then.

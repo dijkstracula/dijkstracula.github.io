@@ -11,7 +11,7 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3).
-  * Intermezzo - contrasting different implementations
+  * [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
   * Part four - certified programming with proof carrying code
 
 All previous Proving The Coding Interview posts can be found
@@ -854,8 +854,10 @@ theorem thm4 : ∀ (i n : Nat) (H : i < n),
 This was actually a pretty productive session!  We wrote our Fizzbuzz
 specification and our implementation successfully checks against it.
 
-We found our specification ended up being pretty tedious, though, because we
-had a bunch of work to verify that, in essence, we were constructing valid `FB`
-values in the right setting.  Next time, we'll see how we can improve this and
-maybe converge on an implementation and specification that is both succinct
-as well as clear to the reader!
+If you've been following along from the beginning, you might have said, "oh, I
+wouldn't have implemented `fb_one` _quite that way_..." - maybe you would have
+chosen a `match` expression instead of an `if`-ladder, or maybe you would have 
+done something altogether different.  Next time, we're going to have a brief
+diversion into other possible worlds and see how robust our specification is,
+and maybe even write a theorem to the effect of `your_fb_one = my_fb_one`...!
+See you then.
