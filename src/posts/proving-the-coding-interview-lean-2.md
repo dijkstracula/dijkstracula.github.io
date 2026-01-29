@@ -76,11 +76,7 @@ def fizzbuzz (n : Nat) : List String :=
 
 -- our specification
 
-theorem fizzbuzz_of_n_is_length_n (n : Nat) : (fizzbuzz n).length = n := by
-  unfold fizzbuzz
-  simp
-
-theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
+theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by
   unfold fizzbuzz
   rw [List.length_map, List.length_range']
 
@@ -317,7 +313,7 @@ Application type mismatch: The argument
 has type
   i < n
 but is expected to have type
-  i < (fb_list n).length
+  i < (fizzbuzz n).length
 in the application
   Exists.intro H_i_lt_n
 ```
@@ -338,47 +334,47 @@ context, that we'll have to prove before we can proceed with the rest of our
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fb_list n) = n) := by -- NEW
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by -- NEW
 
 1 goal
 i n : ℕ
 H_i_lt_n : i < n
-⊢ (fb_list n).length = n
+⊢ (fizzbuzz n).length = n
 
 unsolved goals
 i n : ℕ
 H_i_lt_n : i < n
-H_n_is_len : (fb_list n).length = n
-⊢ ∃ h, (fb_list n)[i] = fb_one (i + 1)
+H_n_is_len : (fizzbuzz n).length = n
+⊢ ∃ h, (fizzbuzz n)[i] = fb_one (i + 1)
 ```
 
 Notice that our new goal is to prove the local proposition we just defined,
 and that Lean reminds us of our still-unsolved goal underneath.
 
-...hey, as it happens, we proved this last time with the `fb_length` theorem!
+...hey, as it happens, we proved this last time with the `fb_length_n` theorem!
 So, we can simply apply our previous theorem and then we're immediately done.
 
 ::: margin-warning
 Here we're using `have` to define a new entry in our context.  In Coq, I could
-simply have applied `fb_length` to the _existing_ entry with `apply fb_length
+simply have applied `fb_length_n` to the _existing_ entry with `apply fb_length
 at H_i_lt_n`, saving us a few steps.  Lean, though, doesn't seme to let us
 apply a theorem to a hypothesis, though.  I'm not sure why!
 :::
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length --NEW
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n --NEW
 
 1 goal
 i n : ℕ
 H_i_lt_n : i < n
-H_n_is_len : (fb_list n).length = n --NEW
-⊢ ∃ h, (fb_list n)[i] = fb_one (i + 1)
+H_n_is_len : (fizzbuzz n).length = n --NEW
+⊢ ∃ h, (fizzbuzz n)[i] = fb_one (i + 1)
 ```
 
 Now we're back to the original goal to prove, but now we have our new equality
@@ -387,17 +383,17 @@ the bounds-check proof we need!
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
   rw [<- H_n_is_len] at H_i_lt_n -- NEW
 
 1 goal
 i n : ℕ
-H_i_lt_n : i < (fb_list n).length --NEW
-H_n_is_len : (fb_list n).length = n
-⊢ ∃ h, (fb_list n)[i] = fb_one (i + 1)
+H_i_lt_n : i < (fizzbuzz n).length --NEW
+H_n_is_len : (fizzbuzz n).length = n
+⊢ ∃ h, (fizzbuzz n)[i] = fb_one (i + 1)
 ```
 
 Now that we have precisely the hypothesis that the type checker complained
@@ -406,18 +402,18 @@ that we didn't have before, we can use `exists` as before, and we'll see the
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
   rw [<- H_n_is_len] at H_i_lt_n
   exists H_i_lt_n
 
 1 goal
 i n : ℕ
-H_i_lt_n : i < (fb_list n).length
-H_n_is_len : (fb_list n).length = n
-⊢ (fb_list n)[i] = fb_one (i + 1)
+H_i_lt_n : i < (fizzbuzz n).length
+H_n_is_len : (fizzbuzz n).length = n
+⊢ (fizzbuzz n)[i] = fb_one (i + 1)
 ```
 
 ::: margin-note
@@ -432,18 +428,18 @@ expanded definition would have been a lot harder to read.
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
   rw [<- H_n_is_len] at H_i_lt_n
   exists H_i_lt_n
-  unfold fb_list; simp
+  unfold fizzbuzz; simp
 
 1 goal
 i n : ℕ
-H_i_lt_n : i < (fb_list n).length
-H_n_is_len : (fb_list n).length = n
+H_i_lt_n : i < (fizzbuzz n).length
+H_n_is_len : (fizzbuzz n).length = n
 ⊢ fb_one (1 + i) = fb_one (i + 1)
 ```
 
@@ -463,14 +459,14 @@ reasonably guess what it's capable of doing "out of the box".
 :::
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fb_list n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
   intro i n H_i_lt_n
-  -- unfold fb_list
+  -- unfold fizzbuzz
   rw [@List.getElem?_eq_some_iff]
-  have H_n_is_len : (List.length (fb_list n) = n) := by apply fb_length
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
   rw [<- H_n_is_len] at H_i_lt_n
   exists H_i_lt_n
-  unfold fb_list; simp
+  unfold fizzbuzz; simp
   rw [Nat.add_comm]
 
 Goals accomplished!
@@ -794,5 +790,9 @@ The `sorry` tactic automatically discharges the proof - it's an unsafe
 admission that we haven't actually solved it yet.  No `sorry`s should exist in
 any of your theorems by the time you're done!
 
-Next time, we'll learn about Lean's support for custom tactics, splitting
-proofs into subgoals, and a new way to prove things: by contradiction.
+[Next time](/posts/proving-the-coding-interview-lean-3), we'll learn about
+Lean's support for custom tactics, splitting proofs into subgoals, and a new
+way to prove things: by contradiction.
+
+_thanks to [prydt](https://prydt.xyz/) for reporting some bug fixes in this
+post._

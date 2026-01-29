@@ -595,7 +595,7 @@ Given that `(fizzbuzz 3).length = 3`, maybe we're now inspired to make a
 general statement about _all possible_ calls to the function:
 
 ```lean4
-theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by 
+theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by 
   -- TODO: what tactics can we apply to prove this statement?
 
 1 goal
@@ -627,7 +627,7 @@ Well, we don't have a lemma to tell us anything specifically about
 to see if there's anything in its definition that can help us out.
 
 ```lean4
-theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by 
+theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by 
   unfold fizzbuzz -- NEW
 
 1 goal
@@ -652,7 +652,7 @@ Before proceeding, see if you can remember what tactic we can apply to this
 theorem to help us make progress on our goal.
 
 ```lean4
-theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
+theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by
   unfold fizzbuzz
   rw [List.length_map] -- NEW
 
@@ -681,7 +681,7 @@ We can group multiple adjacent rewrites onto one line like this: `rw
 [List.length_map, List.length_range']`. 
 :::
 ```lean4
-theorem fb_of_n_len_is_n (n : Nat) : (fizzbuzz n).length = n := by
+theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by
   unfold fizzbuzz
   rw [List.length_map]
   rw [List.length_range'] -- NEW
