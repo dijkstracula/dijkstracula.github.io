@@ -79,9 +79,49 @@ contructor: it's not enough to simply construct some particular `FB i` like
 `Fizzbuzz : FB 15`; we have to provide proof (in the sense of providing _a
 proof_!) to the type system that our choice of `i` is a correct one.
 
-We can see this in action in our IDE: if we define a variable representing
-what should be our 42nd entry in our produced Vector, what type should it
-have?  Hopefully it's clear that it should be of type `FB 42`.
+### Exploring the `FB` type family with `#check`
+
+So if `FB 42` is a type, and, of course, `42` is a `Nat`, what can we say about
+`FB`?  Seems like it's acting like a function that consumes a `Nat` and returns
+a type.  And Lean would agree!
+
+:::margin-note
+The `#check` command in our IDE lets us inspect the results of typechecking the
+supplied expression.  
+:::
+```lean4
+#check FB 42
+FB 42 : Type
+
+#check 42
+42 : Nat
+
+#check FB
+FB (i : Nat) : Type
+```
+
+So just as we expeted, `FB` is a function at the type level. Let's play around
+with this a bit more: What's the type of `FB.Fizz`?
+
+```lean4
+#check FB.Fizz 
+
+FB.Fizz {i : Nat} (ev : i % 3 = 0 ∧ i % 5 ≠ 0) : FB i
+```
+
+(The `{i : Nat}` in curly braces is an [implicit
+argument](https://lean-lang.org/doc/reference/latest/Terms/Functions/#implicit-functions);
+for our purposes, just pretend it isn't there for now.)  What _is_ there,
+though, is the `ev` argument: for `FB.Fizz` to typecheck to some `FB i`, we
+have to provide the right divisibility proof for the right typelevel `i`!
+
+### Constructing an `FB i` now requires passing in a proof 
+
+Wte can see this in action when we try to define a value whose type is in the
+`FB` type family: if we define a variable representing what should be our 41st
+entry in our produced Vector, what type should it have?  Hopefully it's clear
+that it should be of type `FB 42`.  (Did you say `FB 41`?  Argh, that
+off-by-one strikes again!)
 
 ```lean4
 def my_favourite_fb : FB 42 := -- TODO
@@ -90,7 +130,7 @@ def my_favourite_fb : FB 42 := -- TODO
 ::: margin-note
 If you're convinced that there's truly only one value of a given `FB i` (a type
 with one _inhabitant_ is what we call a _singleton type_), that might be worth
-writing a theorem about.
+writing a theorem about.  Maybe we'll do that another time.
 :::
 Now, what's a _value_ of type `FB 42`?  Well, 42 is divisible by 3 but not 5,
 so that means it's got to be constructed by `FB.Fizz`, right?  Almost but not
@@ -146,18 +186,70 @@ Not at all a useful type error, it simply tells us, by way of `False` in our
 goal, that there's a contradiction somewhere between us and the proposition
 we're trying to prove.
 
+### Type ascription, implicit arguments, and bidirectional typechecking
+
+This also should give you a sense of why dependently-typed languages aren't
+able to fully infer types, like more conventional languages can.  Suppose I'd
+left off the _type ascription_  of our definition like this:
+
+:::warning
+```lean4
+def my_favourite_fb := FB.Fizz (by simp)
+
+unsolved goals
+⊢ ?m.3 % 3 = 0 ∧ ¬?m.3 % 5 = 0
+```
+:::
+
+The `?m` indicates that Lean is trying to "fill in the blank" with an appropriate
+`i` value to discharge the proof, but it doesn't have one on hand to do so.
+This makes sense - after all, well, what _is_ my favourite fizzbuzz?  Is it `FB
+15`?  Is it `FB 30`?  `FB 470055`??? I don't know and neither do you.  So, we
+have to nail down the `i` _somehow_, and by specifying the full `FB` type of 
+the definition we can do so.  
+
+Alternatively, remember that when we looked at the type constructor
+for `FB.Fizz`, there was an _implicit argument_.  We can opt into specifying
+implicit arguments explicitly with the `@` prefix:
+
+```lean4
+def my_favourite_fb := @FB.Fizz 42 (by simp)
+```
+
+Now, `i` isn't filled in from the context of us telling Lean what the type of
+the definition is, but rather we're passing it in directly.  This means we
+don't need type ascription, because we've provided a value for `i` just in a
+different way.
+
+The fact that the relevant information for `i` can flow in either direction
+is an aspect of _bidirectional typechecking_: `(FB.Fizz (by simp) : FB 42)` is
+checked in a top-down way: Lean starts with "<some expression `e`> has type `FB
+42`" and remembers that fact when it inspects the expression.  "term e checks
+against type τ" is encoded mathematically as `e ⇐ τ`.
+
+By contrast, `@FB.Fizz 42 (by simp)` requires Lean to start with "<some
+expression `e`> has <some type `τ`>", writte - it has to use the expression to
+figure out the type, so all the information it needs for the latter better be
+specified in the former. "term e synthesizes type τ" is encoded as `e ⇒ τ`.
+
+In the first case, checking flows from types to terms, whereas in the second,
+it flows from terms to types.
+
 ## `fb_one` must provide the _evidence_ for each FB
 
-Remember that last time, when we were stating and proving all these properties
-about the `FB` constructors, we did these compile-time checks as part of a
-theorem after the fact. The hope is that this might simplify the proof of our
-specification without making it harder to write the implementation.  Let's see
-if that's actually true.
+Okay, enough theory for now.  Hopefully you have a bit of intuition about 
+how to define dependently-typed `FB` values no.
 
-Okay, with our above changes, `fb_one` no longer typechecks because we've added
-an argument to `FB`. Let's start rewriting it.  Already, we can see we hit a
-snag pretty quickly: in the "then" arm of the first `if`, we need to pass a
-proof term to the FB.FizzBuzz constructor, but, where are we going to find one?
+Remember that in the last post, when we were stating and proving all these
+properties about the `FB` constructors, we did these compile-time checks as
+part of a theorem that was separate from our data definitions. The hope is that
+this might simplify the proof of our specification without making it harder to
+write the implementation.  Let's see if that's actually true.
+
+Okay, with our above changes, `fb_one` no longer typechecks, so let's start
+rewriting it.  Already, we can see we hit a snag pretty quickly: in the "then"
+arm of the first `if`, we need to pass a proof term to the FB.FizzBuzz
+constructor, but, where are we going to find one?
 
 ```lean4
 def fb_one (i : Nat) : FB i :=
@@ -166,7 +258,24 @@ def fb_one (i : Nat) : FB i :=
 
 Whatever pass to the constructor needs to be a proof that `i % 15 = 0`.
 Of course, this is _exactly_ the proposition we know to be true, because
-it's right there in the `if` conditional.  
+it's right there in the `if` conditional.  We might think it's the case
+that we can just pass an automated tactic like `(by lia)` as the argument
+to each `FB i` data constructor, but we can see that doesn't work:
+
+::: warning
+```lean4
+def fb_one (i : Nat) : FB i :=
+    if i % 15 = 0 then FB.FizzBuzz (by 
+
+1 goal
+i : Nat
+⊢ i % 15 = 0
+```
+:::
+
+We need to specify a proof that i % 15 = 0, but we don't have one in our
+context.  But, we know that because we took the `then` arm of the `if`, then
+it's obviously true from the program's control flow!
 
 So, here's fun thing we can do in Lean that I've never seen in any other
 language: we can use a _dependent if_: at runtime, this behaves identically
@@ -176,17 +285,17 @@ look!
 
 ```lean4
 def fb_one (i : Nat) : FB i :=
-    if h15 : i % 15 = 0 then FB.FizzBuzz -- NEW
+    if h15 : i % 15 = 0 then FB.FizzBuzz (by -- NEW
 
-i : ℕ
+i : Nat
 h15 : i % 15 = 0
-⊢ FB i
+⊢ i % 15 = 0
 ```
 
-Note that our context doesn't say anything about goals, because we're not
-writing tactics to prove a theorem right now.  But we can see that inside
-the "then" branch, we have the proposition `h : i % 15 = 0`.  That's exactly
-the right argument to `FB.FizzBuzz`! 
+We can see that, as expected, the `if` is now in our context! That's exactly
+the right argument to `FB.FizzBuzz`!  So, we can pass `h15` in directly, or
+stay in tactics mode and use `(by assumption)`, which looks through our context
+for an exact match to our goal.  Let's pass in the hypothesis directly.
 
 ```lean4
 def fb_one (i : Nat) : FB i :=

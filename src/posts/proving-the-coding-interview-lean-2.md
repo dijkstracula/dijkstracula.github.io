@@ -585,12 +585,23 @@ numeric value is in play.  Lean doesn't have that problem: the following
 ill-typed function (which concatenates two calls to `fb_vec`) produces a clear
 and useful type error:
 
-::: margin-note
+::: note
 Something for you to pause and ponder about: based on what you've seen about
 Lean's type system and innate knowledge of linear arithmetic, if we "corrected"
 the type signature of `fb_twice` to `Vector FB (2 * n)` instead of `Vector FB
 (n + n)`, would you expect the type system to complain?  If so, how might we
 convince it that `2 * n` denotes the same concept as `n + n`?
+:::
+
+::: margin-warning
+(What's worse, if we had two different `fb_twice` implementations, one whose
+return type was `Vector FB (2 * n)` and one whose is `Vector FB (n + n)`, we
+wouldn't be able to compare vectors returned from the two for equality!
+Remember the definition of `eq` from the first section: it compares two values
+_of the same type_, but those two vector types are not definitionally equal!
+Before too long, we'll have to broaden our definition of equality to be able to
+compare _heterogenous but equivalent_ types, but that's a matter for another
+time.)
 :::
 ::: warning
 ```lean4
