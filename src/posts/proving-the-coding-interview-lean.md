@@ -605,7 +605,12 @@ n : ℕ
 
 You might read this theorem aloud as "for all natural numbers `n`, `(fizzbuzz
 n).length = n`", and note that this covers the first sentence in the
-specification: "First, construct a list of strings of length `n`, ...". 
+specification: "First, construct a list of strings of length `n`, ...".
+
+(If the Dafny version of the problem, we stated this fact as a _postcondition_
+on the return value of `fizzbuzz`, so the fact was in some sense "inlined" in
+the function itself as opposed to having a separate statement elsewhere in the
+program.)
 
 ::: margin-warning
 Sometimes hypotheses are called _assumptions_ in formal logic.  Don't mistake

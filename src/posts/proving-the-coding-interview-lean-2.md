@@ -129,14 +129,15 @@ write it!
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
 
 1 goal
-⊢ ∀ (i n : ℕ), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1))
+⊢ ∀ (i n : ℕ), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i))
 ```
 
 Note the annoying off-by-one here, since the `0`th element of the returned list
-should be `fb_one 1`, and so on.
+should be `fb_one 1`, and so on, so in general the `i`th element of the List
+should correspond to whatever `fb_one (1 + i)` returns.
 
 ::: margin-note
 More generally we say that `[]?` is a _total_
@@ -167,13 +168,13 @@ type `t`") into our context, and changes the goal to `expr`:
 :::
 
 ```lean4
-theorem fb_one_to_fizzbuzz_x :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+theorem fb_one_to_fizzbuzz :
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n
 
 1 goal
 i n : ℕ
-⊢ i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1))
+⊢ i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i))
 ```
 
 Of course, the context doesn't tell us anything about what values `i` and `n`
@@ -194,12 +195,12 @@ another `intro` we have that appear in our goal:
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n --NEW
 
 i n : ℕ
 H_i_lt_n : i < n
-⊢ (fizzbuzz n)[i]? = some (fb_one (i + 1))
+⊢ (fizzbuzz n)[i]? = some (fb_one (1 + i))
 ```
 
 Notice that `intros` always adds things in they appear in the goal: if we'd
@@ -251,14 +252,14 @@ let's use `rw` to transform it into the right-hand side.
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff] --NEW
 
 1 goal
 i n : ℕ
 H_i_lt_n : i < n
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (i + 1)
+⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 ::: margin-note
@@ -302,7 +303,7 @@ with it:
 ::: warning
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]
   exists H_i_lt_n --NEW
@@ -334,7 +335,7 @@ context, that we'll have to prove before we can proceed with the rest of our
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fizzbuzz n) = n) := by -- NEW
@@ -348,7 +349,7 @@ unsolved goals
 i n : ℕ
 H_i_lt_n : i < n
 H_n_is_len : (fizzbuzz n).length = n
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (i + 1)
+⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 Notice that our new goal is to prove the local proposition we just defined,
@@ -365,7 +366,7 @@ apply a theorem to a hypothesis, though.  I'm not sure why!
 :::
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n --NEW
@@ -374,7 +375,7 @@ theorem fb_one_to_fizzbuzz :
 i n : ℕ
 H_i_lt_n : i < n
 H_n_is_len : (fizzbuzz n).length = n --NEW
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (i + 1)
+⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 Now we're back to the original goal to prove, but now we have our new equality
@@ -383,7 +384,7 @@ the bounds-check proof we need!
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
@@ -393,7 +394,7 @@ theorem fb_one_to_fizzbuzz :
 i n : ℕ
 H_i_lt_n : i < (fizzbuzz n).length --NEW
 H_n_is_len : (fizzbuzz n).length = n
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (i + 1)
+⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 Now that we have precisely the hypothesis that the type checker complained
@@ -402,7 +403,7 @@ that we didn't have before, we can use `exists` as before, and we'll see the
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
   rw [@List.getElem?_eq_some_iff]  
   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
@@ -413,8 +414,14 @@ theorem fb_one_to_fizzbuzz :
 i n : ℕ
 H_i_lt_n : i < (fizzbuzz n).length
 H_n_is_len : (fizzbuzz n).length = n
-⊢ (fizzbuzz n)[i] = fb_one (i + 1)
+⊢ (fizzbuzz n)[i] = fb_one (1 + i)
 ```
+
+It's worth pointing what all this did: we started with a statement of
+equality between `Option String`s - We safely indexed into the returned
+List on the left hand side with `?`, and asserted that we get back a
+particular `some` value.  As of this point in the proof, we've banished
+any notion of the `Option` type away from our goal!
 
 ::: margin-note
 Did I unfold first, and after completing the proof, decide that for
@@ -422,57 +429,132 @@ expository purposes it was better to do it later, or am I actually
 _just that insightful_?  You be the judge...
 :::
 OK, we're kind of out of other things to do, so _now_ let's unfold the
-definition of `fizzbuzz` and simplify the goal with `simp`.  (Again, the proof
-would look essentially identical if we'd unfolded from the start, but the
-expanded definition would have been a lot harder to read.
+definition of `fizzbuzz`.
 
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
-  rw [@List.getElem?_eq_some_iff]  
+
+  -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
+  rw [@List.getElem?_eq_some_iff]
   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
   rw [<- H_n_is_len] at H_i_lt_n
   exists H_i_lt_n
-  unfold fizzbuzz; simp
+
+  -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
+  unfold fizzbuzz
 
 1 goal
 i n : ℕ
 H_i_lt_n : i < (fizzbuzz n).length
 H_n_is_len : (fizzbuzz n).length = n
-⊢ fb_one (1 + i) = fb_one (i + 1)
+⊢ (List.map fb_one_ntaylor (List.range' 1 n))[i] = fb_one_ntaylor (1 + i)
 ```
 
-The equality is _almost_ the same on both sides: the only difference
-is the order of arguments to `+`.  We know addition is commutative,
-and via the `Nat.add_comm` theorem, so does Lean, so with one final
-rewrite we can complete the proof.
+### Exploiting properties of `List`s
 
-::: margin-note
-One of the downsides of using automated tactics like `simp` is that
-it's not immediately clear to us as programmers what simplifications
-it will be able to do.  I might have thought that it'd attempt to 
-flip the arguments to the addition, but clearly not.  By contrast,
-as opaque as Dafny's internals seem to be, its underlying SMT solver
-seems grounded enough in the axioms of linear arithmetic that we would
-reasonably guess what it's capable of doing "out of the box".
+Unfolding `fizzbuzz` made the goal more complicated, but the good news
+is that the added complexity is just in terms of `List` functions,
+so hopefully we can make use of some properties of `List`s to simplify
+the goal again.  Here are two facts that better be true:
+
+1) If you map over a list `l` with some function `f`, and then take the `i`th
+element out of the mapped list, it better be the same as just passing the `i`th
+element of the original list to `f` in the first place.  Stated more
+mathematically, `(map f l)[i] = f l[i]`.  (In order to make this well-defined,
+let's assume that `i` is a valid index for `l`.)
+2) `List.range'` is a function that we know a lot about: the `i`th element of
+`List.range begin end` better be `begin + 1` (again, assuming `i` is in
+bounds.)
+
+::: margin-warning
+These are defined in mathlib, so if they don't appear in your IDE ensure
+you've imported `Mathlib.Data.Nat.Basic`.
 :::
+by this point you shouldn't be surprised that Lean has build-in theorems for
+both these statements!
+[List.getElem_map](https://leanprover-community.github.io/mathlib4_docs/Init/Data/List/Lemmas.html#List.getElem_map)
+states the first property and
+[List.getElem_range'](https://leanprover-community.github.io/mathlib4_docs/Init/Data/List/Range.html#List.getElem_range%27)
+states the latter.  
+
+
 ```lean4
 theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (i + 1)) := by
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
   intro i n H_i_lt_n
-  -- unfold fizzbuzz
+
+  -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
   rw [@List.getElem?_eq_some_iff]
   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
   rw [<- H_n_is_len] at H_i_lt_n
   exists H_i_lt_n
-  unfold fizzbuzz; simp
-  rw [Nat.add_comm]
+
+  -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
+  unfold fizzbuzz
+  rw [List.getElem_map, List.getElem_range']
+
+1 goal
+i n : ℕ
+H_i_lt_n : i < (fizzbuzz n).length
+H_n_is_len : (fizzbuzz n).length = n
+⊢ fb_one_ntaylor (1 + 1 * i) = fb_one_ntaylor (1 + i) 
+```
+The equality is _almost_ the same on both sides: the only difference is that
+the left-hand side multiplies by `1`.  (This is because `List.range_` also has
+an "step" argument to generate every `n` values, which defaults to `1`.)
+We know that one times anything is that thing, and Lean knows that too, so
+a simple theorem about `Nat`s is enough to remove that multiplication and
+finish our proof!
+
+```lean4
+theorem fb_one_to_fizzbuzz :
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one_ntaylor (1 + i)) := by
+  intro i n H_i_lt_n
+  -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
+  rw [@List.getElem?_eq_some_iff]
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
+  rw [<- H_n_is_len] at H_i_lt_n
+  exists H_i_lt_n
+
+  -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
+  unfold fizzbuzz
+  rw [List.getElem_map, List.getElem_range']
+  rw [Nat.one_mul]
+```
+
+### Pros and cons of automated tactics
+
+If we were feeling lazy and didn't want to go splunking for our theorems in `List`,
+we could have used `simp` to automate the second part of the proof away:
+
+```lean4
+theorem fb_one_to_fizzbuzz :
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one_ntaylor (1 + i)) := by
+  intro i n H_i_lt_n
+  -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
+  rw [@List.getElem?_eq_some_iff]
+  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
+  rw [<- H_n_is_len] at H_i_lt_n
+  exists H_i_lt_n
+
+  -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
+  unfold fizzbuzz
+  simp
 
 Goals accomplished!
 ```
 
-Phew, that was a bit of a journey.
+One of the downsides of using automated tactics like `simp` is that it's not
+immediately clear to us as programmers what simplifications it will be able to
+do.  I might have thought that it'd attempt to flip the arguments to the
+addition, but clearly not.  By contrast, as opaque as Dafny's internals seem to
+be, its underlying SMT solver seems grounded enough in the axioms of linear
+arithmetic that we would reasonably guess what it's capable of doing "out of
+the box".
+
+Phew, that was a bit of a journey but we made it!
 
 ## Lifting the length of a list into its type
 
@@ -695,8 +777,8 @@ perhaps the compiler can constant-fold the literal `42` down.  I don't know but
 I'm curious!
 :::
 
-Here's the full proof.  Clearly `Vector`s give us a lot of built-in mechanism
-to simplify our proofs!
+Let's see how `fb_one_to_fizzbuzz`, which stated a fact about `List`s, can be
+simplified with the use of `Vector`s:
 
 ::: margin-note
 The `[i]'h` syntax here indicates that `h : i < n` is the proof that this is a
@@ -704,11 +786,33 @@ safe access to the `Vector`.  By giving it a name, like we did with `i` and
 `n`, we can refer to it elsewhere in the proposition.
 :::
 ```lean4
+theorem fb_one_to_fizzbuzz :
+    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+
+1 goal
+⊢ ∀ (i n : ℕ), i < n → (fizzbuzz n)[i]? = some (fb_one_ntaylor (1 + i))
+```
+
+If this looks a lot like the second half of the proof of `fb_one_to_fizzbuzz`,
+it ought to!  After all, the first half of that proof involved convincing Lean
+that we were safely indexing into the `List`, but with `Vector`s we get that
+"for free".  It feels like a good assumption that "fancier" types encode more
+specific things about values of that type, and so our proofs over those
+values should be simplier to write.
+
+Here's the full proof, which is literally just the second half of our 
+earlier theorem.  Clearly `Vector`s give us a lot of built-in mechanism
+to simplify our proofs!
+
+```lean4
 theorem fb_one_to_fb_vec :
-    ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (i + 1) := by
+    ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (1 + i) := by
   intro i n h
-  unfold fb_vec; simp
-  rw [Nat.add_comm]
+  -- No need for bounds-check proof; just prove equality!
+  unfold fb_vec
+  rw [Vector.getElem_map, Vector.getElem_range', Nat.one_mul]
+
+Goals accomplished!
 ```
 
 ## Destringifying our computation

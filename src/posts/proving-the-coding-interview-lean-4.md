@@ -482,3 +482,130 @@ or if there's a good reason for this.
 ## Caching out by simplifying our spec
 
 All right!  We've pushed a lot of formal complexity into the implementation.
+Now let's see what our specification can look like.
+
+Here's an easy one: `fb_one_to_fb_vec`, which we wrote in the second part of
+the series, needs to be restated since `fb_one` returns a dependent pair,
+so the equality needs to be over the tuple of the `FB i` value and the witness
+for `i`. The good news is that _no change to our proof is necessary_!
+
+```lean4
+theorem fb_one_to_fb_vec :
+    ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = ⟨1 + i, fb_one (1 + i)⟩  := by
+  intros i n h
+  unfold fb_vec
+  rw [Vector.getElem_map, Vector.getElem_range', Nat.one_mul]
+```
+
+By contrast, let's take a look at one of the four main theorems - say, the "divisible
+by 3 but not 5 means it's Fizz" one.  Since `FB.Fizz` takes a proof as an argument,
+we might be tempted to write the following, but it's wrong:
+
+```lean4
+theorem thm1_broken : ∀ (i n : Nat) (H : i < n), 
+    (1 + i) % 3 = 0 → 
+    (1 + i) % 5 ≠ 0 → 
+    ((fb_vec n)[i]'H).snd = FB.Fizz ((1+i) % 3 = 0 ∧ (1+i) % 5 ≠ 0):= by sorry
+
+Application type mismatch: The argument
+  (1 + i) % 3 = 0 ∧ (1 + i) % 5 ≠ 0
+has type 
+  Prop of sort `Type` 
+but is expected to have type
+  ?m.41 % 3 = 0 ∧ ?m.41 % 5 ≠ 0 of sort `Prop` 
+in the application
+  FB.Fizz ((1 + i) % 3 = 0 ∧ (1 + i) % 5 ≠ 0)
+```
+
+The error is a bit confusing, which is too bad because this is an easy mistake
+to make.  The argument to `FB.Fizz` needs to be a _proof_ about `i`, but
+instead we have passed in a _proposition_ about `i` instead.  This would,
+informally, be of type "proposition about propositions"!
+
+The thing we want to say here, is "given our hypotheses, there exists a proof
+of the correct type to satisfy the argument to `FB.Fizz`.  Using the
+existential quantifier `∃`, we can write this down:
+
+::: margin-note
+`snd` extracts the second value in the tuple.
+:::
+```lean4
+theorem thm1 : ∀ (i n : Nat) (H : i < n), 
+    (1 + i) % 3 = 0 → 
+    (1 + i) % 5 ≠ 0 → 
+    ∃ Hfizz, ((fb_vec n)[i]'H).snd = FB.Fizz Hfizz := by
+
+1 goal
+⊢ ∀ (i n : ℕ) (H : i < n), (1 + i) % 3 = 0 → (1 + i) % 5 ≠ 0 → ∃ Hfizz, (fb_vec n)[i].snd = FB.Fizz Hfizz
+```
+
+If we add `@simp` to `fb_one_to_fb_vec`, then our `isl` tactic (which, recall,
+just `intro`s, `simp`lifies,
+and `lia`s away any linear arithmetic) completes the proof!
+
+It's actually pretty wild to me that `lia` is smart enough to synthesize the
+right `Hfizz` proposition from what we have in the context.  I would have
+guessed we would have to explicitly give a proof of that type (which would be
+`And`ing together our `H3` and `H5` hypotheses).
+
+So, here's our completed spec and implementation:
+
+```lean4
+import Mathlib.Data.Nat.Basic
+
+inductive FB (i : Nat) : Type where
+  | Fizz     (h : i % 3 = 0 ∧ i % 5 ≠ 0)
+  | Buzz     (h : i % 3 ≠ 0 ∧ i % 5 = 0)
+  | FizzBuzz (h : i % 15 = 0)
+  | Num      (h : i % 3 ≠ 0 ∧ i % 5 ≠ 0)
+
+instance (i : Nat) : ToString (FB i) where
+  toString fb := match fb with
+    | .Fizz _ => "Fizz"
+    | .Buzz _ => "Buzz"
+    | .FizzBuzz _ => "Fizzbuzz"
+    | .Num _ => toString i
+
+@[simp]
+def fb_one (i : Nat) : FB i:=
+    if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
+    if h5 : i % 5 = 0 then FB.Buzz (by lia) else
+    if h3 : i % 3 = 0 then FB.Fizz (by lia) else
+    FB.Num (by lia)
+
+def fb_vec (n : Nat) : Vector (Σ i, FB i) n :=
+  Vector.range' 1 n |> Vector.map (fun i => ⟨i, fb_one i⟩)
+
+@[simp]
+theorem fb_one_to_fb_vec :
+    ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = ⟨1 + i, fb_one (1 + i)⟩  := by
+  intros i n h
+  unfold fb_vec
+  rw [Vector.getElem_map, Vector.getElem_range', Nat.one_mul]
+
+theorem thm1 : ∀ (i n : Nat) (H : i < n), 
+    (1 + i) % 3 = 0 → (1 + i) % 5 ≠ 0 → 
+    ∃ Hfizz, (fb_vec n)[i]'H = ⟨1 + i, FB.Fizz Hfizz⟩ := by intros; simp; lia
+
+theorem thm2 : ∀ (i n : Nat) (H : i < n), 
+    (1 + i) % 3 ≠ 0 → (1 + i) % 5 = 0 → 
+    ∃ Hfizz, (fb_vec n)[i]'H = ⟨1 + i, FB.Buzz Hfizz⟩ := by intros; simp; lia
+
+theorem thm3 : ∀ (i n : Nat) (H : i < n),
+    (i + 1) % 3 = 0 → (i + 1) % 5 = 0 → 
+    ∃ h, (fb_vec n)[i]'H = ⟨i + 1, FB.FizzBuzz h⟩ := by intros; simp; lia
+
+theorem thm4 : ∀ (i n : Nat) (H : i < n), 
+    (i + 1) % 3 ≠ 0 → (i + 1) % 5 ≠ 0 → 
+    ∃ h, (fb_vec n)[i]'H = ⟨i + 1, FB.Num h⟩ := by intros; simp; lia
+
+def main (args : List String) : IO Unit :=
+  match args[0]? >>= String.toNat? with
+  | none =>   IO.println "No argument or invalid ℕ"
+  | some n => IO.println s!"fizzbuzz({n}) = {(fb_vec n).toArray}"
+```
+
+## Did we overshoot the sweet spot?
+
+Some of you are perhaps thinking that making `FB` an indexed type didn't really pay off
+for us: we have to fiddle with this "sigma type" stuff
