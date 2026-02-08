@@ -780,25 +780,21 @@ I'm curious!
 Let's see how `fb_one_to_fizzbuzz`, which stated a fact about `List`s, can be
 simplified with the use of `Vector`s:
 
-::: margin-note
+```lean4
+theorem fb_one_to_fb_vec :
+    ∀ (i n : Nat), (h : i < n) → (fb_vec n)[i]'h = fb_one (1 + i) := by
+```
+
 The `[i]'h` syntax here indicates that `h : i < n` is the proof that this is a
 safe access to the `Vector`.  By giving it a name, like we did with `i` and
 `n`, we can refer to it elsewhere in the proposition.
-:::
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
 
-1 goal
-⊢ ∀ (i n : ℕ), i < n → (fizzbuzz n)[i]? = some (fb_one_ntaylor (1 + i))
-```
-
-If this looks a lot like the second half of the proof of `fb_one_to_fizzbuzz`,
-it ought to!  After all, the first half of that proof involved convincing Lean
-that we were safely indexing into the `List`, but with `Vector`s we get that
-"for free".  It feels like a good assumption that "fancier" types encode more
-specific things about values of that type, and so our proofs over those
-values should be simplier to write.
+If this proposition looks a lot like the second half of the proof of
+`fb_one_to_fizzbuzz`, it ought to!  After all, the first half of that proof
+involved convincing Lean that we were safely indexing into the `List`, but with
+`Vector`s we get that "for free".  It feels like a good assumption that
+"fancier" types encode more specific things about values of that type, and so
+our proofs over those values should be simplier to write.
 
 Here's the full proof, which is literally just the second half of our 
 earlier theorem.  Clearly `Vector`s give us a lot of built-in mechanism
