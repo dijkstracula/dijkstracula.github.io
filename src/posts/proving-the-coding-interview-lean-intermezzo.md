@@ -12,7 +12,7 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
   * --> [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
-  * Part four - Proof-carrying code
+  * [Part four - Proof-carrying code](/posts/proving-the-coding-interview-lean-4)
 
 All previous Proving The Coding Interview posts can be found
 [here](/tags/provingthecodinginterview/).
@@ -786,4 +786,4 @@ had a bunch of work to verify that, in essence, we were constructing valid `FB`
 values in the right setting.  Next time, we're going to learn a bunch more
 about implemeting our own _dependently-typed_ `FB` and see how leaning on the
 type system in the _implementation_ makes the _specification_ less difficult to
-write.  See you then.
+write.  [See you then](/posts/proving-the-coding-interview-lean-4).

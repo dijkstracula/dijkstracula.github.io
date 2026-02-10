@@ -860,4 +860,4 @@ chosen a `match` expression instead of an `if`-ladder, or maybe you would have
 done something altogether different.  Next time, we're going to have a brief
 diversion into other possible worlds and see how robust our specification is,
 and maybe even write a theorem to the effect of `your_fb_one = my_fb_one`...!
-See you then.
+[See you then](/posts/proving-the-coding-interview-lean-intermezzo).
