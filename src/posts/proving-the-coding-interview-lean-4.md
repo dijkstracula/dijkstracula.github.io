@@ -1,10 +1,9 @@
 ---
 layout: post.njk
-title: "Leaning into the Coding Interview 4: Alternate implementations and proof-carrying code"
-date: 2026-01-30T00:00:00-05:00
+title: "Leaning into the Coding Interview 4: Certified Programming with Proof-Carrying Code"
+date: 2026-02-09T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
-excerpt: "Time to actually our end-to-end specification!"
-draft: true
+excerpt: "Migrating from `List` to `Vector` paid dividends for us being convinced that our Fizzbuzz implementation was correct.  Does making our `FB` value type dependent also increase our confidence of correctness?"
 ---
 
 ::: tip
@@ -13,7 +12,7 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
   * [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
-  * [Part four - proof-carrying code](/posts/proving-the-coding-interview-lean-4)
+  * --> [Part four - proof-carrying code](/posts/proving-the-coding-interview-lean-4)
 
 All previous Proving The Coding Interview posts can be found
 [here](/tags/provingthecodinginterview/).
@@ -479,7 +478,7 @@ or if there's a good reason for this.
 #[1, 2, Fizz, 4, Buzz]
 ```
 
-## Caching out by simplifying our spec
+## Caching out by simplifying (?) our spec
 
 All right!  We've pushed a lot of formal complexity into the implementation.
 Now let's see what our specification can look like.
@@ -522,36 +521,78 @@ to make.  The argument to `FB.Fizz` needs to be a _proof_ about `i`, but
 instead we have passed in a _proposition_ about `i` instead.  This would,
 informally, be of type "proposition about propositions"!
 
-The thing we want to say here, is "given our hypotheses, there exists a proof
-of the correct type to satisfy the argument to `FB.Fizz`.  Using the
-existential quantifier `∃`, we can write this down:
+### Writing a term that types to a proposition
 
-::: margin-note
-`snd` extracts the second value in the tuple.
-:::
+The thing we want to say here, is "given our hypotheses, here's the _instance_
+of the proof of the correct type to satisfy the argument to `FB.Fizz`.  That
+proof needs to be the conjunction of our hypotheses, in particular.  (If that's
+confusing, go back and look at the type of the evidence for `FB.Fizz`.)
+
+Because we've been using tactics mode this whole time, we haven't actually needed
+to write down a _value_ whose type is a proposition we want to prove.  But, that's
+actually what tactics mode is doing under the hood!  Let's write a _proof term_ to
+do so.
+
+First, let's make a mechanical change to the theorem definition: let's give the 
+hypotheses involving modulo 3 and modulo 5 names:
+
 ```lean4
-theorem thm1 : ∀ (i n : Nat) (H : i < n), 
-    (1 + i) % 3 = 0 → 
-    (1 + i) % 5 ≠ 0 → 
-    ∃ Hfizz, ((fb_vec n)[i]'H).snd = FB.Fizz Hfizz := by
-
-1 goal
-⊢ ∀ (i n : ℕ) (H : i < n), (1 + i) % 3 = 0 → (1 + i) % 5 ≠ 0 → ∃ Hfizz, (fb_vec n)[i].snd = FB.Fizz Hfizz
+theorem thm : ∀ (i n : Nat) 
+                (H : i < n) 
+                (H3: (1 + i) % 3 = 0) 
+                (H5: (1 + i) % 5 ≠ 0),
+    (fb_vec n)[i]'H = ⟨1 + i, FB.Fizz (??? TODO ???)⟩ := by
 ```
 
+Clearly whatever goes in as the argument to `FB.Fizz` needs to satisfy the
+typechecker that `(1 + i) % 3 = 0` and `(1 + i) % 5 ≠ 0`.  We can't write `H3
+/\ H5` for the same reason as before - we need something that _types_ to that
+proposition.  Luckily, `And.intro` is the solution!  Its signature is of type
+`a → b → a ∧ b`: in other words, "if I give you a proof of `a` and a proof of
+`b`, that's a proof of `a and b`.
+
+Constructing _proof terms_ like this is what tactics mode is actually doing
+under the hood for us; as you can imagine, for more complicated proofs, this
+nested value would get really unwieldy, so having some syntactic sugar for
+a more "imperative" style of proof writing helps a lot.  (If we had been in
+tactics mode, we would have `apply`ed `And.intro` as a theorem.  The fact that
+theorems behave like functions and that logical implication looks like function
+application shouldn't be a surprise then!)
+
 If we add `@simp` to `fb_one_to_fb_vec`, then our `isl` tactic (which, recall,
-just `intro`s, `simp`lifies,
-and `lia`s away any linear arithmetic) completes the proof!
+just `intro`s, `simp`lifies, and `lia`s away any linear arithmetic) completes
+the proof!
+
+```lean4
+theorem thm : ∀ (i n : Nat) 
+                (H : i < n) 
+                (H3: (1 + i) % 3 = 0) 
+                (H5: (1 + i) % 5 ≠ 0),
+    (fb_vec n)[i]'H = ⟨1 + i, FB.Fizz (And.intro H3 H5)⟩ := by intros; simp; lia
+```
+
+Rather than specifying the proof term directly, we could assert that _there
+exists_ the right argument, and make proving that part of the proof: Using the
+existential quantifier `∃`, we can claim the existence of some hypothesis
+`HFizz` this like so:
+
+```lean4
+theorem thm1 : ∀ (i n : Nat) (H : i < n),
+    (1 + i) % 3 = 0 → (1 + i) % 5 ≠ 0 →
+    ∃ Hfizz, (fb_vec n)[i]'H = ⟨1 + i, FB.Fizz Hfizz⟩ := by intros; simp; lia
+```
 
 It's actually pretty wild to me that `lia` is smart enough to synthesize the
-right `Hfizz` proposition from what we have in the context.  I would have
-guessed we would have to explicitly give a proof of that type (which would be
-`And`ing together our `H3` and `H5` hypotheses).
+right `Hfizz` proposition from what we have in the context.
+
+## Some final thoughts
 
 So, here's our completed spec and implementation:
 
 ```lean4
 import Mathlib.Data.Nat.Basic
+
+-- Our implementaiton
 
 inductive FB (i : Nat) : Type where
   | Fizz     (h : i % 3 = 0 ∧ i % 5 ≠ 0)
@@ -583,6 +624,8 @@ theorem fb_one_to_fb_vec :
   unfold fb_vec
   rw [Vector.getElem_map, Vector.getElem_range', Nat.one_mul]
 
+-- Our specification
+
 theorem thm1 : ∀ (i n : Nat) (H : i < n), 
     (1 + i) % 3 = 0 → (1 + i) % 5 ≠ 0 → 
     ∃ Hfizz, (fb_vec n)[i]'H = ⟨1 + i, FB.Fizz Hfizz⟩ := by intros; simp; lia
@@ -605,7 +648,34 @@ def main (args : List String) : IO Unit :=
   | some n => IO.println s!"fizzbuzz({n}) = {(fb_vec n).toArray}"
 ```
 
-## Did we overshoot the sweet spot?
+### Did we overshoot the sweet spot?
 
-Some of you are perhaps thinking that making `FB` an indexed type didn't really pay off
-for us: we have to fiddle with this "sigma type" stuff
+Some of you are perhaps thinking that making `FB` an indexed type didn't really
+pay off for us: we have to fiddle with this "sigma type" stuff.  As much fun as
+it was to see how far we could push the type system for this problem, I might
+be inclined to agree with you.
+
+That said, it might be the case that if we'd started by writing down our four
+theorems and asked someone else to write the implementation, in a sort of
+"test-driven development" programming model, maybe we would have seen the value
+of it?  I'm very far from a TDD zealot, though; I find writing tests in tandem
+with my implementation, just like how we wrote our spec in tandem with our
+implementation, the nicer model.
+
+Also, while it's true that our top-level theorems' proofs were identical to
+before, I have a pretty strong intuition that we are relying less on `lia`'s
+magic to discharge those proofs.  It's too bad there isn't an equivalent of
+`simp?`, which shows which simplification steps were taken, because otherwise
+I'm not fully sure how to validate that guess, short of writing out the whole
+proof without any automated tactics.
+
+## So, who won?
+
+I mean... all of you who made it to the end of this series won!  I really love
+this style of dependent-typed programming but I have to concede that Dafny has
+has a far gentler learning curve - though, perhaps `aesop` and `lia` reduce that
+burden somewhat.  
+
+I have a sneaking suspicion that some future posts will return to Dafny, so if
+you were squarely in the "let the underlying solver prove everything for us",
+you'll get your time in the sun once again...

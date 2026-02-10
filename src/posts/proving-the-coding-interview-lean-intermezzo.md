@@ -11,8 +11,8 @@ _This is part of an ongoing introduction to Lean 4 series_:
   * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
   * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
   * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
-  * [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
-  * Part four - proof-carrying code
+  * --> [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
+  * Part four - Proof-carrying code
 
 All previous Proving The Coding Interview posts can be found
 [here](/tags/provingthecodinginterview/).
@@ -88,7 +88,7 @@ that's ultimately wrong.
 
 You and I might well have arrived at different implementations of our `fb_one`
 functions.  Stephen Diehl's superb [From Zero To
-One](https://sdiehl.github.io/zero-to-qed/07_control_flow.html#fizzbuzz) page
+QED](https://sdiehl.github.io/zero-to-qed/07_control_flow.html#fizzbuzz) page
 has a different but probably-equivalent implementation to ours:
 
 ```lean4
