@@ -728,9 +728,12 @@ by exploring some possible theorems to apply or rewrite with.  Trying it out
 is a good first strategy when you're not sure how to proceed.
 
 ::: margin-note
-Interestingly, there's a tactic called `aesop` which tries to prove theorems
-with an SMT solver, just like Dafny.  I've never used it but maybe it's useful
-in some cases!
+Interestingly, there's a tactic called `bv_decide` which tries to prove
+theorems about bit vector and boolean datatypes with an external SMT solver,
+just like Dafny.  More generally, the
+[Lean-SMT](https://arxiv.org/abs/2505.15796) project tries to convert Lean
+goals into SMT formulas to be proven automatically, again, like Dafny.
+I've never used either, but maybe they're useful in some cases!
 :::
 Using automation tactics can make your proof a bit more opaque if you're not
 sure exactly _how_ your goal changed.  The variation `simp?` will show in the
@@ -812,3 +815,6 @@ to get off the ground.  There's a saying about programming in types: it goes
 fast but _feels slow_.  In the next section, we'll design a more
 "type-oriented" function, get it verifed, and confirm whether that saying's
 actually true!
+
+*Thanks to Lobsters user _pervognsen_ for pointing out an error in an earlier
+version of this post.*
