@@ -4,6 +4,7 @@ title: "Proofs over Reactive Programs in Lean 4"
 date: 2026-03-05
 tags: [post, lean, verification, temporal-logic, reactive-programming]
 excerpt: "Extending Lean's dependent type system to reason about reactive programs"
+draft: true
 ---
 
 Over the holidays I spent a bunch of time seeing how far we could push Lean's
