@@ -1,10 +1,9 @@
 ---
 layout: post.njk
 title: "Reactive Programming in Lean 4"
-date: 2026-03-05
+date: 2026-02-23
 tags: [post, lean, reactive-programming]
 excerpt: "Extending Lean's dependent type system to reason about reactive programs"
-draft: true
 ---
 
 Over the holidays I spent a bunch of time seeing how far we could push Lean's
@@ -62,7 +61,7 @@ we've seen, `False` proves anything, non-terminating computation punches a hole
 in our logic.)
 
 So, clearly, writing and proving properties about reactive programs is going to
-be a lot different tnan what we've done before.
+be a lot different than what we've done before.
 
 ## Our first reactive program
 
@@ -73,7 +72,7 @@ be a lot different tnan what we've done before.
 * _Gunther_: No, I wanted orange. It gave me lemon-lime.
 * _Anna_: The machine would not make a mistake.
 
--- evesdropped breakroom conversation from [Deus Ex
+-- eavesdropped breakroom conversation from [Deus Ex
 (2000)](https://www.youtube.com/watch?v=hxVPPy5w9NA)
 :::
 
@@ -220,7 +219,7 @@ Last time, we spent a lot time thinking about what program values were
 well-typed but in practice invalid (recall all the ways a `Vector String n`
 could _not_ encode the first `n` values of the Fizzbuzz problem).  Before
 proceeding, something to think about: the `VMState` type permits us to construct
-a vending machine with any (nonnegative) number of cans of each flavour, but,
+a vending machine with any (non-negative) number of cans of each flavour, but,
 could there ever be a sequence of actions that leads us to having 6 `Orange`s
 in stock.  The idea of which states are _reachable_ from a given starting state
 will be, as we'll see, super-important down the road.
@@ -296,7 +295,7 @@ def getOrange : StateM VMState Unit := do
 
 ### A new monadic action to return the `Flavour`
 
-You probably notited that `getOrange`'s monad's return type is `Unit` - really,
+You probably noticed that `getOrange`'s monad's return type is `Unit` - really,
 this should be a `Flavour`.  The problem is that we `perform (.TakeItem)`, it
 gets removed from the `VMState` but we lose track of it.  We should create another
 monadic action that pulls out the contents of `dispensed` before taking that step.
@@ -432,7 +431,7 @@ def vmStep (s : VMState)
   match a with ...
 ```
 
-In the editor, if you're following around, it's worth taking a moment and
+In the editor, if you're following along, it's worth taking a moment and
 seeing how the context window changes as you navigate around the body of
 `vmStep`.  If your cursor is in the `DropCoin` arm of the `match`, you will
 have `H : validAction s VMAction.DropCoin` in your context, and it'll change 
@@ -578,7 +577,7 @@ might help here, but I'm not sure, and that's a topic for another time anyway.
 It turns out that in this specific case, Lean knows this too! In previous
 examples, `s2` might have been an argument to a function - when it's passed
 into that function, the original source of how `s2` was defined was lost, so
-Lean wouldn't be able to unfold the definition of s2 back to its original
+Lean wouldn't be able to unfold the definition of `s2` back to its original
 definitions.  Here, though, it _can_, because it's defined in terms of `s1`,
 which is defined in terms of `s0`, which is just `init`.  So, Lean has all the
 states it needs in scope to see that by the time we get to `s2`, `coins` has
@@ -684,7 +683,7 @@ Note: The full type of `Nat.le_refl` is
 ```
 :::
 
-A classic inscruitable error: in essence, to complete this proof we need to
+A classic inscrutable error: in essence, to complete this proof we need to
 prove `2 <= 1`, which of course is impossible.  As we would hope, we find
 ourselves unable to proceed, though to a casual observer it might not be clear
 why.
@@ -851,3 +850,5 @@ we need is to reason _temporally_.
 In the next installment, we'll embed a _temporal logic_ into Lean's logical
 framework and start doing just that.  That'll give us enough mechanism to start
 specifying and implementing more real-world reactive programs.  See you then.
+
+_Thanks to Mastodon user evanvm for finding typos in this post._
