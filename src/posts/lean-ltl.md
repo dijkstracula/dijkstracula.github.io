@@ -83,9 +83,9 @@ I refuse to say "soda machine".
 To get our bearings, let's implement one of the
 [textbook](https://mitpress.mit.edu/9780262026499/principles-of-model-checking/)
 examples of a reactive system in Lean, a vending machine (VM) that sells cans of
-pop.  A VM has a bunch of state: it's got some number of cans of pop (let's say
-two, to keep things straightforward), some number of coins that have been
-inserted, and zero or one cans of some pop flavour in the dispenser.
+pop.  A VM has a bunch of state: it's got some number of pop flavours (let's
+say two, to keep things straightforward), some number of coins that have been
+inserted, and zero or one pop cans in the dispenser.
 
 ### A Vending Machine's State
 
@@ -531,8 +531,8 @@ s2 : VMState := vmStep s1 VMAction.DropCoin True.intro
 
 Here we have a conjunction that states we need to have paid enough, and,
 lemon-lime has to be in stock.  The `constructor` tactic, unintuitively,
-_destructs_ the `And` into its left and right propositions to be proved
-individually.
+_destructs_ the conjunction's constructor, which takes two arguments (the left
+and right propositions) into two subgoals to be proved individually.
 
 ```lean4
 #eval
@@ -653,8 +653,10 @@ should expect to see a type error, and ideally a useful one at that:
 ::: margin-note
 Taking a step that doesn't actually change anything is sometimes called a
 stutter step.  It's not interesting for us here, but it's critical for modeling
-concurrent programs (you could think of "stuttering", maybe, as "the OS didn't
-schedule that thread to run for a bit").
+concurrent programs; you could think of "stuttering", maybe, as "the OS didn't
+schedule that thread to run for a unit of time.  Of course, we don't have a
+notion of the reactive program executing over "time" yet, but that will come
+soon enough!
 :::
 ::: warning
 ```lean4
