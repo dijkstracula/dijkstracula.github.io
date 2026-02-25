@@ -437,6 +437,146 @@ seeing how the context window changes as you navigate around the body of
 have `H : validAction s VMAction.DropCoin` in your context, and it'll change 
 as you move between `match` arms.
 
+## Making use of propositions at runtime with the `Decidable` typeclass
+
+If you've been typing along, you've probably noticed that our monadic API
+doesn't typecheck anymore - we have to thread our proof of valid step through
+`perform`, since `vmStep` now takes it as an additional argument.  We've used
+the dependent-if in the previous series, where the expression forming the `if`
+gets turned into a Proposition.  We'll hit a snag before too long if we try
+that idiom here, though:
+
+::: warning
+```lean4
+def perform (a : VMAction) : StateM VMState Unit := do
+  let s ← get
+  if h : validAction s a 
+    let s' := vmStep s a h -- ERROR: failed to synthesize Decidable (validAction s a)
+    set s'
+  else 
+    ...
+```
+:::
+
+Up to this point we've been playing fast and loose with the distinction between
+logical propositions (of type `Prop`) and boolean expressions (of type `Bool`).
+Of course, ordinarily, the `if` check is the latter, but here we're using an
+instance of the former.
+
+`Prop`s are a lot stranger than just boolean expressions.  A boolean expression
+can, in principle, always be reduced down to `true` or `false` by evaluating
+it.  This is problematic because _not every proposition can be proven_.  Think
+about writing down the Goldbach conjecture: this is an easy thing to state, but
+good luck proving it here or anywhere else:
+
+```lean4
+-- Is this true or false? Nobody knows.
+def goldbach : Prop := ∀ n, n > 2 → Even n → ∃ p q, Prime p ∧ Prime q ∧ n = p + q
+```
+
+_Decidable_ propositions are those that _can_ be computed.  They're the bridge
+between the world of logic and the world of programs.  By making the type
+`validAction s a` an instance of the Decidable typeclass, we are giving Lean
+a _decision procedure_ -- an algorithm -- to always boil that Prop down to `true`
+or `false`.  Once we've done that, we can use `validAction s a` as a boolean in
+runtime code, `#eval` it, and critically, use the `decide` tactic
+to invoke the decision procedure inside a proof.
+
+Let's start writing that typeclass:
+
+```lean4
+instance (s : VMState) (a : VMAction) : Decidable (validAction s a) := by -- TODO
+
+1 goal
+s : VMState
+a : VMAction
+⊢ Decidable (validAction s a)
+```
+
+let's unfold and simplify `validAction` to see what we actually have to do here.
+
+```lean4
+instance (s : VMState) (a : VMAction) : Decidable (validAction s a) := by
+  simp -- NEW
+
+1 goal
+s : VMState
+a : VMAction
+⊢ Decidable
+  (match a with
+  | VMAction.DropCoin => True
+  | VMAction.Restock => True
+  | VMAction.Choose Flavour.Orange => 2 ≤ s.coins ∧ 0 < s.numOrange
+  | VMAction.Choose Flavour.LemonLime => 2 ≤ s.coins ∧ 0 < s.numLL
+  | VMAction.TakeItem => s.dispensed.isSome = true)
+```
+
+Interestingly, this proof doesn't actually involve proving anything about `s`.
+What we have to do here is, for each of the five branches of the `match`
+(corresponding to all possible values for `a`), prove that the right hand side
+of the `=>` is itself an instance of the Decidable typeclass. 
+
+This is actually a lot simpler than it sounds.  
+
+```lean4
+instance (s : VMState) (a : VMAction) : Decidable (validAction s a) := by
+  simp; split
+
+unsolved goals
+case h_1
+s : VMState
+a✝ : VMAction
+⊢ Decidable True
+
+case h_2
+s : VMState
+a✝ : VMAction
+⊢ Decidable True
+
+case h_3
+s : VMState
+a✝ : VMAction
+⊢ Decidable (2 ≤ s.coins ∧ 0 < s.numOrange)
+
+case h_4
+s : VMState
+a✝ : VMAction
+⊢ Decidable (2 ≤ s.coins ∧ 0 < s.numLL)
+
+case h_5
+s : VMState
+a✝ : VMAction
+⊢ Decidable (s.dispensed.isSome = true)
+```
+
+Most reasonable `Prop`s from the standard library are instances of `Decidable`.
+[`True` is
+Decidable](https://github.com/leanprover/lean4/blob/de65af831856ccc827ee7e8ebafb1ee6e1745a00/src/Init/Core.lean#L1101)
+(as we would expect, since it's a trivial proposition).  The third and fourth
+subgoals involve linear inequalities, which are
+[decidable](https://github.com/leanprover/lean4/blob/de65af831856ccc827ee7e8ebafb1ee6e1745a00/src/Init/Prelude.lean#L2045),
+`And`ed together, which is [also
+decidable](https://github.com/leanprover/lean4/blob/de65af831856ccc827ee7e8ebafb1ee6e1745a00/src/Init/Prelude.lean#L1096).  
+
+The only slightly worrisome subgoal is the the final one, which calls
+`Option.isSome`.  But not to worry - This one is trivially decidable, for
+another reason: it's not a `Prop` at all but a function that produces a `Bool`!
+(To be exact, the `Bool` is coerced into a proposition by appearing as part of
+a `<boolean expression> = true` proposition.)  So, obviously, the runtime
+behaviour of this one is clear: we would just call the function.
+
+The point is: Lean knows that each of those subgoals is Decidable, so if we
+let its built-in typeclass resolver run hog wild in tactics mode, it'll prove
+all these subgoals for us.  `infer_instance` is the tactic that does just that.
+
+```lean4
+instance (s : VMState) (a : VMAction) : Decidable (validAction s a) := by
+  simp; split <;> infer_instance
+```
+
+This is a really cool use of compile-time features that we get to use in Lean
+proofs.
+
 ## Statically proving steps are valid
 
 The power of dependent typing is this: If we can't write a proof of
@@ -461,184 +601,27 @@ proof for each of the steps, which we'll fill in as we go.
   s4
 ```
 
-### Proving `DropCoin` steps is simple
-
-When we drop into tactics mode in the `vmStep s0 ...` call, what's in our
-context?
-
-```lean4
-#eval
-  let s0 := init
-  let s1 := vmStep s0 .DropCoin (by ...
-
-1 goal
-s0 : VMState := init
-⊢ validAction s0 VMAction.DropCoin
-```
-
-A classic proof context that we've seen many times before.  `unfold`ing
-seems like a reasonable thing to do:
-
-```lean4
-#eval
-  let s0 := init
-  let s1 := vmStep s0 .DropCoin (by unfold validAction; -- NEW
-  ...
-
-1 goal
-s0 : VMState := init
-⊢ match VMAction.DropCoin with
-| VMAction.DropCoin => True
-...
-```
-
-Simplifying the `match` statement leaves us with having to "prove" `True`,
-which is the simplest possible thing to prove.  Following up the `unfold` with
-`simp` gets the job done for both `DropCoin`s.
-
-Since we annotated `validAction` as `@[simp]`, we can elide the explicit
-unfolding, and we're done for those steps.
-
-```lean4
-#eval
-  let s0 := init
-  let s1 := vmStep s0 .DropCoin (by simp) -- NEW
-  let s2 := vmStep s1 .DropCoin (by simp) -- NEW
-  ...
-```
-
-### Proofs of valid `Choose`s necessitate arithmetic reasoning
-
-Unfortunately, proving that we can `Choose` after two coin drops requires a
-bit more work.  
-
-```lean4
-#eval
-  let s0 := init
-  let s1 := vmStep s0 .DropCoin (by simp)
-  let s2 := vmStep s1 .DropCoin (by simp)
-  let s3 := vmStep s2 (.Choose .LemonLime) (by simp -- NEW
-  ...
-
-1 goal
-s0 : VMState := init
-s1 : VMState := vmStep s0 VMAction.DropCoin True.intro
-s2 : VMState := vmStep s1 VMAction.DropCoin True.intro
-⊢ 2 ≤ s2.coins ∧ 0 < s2.numLL
-```
-
-### `constructor` breaks apart inductive types
-
-Here we have a conjunction that states we need to have paid enough, and,
-lemon-lime has to be in stock.  The `constructor` tactic, unintuitively,
-_destructs_ the conjunction's constructor, which takes two arguments (the left
-and right propositions) into two subgoals to be proved individually.
-
-```lean4
-#eval
-  let s0 := init
-  let s1 := vmStep s0 .DropCoin (by simp)
-  let s2 := vmStep s1 .DropCoin (by simp)
-  let s3 := vmStep s2 (.Choose .LemonLime) (by 
-    simp
-    constructor --NEW
-    ...
-
-2 goals
-case left
-s0 : VMState := init
-s1 : VMState := ⋯
-s2 : VMState := ⋯
-⊢ 2 ≤ s2.coins
-
-case right
-s0 : VMState := init
-s1 : VMState := ⋯
-s2 : VMState := ⋯
-⊢ 0 < s2.numLL
-```
-
-Remember that using `\dot`, we can "focus in" on each subgoal in turn.
-
-Starting with the left case: We know, of course, that `s2.coins = 2`, because
-we can read it off from the first two steps, and we know that `0 < s2.numLL`,
-because at no previous point did we choose another lemon-lime, so we know we're
-fully stocked up.
-
-::: margin-note
-This is why I didn't write this example using the monadic API: states are not
-threaded though explicit `let` bindings but are instead _implicit_; when a
-state does appear its originating context is lost.
-
-There's a dependently-typed variant of monads called [indexed
-monads](https://kseo.github.io/posts/2017-01-12-indexed-monads.html) which
-might help here, but I'm not sure, and that's a topic for another time anyway.
-:::
-It turns out that in this specific case, Lean knows this too! In previous
-examples, `s2` might have been an argument to a function - when it's passed
-into that function, the original source of how `s2` was defined was lost, so
-Lean wouldn't be able to unfold the definition of `s2` back to its original
-definitions.  Here, though, it _can_, because it's defined in terms of `s1`,
-which is defined in terms of `s0`, which is just `init`.  So, Lean has all the
-states it needs in scope to see that by the time we get to `s2`, `coins` has
-been incremented twice.
-
-So, in this case, both we _and_ Lean know that `s2.coins = 2` and `0 <
-s2.numLL`.  So, ultimately, our goals are `2 <= 2` and `0 < 5`, and of course
-there're theorems for that:
-
-
-```lean4
-/- -/
-#eval
-  let s0 := init
-  let s1 := vmStep s0 .DropCoin (by simp)
-  let s2 := vmStep s1 .DropCoin (by simp)
-  let s3 := vmStep s2 (.Choose .LemonLime) (by
-    simp
-    constructor
-    · apply Nat.le_refl      -- NEW
-    · apply Nat.zero_lt_succ -- NEW
-    )
-  ...
-```
-
-I would have thought that `lia`, being a solver for linear arithmetic, would
-have been able to discharge both branches, but seemingly not.  I'm not
-completely sure why but I suspect it's not able to unwind `s2`'s relationship
-to `s1`, `s0`, and `init` like `simp` can.  If you know why please let me know!
-
-What _does_ work, though, is a tactic we'll learn about in the next entry in
-this series: `decide` can one-shot this proof entirely, and we'll learn why
-soon enough.
-
-### Proofs of `TakeItem` are trivial, too
-
-For a similar reason to the one above, Lean can see through the previous
-definitions and can see that `Option.isSome s3.dispenser` is True.  Proving
-`True = True` is as simple as using the first tactic we ever learned, which
-completes all our proofs, and Lean is happy to step through our actions and
-produce the final state we expect:
+This is where the `Decidable` typeclass pays off: since we have a decision
+procedure for `validAction s a`, no matter the `s` and `a`, we can just 
+use it via the `decide` tactic!
 
 ::: tip
 ```lean4
 #eval
   let s0 := init
-  let s1 := vmStep s0 .DropCoin (by simp)
-  let s2 := vmStep s1 .DropCoin (by simp)
-  let s3 := vmStep s2 (.Choose .LemonLime) (by
-    simp
-    constructor
-    · apply Nat.le_refl
-    · apply Nat.zero_lt_succ
-    )
-  let s4 := vmStep s3 .TakeItem (by rfl) -- NEW
+  let s1 := vmStep s0 .DropCoin (by decide)
+  let s2 := vmStep s1 .DropCoin (by decide)
+  let s3 := vmStep s2 (.Choose .LemonLime) (by decide)
+  let s4 := vmStep s3 .TakeItem (by decide)
   s4
 ```
 ```
 { coins := 0, dispensed := none, numOrange := 5, numLL := 4 }
 ```
 :::
+
+(You might enjoy trying to write proofs for each step without using `decide`.
+Only the `Choose` step is nontrivial.)
 
 ## What happens if we didn't pay enough?
 
@@ -663,38 +646,38 @@ soon enough!
 /- -/
 #eval
   let s0 := init
-  let s1 := vmStep s0 .DropCoin (by simp)
-  let s2 := s1 -- stutter step, formerly vmStep s1 .DropCoin (by simp)
-  let s3 := vmStep s2 (.Choose .LemonLime) (by
-    simp
-    constructor
-    · apply Nat.le_refl -- NEW: error on this line
-    · apply Nat.zero_lt_succ
-    )
-  let s4 := vmStep s3 .TakeItem (by rfl)
+  let s1 := vmStep s0 .DropCoin (by decide)
+  let s2 := s1 -- stutter step, formerly vmStep s1 .DropCoin (by decide)
+  let s3 := vmStep s2 (.Choose .LemonLime) (by decide /- ERROR HERE -/)
+  let s4 := vmStep s3 .TakeItem (by decide)
   s4
 ```
 ```lean4
-Tactic `apply` failed: could not unify the conclusion of `Nat.le_refl`
-  ?n ≤ ?n
-with the goal
-  2 ≤ s2.coins
-
-Note: The full type of `Nat.le_refl` is
-  ∀ (n : ℕ), n ≤ n
+Tactic `decide` proved that the proposition
+  validAction (vmStep init VMAction.DropCoin ⋯) (VMAction.Choose Flavour.LemonLime)
+is false
 ```
 :::
 
-A classic inscrutable error: in essence, to complete this proof we need to
-prove `2 <= 1`, which of course is impossible.  As we would hope, we find
-ourselves unable to proceed, though to a casual observer it might not be clear
-why.
+This makes sense!  The decision procedure for `validAction` returned false
+here, because, well, it's not a validAction.
+
+One of the things that we might want to know is what part of the validity
+proposition failed: there are enough lemon-limes in stock but we were short
+one coin, and it would be nice if we could include something to the effect of
+that in the error.
+
+Owing to type erasure, we lose the specific `Prop` at runtime, though, so we
+can't do this.  SMT solvers have the notion of an "UNSAT core",
+which is the minimal set of contradictory clauses, and model checkers have
+so-called Craig interpolants, which takes two propositions and extracts their
+inconsistencies.  We can do something like this manually with decidable
+propositions; stay tuned.
 
 ## Fixing our monadic API with a monad transformer
 
-If you've been typing along, you've probably noticed that our monadic API
-doesn't typecheck anymore - we have to thread our proof of valid step through
-`perform`.  We'll hit a snag before too long, though:
+OK, back to the monadic API: with our new `Decidable` typeclass, we can use
+`h` at runtime, as we'd hoped!
 
 ```lean4
 def perform (a : VMAction) : StateM VMState Unit := do
@@ -709,20 +692,29 @@ def perform (a : VMAction) : StateM VMState Unit := do
     -- TODO: uhhh, what do we do on an invalid step?
 ```
 
-We're in a bit of trouble here.  Unlike in the previous example, with our steps
-and actions explicit at each step, we know nothing about the particulars of `s`
-and `a`.  This means that should we combine `perform` steps, we've lost the
-ability to statically reason about the correctness of our actions!
+We no longer fail to compile because of typeclass resolution for `Decide`, but
+we're still in a bit of trouble here.  We use `h` successfully in the `true`
+branch, but what value do we return in the `else` branch?
+
+The `else` branch is where we handle invalid actions, and the type system — via
+our choice of underlying monad — forces us to deal with that case. We can't
+accidentally ignore a failure, but we also can't statically prove a failure's
+absence anymore.
+
+Unlike in the previous `init -> s1 -> s2 -> ...` example, with our steps and
+actions explicit at each step, we know nothing about the particulars of `s` and
+`a`.  This means that should we combine `perform` steps, we've lost the ability
+to statically reason about the correctness of our actions!
 
 That said, the monadic API has real strengths. The explicit proof style
 requires us to manually name and thread every intermediate state -- `s0`, `s1`,
 `s2`, `s3` -- which gets tedious fast.  The monadic `do` notation handles that
 plumbing for us, and the resulting code reads like a script of what the vending
-machine *does* rather than a proof of what it *is*. 
+machine *does* rather than a proof of what it *is*.   So, having two different
+ways to write down an abstract machine program is not a bad thing, we just have
+different strengths and weaknesses of each.
 
-The `else` branch is where we handle invalid actions, and the type system — via
-our choice of underlying monad — forces us to deal with that case. We can't
-accidentally ignore a failure.
+OK, so if `StateM VMState Unit` is the wrong return type, what's a better one?
 
 ### Mixing the State and Except monads together
 
@@ -815,18 +807,6 @@ Except.ok (Flavour.LemonLime, { coins := 0, dispensed := none, numOrange := 5, n
 ```
 :::
 
-::: margin-note
-One of the things that we might want to know is what part of the validity
-proposition failed: there are enough lemon-limes in stock but we were short
-one coin, and it would be nice if we could include something to the effect of
-that in the error.
-
-Owing to type erasure, we lose the specific `Prop` at runtime, though, so we
-can't do this.  SMT solvers have the notion of an "UNSAT core",
-which is the minimal set of contradictory clauses, and model checkers have
-so-called Craig interpolants, which takes two propositions and extracts their
-inconsistencies.  Stay tuned for how we might do this in Lean.
-:::
 If we removed one of the `perform (.DropCoin)`s, since we haven't paid enough,
 we'd expect to see an error, and indeed we are given back
 
@@ -838,8 +818,7 @@ coins := 1, dispensed := none, numOrange := 5, numLL := 5 }"`.
 :::
 
 
-
-## Towards writing _temporal_ specifications
+## Next time: towards writing _temporal_ specifications
 
 In terms of writing propositions about a current state and a potentially-valid
 action, hopefully you can see there's nothing fundamentally special: we just
