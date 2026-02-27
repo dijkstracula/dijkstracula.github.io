@@ -1,8 +1,28 @@
 [
     {
         "name": "All Things Distributed (Werner Vogels' blog)",
-        "url": "https://www.allthingsdistributed.com/"
+        "url": "https://www.allthingsdistributed.com/",
         "feed": "https://www.allthingsdistributed.com/atom.xml"
+    },
+    {
+        "name": "The Amateur",
+        "url": "https://cecilycarver.substack.com",
+        "feed": "https://cecilycarver.substack.com/feed"
+    },
+    {
+        "name": "Elided branches (Camille Fournier's blog)",
+        "url": "https://www.elidedbranches.com/",
+        "feed": "https://www.elidedbranches.com/feeds/posts/default"
+    },
+    {
+        "name": "ferd.ca",
+        "url": "https://ferd.ca/",
+        "feed": "https://ferd.ca/feed.rss"
+    },
+    {
+        "name": "Programming is terrible",
+        "url": "https://programmingisterrible.com",
+        "feed": "https://programmingisterrible.com/rss"
     },
     {
         "name": "Marc Brooker's blog",
