@@ -20,7 +20,9 @@
     "markdown-it-footnote": "^4.0.0"
   },
   "dependencies": {
+    "@11ty/eleventy-fetch": "^5.1.1",
     "@11ty/eleventy-plugin-rss": "^2.0.4",
-    "markdown-it-container": "^4.0.0"
+    "markdown-it-container": "^4.0.0",
+    "rss-parser": "^3.13.0"
   }
 }

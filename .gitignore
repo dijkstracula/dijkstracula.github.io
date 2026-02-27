@@ -1,6 +1,9 @@
 # 11ty build output
 _site/
 
+# eleventy-fetch cache
+.cache/
+
 # Node.js dependencies
 node_modules/
 

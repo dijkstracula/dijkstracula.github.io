@@ -1,0 +1,31 @@
+---
+layout: base.njk
+title: Blogroll
+permalink: /blogroll/
+---
+
+<p>Blogs and sites I enjoy reading</p>
+
+Curating and getting into the habit of checking a blogroll has been a really
+useful substitute for high-frutose corn syrup social media consumption.
+
+{% if blogrollPosts.length %}
+<h2>Recent posts</h2>
+<ul class="blogroll-posts">
+  {%- for post in blogrollPosts %}
+  <li>
+    <a href="{{ post.url }}">{{ post.title }}</a>
+    <span class="blogroll-meta">— {{ post.source }}, {{ post.date | readableDate }}</span>
+  </li>
+  {%- endfor %}
+</ul>
+{% endif %}
+
+<p>Sources</p>
+<ul class="blogroll">
+  {%- for entry in blogroll %}
+  <li>
+    <a href="{{ entry.url }}">{{ entry.name }}</a>
+  </li>
+  {%- endfor %}
+</ul>

@@ -34,4 +34,4 @@ words on this site are meant to be read by people, not machines._
 {% endfor %}
 </ul>
 
-[All posts →](/blog/)
+[All posts →](/blog/) | [By tag →](/tags/)

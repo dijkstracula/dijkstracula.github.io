@@ -1,0 +1,32 @@
+[
+    {
+        "name": "All Things Distributed (Werner Vogels' blog)",
+        "url": "https://www.allthingsdistributed.com/"
+        "feed": "https://www.allthingsdistributed.com/atom.xml"
+    },
+    {
+        "name": "Marc Brooker's blog",
+        "url": "https://brooker.co.za/blog",
+        "feed": "https://brooker.co.za/blog/atom.xml"
+    },
+    {
+        "name": "Made of Bugs (Nelson Elhage's blog)",
+        "url": "https://blog.nelhage.com/post/",
+        "feed": "https://blog.nelhage.com/atom.xml"
+    },
+    {
+        "name": "Stephen Diehl's blog",
+        "url": "https://www.stephendiehl.com/posts/",
+        "feed": "https://www.stephendiehl.com/feed.xml"
+    },
+    {
+        "name": "Tikhon Jelvis' blog",
+        "url": "https://jelv.is/blog/",
+        "feed": "https://jelv.is/blog/atom.xml"
+    },
+    {
+        "name": "transactional.blog",
+        "url": "https://transactional.blog",
+        "feed": "https://transactional.blog/feed.xml"
+    }
+]
