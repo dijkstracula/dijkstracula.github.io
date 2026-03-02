@@ -10,6 +10,11 @@
         "feed": "https://cecilycarver.substack.com/feed"
     },
     {
+        "name": "Ben Linsay's blog",
+        "url": "https://blinsay.com/posts",
+        "feed": "https://blinsay.com/posts/atom.xml"
+    },
+    {
         "name": "Elided branches (Camille Fournier's blog)",
         "url": "https://www.elidedbranches.com/",
         "feed": "https://www.elidedbranches.com/feeds/posts/default"
