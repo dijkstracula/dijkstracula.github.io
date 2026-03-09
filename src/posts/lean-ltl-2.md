@@ -22,13 +22,51 @@ over time, too.
 
 ## This time...
 
-We'll define _linear temporal logic_, which is a common logical system used by
-model checkers like TLA+ and SPIN, and embed it into Lean's logical system.
-We'll then see how to specify how our vending machine should behave over time,
-with an eye to writing "real reactive programs" in Lean and specifying them
-with LTL.
+We'll define temporal logic and _linear temporal logic_, which is a common
+logical system used by model checkers like TLA+ and SPIN, and embed it into
+Lean's existing logical system. We'll then see how to specify how our vending
+machine should behave over time, with an eye to writing "real reactive
+programs" in Lean and specifying them with LTL.
+
+## The limits of `Prop`
+
+Remember our "drop a coin, drop another coin, choose a pop flavour, take
+the can" example from last time:
+
+```lean4
+def getOrange : TSM Flavour := do
+  perform (.DropCoin)
+  perform (.DropCoin)
+  perform (.Choose .LemonLime)
+  take
+```
+
+When we executed these actions on our initial pop machine state, we ended up
+with:
+
+```
+#eval getOrange.run init
+Except.ok (Flavour.LemonLime, { coins := 0, dispensed := none, numOrange := 5, numLL := 4 })
+```
+
+There are all sorts of propositions we could write about the final state:
+maybe we want to be assured that the machine successfully ate all the coins
+in the hopper, or that we didn't accidentally decrement `numOrange` versus
+`numLL`.  We could also write and prove the statement `validStep <final state>
+.DropCoin`, or write and _refute_ `validStep <final state> .TakeItem`.
+
+These kind of aren't terribly _interesting_ propositions, though, and this
+makes sense becaue what makes reactive programs interesting is that they change
+over time.  So, our logical propositions also need to be able to talk about
+change over time.
 
 ## Linear temporal logic
+
+There's lots of different kind of logics out there: you know propositional
+logic as "the language of boolean formulas".  First order logic has existental
+and universal quantifiers ("there exists" and "for all") over arbitrary
+predicates.  Type systems are a logical system, as we've seen.  And, of course,
+we can have _metalogics_ that state logical facts about logical systems.
 
 ::: margin-note
 LTL isn't the only temporal logic we could use - another one is _computation
@@ -37,10 +75,10 @@ tree of states, versus LTL's "linear sequence of states".  We could also add
 the notion of probabilities into our logical system, making a transition system
 more like a Markov chain.  Something to think about playing with another time.
 :::
-LTL is a _modal_ logic that let us refer to relationships between the ordering
-of states, as opposed to statements (like `validStep s a`) which only speak
-about some given state without any connection to what might be true or false
-in subsequent states.  
+_Linear temporal logic_ is a _modal_ logic that let us refer to relationships
+between a sequence of states, as opposed to statements (like `validStep s a`)
+which only speak about some given state without any connection to what might be
+true or false in subsequent states.  
 
 The "linear" in LTL refers to the fact that what interests us is a sequential
 _path_ of states in the system, determined by which actions were taken.  You
@@ -54,23 +92,43 @@ protocol.
 
 ## Time and execution traces
 
-We don't have a real notion of time yet, despite all this talk about "temporal"
-logic, so let's just say for now that every action that gets taken advances our
-clock by one, so at `t = 0` we're in our system's initial state, and after
-taking our first action, the state advances to the value for `t = 1`.  Time for
-us is kind of an arbitrary quantity; we're less interested in what unit `t` has
-and more that assigning time a number lets us _order events_: if `i < j`, then
-we know the action that happened at `t = i` must have happened before the one
-at `t = j`.
+We're going to define our sequence of states as "the states of the system at
+time `t`".
+
+We don't have a real notion of time or how long an action takes, despite all
+this talk about "temporal" logic, so let's just say for now that every action
+that gets taken advances our clock by one, so at `t = 0` we're in our system's
+initial state, and after taking our first action, the state advances to the
+value for `t = 1`.  Time for us is kind of an arbitrary quantity; we're less
+interested in what unit `t` has and more that assigning time a number lets us
+_order events_: if `i < j`, then we know the action that happened at `t = i`
+must have happened before the one at `t = j`.
 
 So, an _execution trace_ relates "at what time are we" to "what's the state of
-the system".
+the system".  And by our choice of time, every time has a state, and we can
+reason about the order in which states occurred, because we can reason about
+the order of time steps themselves.
+
+### Choosing a datatype for time
+
+A lot of papers like to, in my opinion, overengineer the definition of time,
+with a fancy typeclass and monoidial operations and a proof of total order.
+We're going to just do the simplest thing here, which is to say that time is
+over the natural numbers.  This fits what we said earlier: the first state's
+timestep is "the first natural number", every action advances the clock to "the
+next natural number", and we can keep doing that, conceptually, infinitely many
+times.  This means we'll always have a well-defined initial state of the
+system, but it doesn't make sense to talk about "the system's final state".
+
+```lean4
+abbrev Time := Nat
+```
 
 ### Choosing a datatype for traces
 
-We'll see in a bit these execution traces are going to be really crucial for
-writing proofs about our reactive systems, so we have to be careful about our
-data definition for them.
+OK, so given a time value, how should we get a state? We'll see in a bit these
+execution traces are going to be really crucial for writing proofs about our
+reactive systems, so we have to be careful about our data definition for them.
 
 ::: margin-note
 My natural inclination, as more a hacker than a mathematician, is to think in
@@ -78,26 +136,37 @@ data structures like defining a trace as an `Iterator (VMState * VMAction)`,
 though.  But, in the spirit of not second-guessing those who've come before,
 I'll stick with the more functional defintion.
 :::
-Execution traces can be infinitely long (this is a bit hard to see in our
-vending machine example, but consider the other canonical example, a traffic
-light: it loops through its green-yellow-red sequence indefinitely.)   The
-literature (in particular, Baier & Katoen's _Principles of Model Checking_ and
-Lamport's _Specifying Systems_) typically use a functional approach, mapping
-times to states (so, for us, that would look like a function `Nat -> VMState`.)
+Since `Nat`s can be infinitely large, execution traces can be infinitely long.
+For reactive systems this is the thing we want (this is a bit hard to see in
+our vending machine example, but consider the other canonical example, a
+traffic light: it loops through its green-yellow-red sequence indefinitely).
+The literature (in particular, Baier & Katoen's _Principles of Model Checking_
+and Lamport's _Specifying Systems_) typically use a functional approach,
+mapping times to states (so, for us, that would look like a function `Nat ->
+VMState`.)
+
+(Of course, the particular example we have is _finite_: it only defines states
+at time 0, 1, 2, and 3.  We'll say a bit shortly about how to take a _finite
+trace fragment_ and extend into a proper infinite trace.)
 
 ### All time is relative
 
 One of the things we _don't_ have is the notion of a global clock that tells
 us what, at some moment, "the current time is".  Instead, we'll use a notion
-of relative time: `t = 0` is always right now, and if we want to "advance the
+of relative time: `t = 0` is always "right now", and if we want to "advance the
 clock", we need return a new trace function that offsets the input value by the
 right time delta.  If this is confusing, think back to the `Iterator` example:
 the current state is always at element 0 -- the head -- of the iterator, and to
 advance the clock by, say, three time units, we'd drop the first three elements
 from the iterator.
 
+::: margin-note
+It feels significant to me that some of the best distributed systems
+programmers I know majored in physics: I'm sure they wouldn't find "all time is
+relative" to be all that scary of a notion.
+:::
 ```lean4
-def Trace α := Nat → α
+def Trace α := Time → α
 
 def drop k (t : Trace α):= fun n => t (k + n)
 def next (t : Trace α) := fun n => t (n
@@ -105,8 +174,8 @@ def next (t : Trace α) := fun n => t (n
 
 ## The syntax of an LTL formula
 
-OK, we have the notion of time, but not yet a way of writing propositions about
-how our system changes over time.
+OK, we have the notion of time, and our notion of traces, but not yet a way of
+writing propositions about how our system changes over time.
 
 Let's start implementing a _deep embedding_ of LTL in Lean by specifying the
 ways to construct an LTL formula.  Since a statement in LTL relates to some
@@ -130,10 +199,6 @@ to make a statement about a state "right now".  In a non-dependently-typed
 language, we'd do this with a predicate function `σ → Bool`, but since
  we're really interested in writing proofs, let's return a `Prop` instead:
 
-::: margin-note
-Recall from last time that `(·.coins > 0)` is shorthand for `fun s => s.coins >
-0`.
-:::
 ```lean4
 inductive LTL σ where
   | atom : (σ → Prop) → LTL σ -- NEW
@@ -141,7 +206,7 @@ inductive LTL σ where
 
 def hopperEmpty (s: VMState) : Prop := s.coins > 0
 
-def hopperCurrentlyNonempty : LTL VMState := LTL.atom hopperEmpty
+def hopperCurrentlyEmpty : LTL VMState := LTL.atom hopperEmpty
 ```
 
 (Even though we're still only specifying the syntax for LTL and not how to
@@ -171,10 +236,14 @@ namespace LTL
 end LTL
 ```
 
-So far all we've done is embedded `Prop` inside a cool new sum type.  Adding
-some temporal modalities makes this logic more interesting!
+Here we've defined `or` and `implies` in terms of our core LTL primitives,
+but wrapping them in the `LTL` namespace means external users won't know
+the difference.
 
 ### `next` refers to the subsequent state
+
+So far all we've done is embedded `Prop` inside a cool new sum type.  Adding
+some temporal modalities makes this logic more interesting!
 
 Here's a simple one: Given some point in time, the `next` modality makes a
 statement about the state to come:
@@ -242,7 +311,9 @@ it's worth thinking about what isn't expressible in this logic: A few come to
 mind for me:
 
 * We only have _forward-looking_ temporal operators.  The past-tense equivalent
-of `eventually` could be, I donno, `previously`, or something.
+  of `eventually` could be, I donno, `previously`, or something.  Since we
+  don't have the notion of negative relative time, though, this might require
+  rethinking our `Time` type definition, though.
 * Nothing stops us from writing _quantified statements_ of the form "for all
   possible states, ..." or "there exists a state such that..."  (We get quantifiers
   for free because `atom`'s "predicate" function produces a Lean proposition,
@@ -250,7 +321,7 @@ of `eventually` could be, I donno, `previously`, or something.
   to say "for every other timestep, ..."
 * It might be interesting to ascribe probabilities of some proposition being true-
   "eventually" could then become a "as time goes to infinity, P(some_proposition) -> 1"
-  sort of statement.  
+  sort of statement.  But, our logic here isn't "fuzzy" in that sense.
 
 ::: tip
 ```lean4
@@ -294,18 +365,20 @@ way.  Let's write the function `models` that does this for us:
 ```lean4
 @[simp]
 def satisfies : Trace σ → LTL σ → Prop
-  | t, LTL.atom p =>     -- TODO
-  | t, LTL.and a b =>    -- TODO
-  | t, LTL.neg s =>      -- TODO
-  | t, LTL.next s =>     -- TODO
-  | t, LTL.until a b =>  -- TODO
-  | t, LTL.eventually s => --TODO 
-  | t, LTL.always s =>   --TODO
+  | t, LTL.atom p =>       -- TODO
+  | t, LTL.and a b =>      -- TODO
+  | t, LTL.neg s =>        -- TODO
+  | t, LTL.next s =>       -- TODO
+  | t, LTL.until a b =>    -- TODO
+  | t, LTL.eventually s => -- TODO 
+  | t, LTL.always s =>     -- TODO
 ```
 
-A lot of these don't require much thought: An `and` is the conjunction of its
-two formulas' satisfiability, and `neg` is the negation of its satisfiability,
-so we can write those down without too much thought.
+A lot of these don't require much thought and just fall out from the recursive
+definition of formulas: An `and` contains two subformulae, and is simply the
+conjunction of its two formulas' satisfiability; and, `neg` wraps a subformula,
+and is the negation of its satisfiability. We can write those down without too
+much difficulty.
 
 ```lean4
 @[simp]
@@ -335,8 +408,10 @@ existentially quantify over how long `a` is going to hold before `b`:
 
 ```lean4
 def satisfies : Trace σ → LTL σ → Prop
-  | t, LTL.until a b => ∃ (n : Nat),
-    ∀ (i : Nat), i < n → satisfies (drop i t) a ∧ satisfies (drop n t) b
+  | t, LTL.until a b => 
+    ∃ (n : Nat),
+      ∀ (i : Nat), 
+        i < n → satisfies (drop i t) a ∧ satisfies (drop n t) b
 ```
 
 ::: martin-note
@@ -356,7 +431,7 @@ always is satisfied if for all points in the future, it is satisfied".
 def satisfies : Trace σ → LTL σ → Prop
 ...
   | t, LTL.eventually s => ∃ (n : Nat), satisfies (drop n t) s
-  | t, LTL.always s => ∀ (n : Nat), satisfies (drop n t) s
+  | t, LTL.always s     => ∀ (i : Nat), satisfies (drop i t) s
 ```
 
 ## Traces, concretely
@@ -426,7 +501,10 @@ trace:
 
 ::: margin-note
 Here, we make the trace well-defined by saying it's just hanging for all points
-in time after the final transition.
+in time after the final transition.  You might think another way to do this
+would be to just loop back to the first action and repeat the seqeuence over
+and over again, but this wouldn't work for this trace; we'd eventually run out
+of pop cans to dispense so we'd get stuck.
 
 You may disagree with my choice of return value of `.error`: since we will only
 use this for a few examples, feel free to change it to a `panic!`, after you
@@ -446,5 +524,6 @@ def orangeTrace := getTrace init getOrange
 
 Here's a useful thing to prove: in this specific execution trace, is a can
 ever dispensed?
+
 ## Traces, abstractly
 
