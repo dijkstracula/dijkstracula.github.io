@@ -1,7 +1,7 @@
 ---
 layout: post.njk
 title: "LTL in Lean 4"
-date: 2026-03-05
+date: 2026-03-15
 tags: [post, lean, reactive-programming]
 excerpt: "Get in losers, we're doing temporal logic"
 draft: true
@@ -19,6 +19,9 @@ We also saw that while that step validity propsition was straightforward enough
 to write for some concrete state, reactive programs change over time.  We need
 our proof system to also be able to state facts about what we expect to happen
 over time, too.
+
+[Here](https://live.lean-lang.org/#codez=LTAEGUBcENIUwM4CgkEsB2ATArgY0qgG5ygBiANtIQPbYBOoA7gBZx1xKigA+oA8nWjoA5hy68AMnAC21dBNTSOmNkQzDQAJTgAHOigSQ6eSPRIA1ALJRYJFmzGhc1DAgBcoAHKxOoTKgQdOHQEOEwPPh0COTJKGnpfdGxpASFRUA9vSETkiQkMrx8VOjURLV19JBBQAEF8VDlkNCwTIgtLOuj0JlZ2X14AETpqHQBhF3R+0FHmampQgooqWgZAJMJQK06GyfFyw2pcAGspgBVoQ7gASXhpJGLSjW09FAABAG0ERR0AXTu4ADNQIRoORUJgtjEABQIApWGzwACUoEh0FhHXqciRHgACsMdBkALy+aSwXDMUCoxioSDMKYAOiGI3GGC4rLZoAJAD5QCdjI5eHTtPsjuzRVyeXz6TM5gs6akRCRWeKEHTnK5QJyCaAAEygQDkRKAVUkUoIFRrQAAGKWzeYkOlSWTyRQkZWqiYwzU6/WGunGvLmq27OlnC7XGSitniyJdOkBcDUJQ+/yBYKhTAoFSAjDUtHwkhuLUAb1AvjVIUJloANH4AkEQmEK+g5HBq8b5ekC6AAKyt3L5TtdksAXxQ1Sguh06gzAKB0nH+OhuZgiJLEbZKLREPQSN8a+RAAkCsDQeCMd0YdAEbu1x44cv80SuCTIGSKUxqbSg4yxhM1+LizCVI0k47oViqZYwgA1KAACMoAjkGIZXDcf7cgB77AcmdZpo2zbwdaMp2u2ir/oaGGfqyEHsp24GgWA2qVtebamh2WpGskxGgGAMHXlhqYNjRCZESxLa+AhPCgHS0q2pJDpyAoiakYBH7XlRbI0W66r0YxbJ+vk6lsb6fZcbBvG1vxmBgUJskyPJzo6fhQZCpAByHHu4rZtkzSGEIuAkIut7WPeSIboFW5YqAAxwLgYLQAARuQ/nHmCW5kZeFZxQAnr4nzSDoADcho6KCkCgAAPPl3IYP8bAAPquDA6B+aOYBwAAHtF2BdE08VxewhA8uAligIAjcAVnmJwbEFtjIgAom1flRBARjqEiI3ToCQR0P81B0NIyKomFZ4RScQ2gAAqugOadpg1C+IlpUwoACYSgKI2RcKggLkh4yWnl0aWgDSwTXg9hoAOQVoQc7wPiF6gBRXChI9YO+HA5ALPNi2QHSbDDAwCAAIQAESXOgv0UmeoCFuwegUkOoAsj58BUzT+NDkTG2A+c+aDcNSzxAwN13VwoPPa9cDvQzgKHj9IIpZTMLBtzYb7UDOysltO17ZJSEq9eOhmMi0bbHSb1JuZ9aWfuV5cGjGMLbo2O47thrE541A0uogPUFzFwM+e94sxUhrs5zb2cR4p183EKwVrdvia7t+2QgyeLMtuCdsFryep0yEw26Aifayn0mynJTpKAXMAXEgQA)
+is a Lean playground with the state of our program from last time.
 
 ## This time...
 
@@ -229,8 +232,8 @@ namespace LTL
 
 
 @[simp] def or      (a : LTL σ) (b : LTL σ) := 
-  LTL.neg <| LTL.and (LTL.not a) 
-                     (LTL.not b)
+  LTL.neg <| LTL.and (LTL.neg a) 
+                     (LTL.neg b)
 @[simp] def implies (a : LTL σ) (b : LTL σ) := (LTL.neg a).or b
 
 end LTL
@@ -397,7 +400,7 @@ about `t 1`.  So, we have:
 ```lean4
 @[simp]
 def satisfies : Trace σ → LTL σ → Prop
-  | t, LTL.atom p => prop (t 0)
+  | t, LTL.atom prop => prop (t 0)
   ...
   | t, LTL.next s => satisfies (next t) s
 ```
@@ -433,97 +436,4 @@ def satisfies : Trace σ → LTL σ → Prop
   | t, LTL.eventually s => ∃ (n : Nat), satisfies (drop n t) s
   | t, LTL.always s     => ∀ (i : Nat), satisfies (drop i t) s
 ```
-
-## Traces, concretely
-
-Let's get our bearins by accumulating finite traces from our monadic API. 
-
-Remember that `Trace`s are conceputally infinite in length, so when we actually
-execute a series of actions, we're actually producing a _trace fragment_. (This
-is sometimes called a _trace prefix_ or just a finite trace.)  Fragments will
-be produced by executing our TSM monad - the only thing we have to do to make
-this happen is to accumulate the states we transition to.
-
-The thing is, `TSM` now has _two_ interpretations: the "execute a sequence of
-actions, producing a final state or an error" one, and also the "just give me
-all the sequence of states".  These interpretations aren't fundamentally different
-from each other, so we could try and maintain a stateful list of transitioned
-states, or maybe use the
-[Writer](https://leanprover-community.github.io/mathlib4_docs/Mathlib/Control/Monad/Writer.html)
-monad, which allows us to mix in "emitting log entries"-like behaviour.  
-
-```lean4
-import Mathlib.Control.Monad.Writer
-
-...
-abbrev Fragment := List VMState
-abbrev TSM α := WriterT (List VMAction) (StateT VMState (Except String)) α
-```
-
-`TSM` is three monads stacked together, which is kind of convoluted, but
-we only need ot know that this monad now imbues computation in `TSM`
-with a new `tell` function, which records `VMStates` as we come across them:
-
-:::margin-note
-A sufficiently-complicated monad transformer stack actually makes it _easier_
-to see why monads are an interesting way to program: every monad can be seen as
-introducing a new "language feature": `State` introduces, well, mutable state,
-`Except` introduces exception raising, and now `Writer` introduces output
-logging, none of which are obviously present in a pure functional language!
-:::
-```lean4
-abbrev TSM α := WriterT Fragment (StateT VMState (Except String)) α
-
-def perform (a : VMAction) : TSM Unit := do
-  let s ← get
-  if h : validAction s a then
-    tell [s] -- NEW: remember that we saw [s]
-    let s' := vmStep s a h
-    set s'
-  else Except.error s!"Invalid action {repr a} in state {repr s}"
-
-...
-
-#eval getOrange.run init 
-
-Except.ok (
-  (LemonLime,
-  [{ coins := 0, dispensed := none,           numOrange := 5, numLL := 5 },
-   { coins := 1, dispensed := none,           numOrange := 5, numLL := 5 },
-   { coins := 2, dispensed := none,           numOrange := 5, numLL := 5 },
-   { coins := 0, dispensed := some LemonLime, numOrange := 5, numLL := 4 }]),
- { coins := 0, dispensed := none, numOrange := 5, numLL := 4 })
-```
-
-With a little helper, we can pull out only the fragment from a computation.
-In fact, while we're doing so, why don't we turn that fragment into a proper
-trace:
-
-::: margin-note
-Here, we make the trace well-defined by saying it's just hanging for all points
-in time after the final transition.  You might think another way to do this
-would be to just loop back to the first action and repeat the seqeuence over
-and over again, but this wouldn't work for this trace; we'd eventually run out
-of pop cans to dispense so we'd get stuck.
-
-You may disagree with my choice of return value of `.error`: since we will only
-use this for a few examples, feel free to change it to a `panic!`, after you
-solve the type error that it creates for you >:)
-:::
-```lean4
-def getFragment (init : VMState) (tsm : TSM σ) : Trace :=
-  match (tsm.run init) with
-  | .ok ((_, frag), final) =>
-    (fun n => if h : n < frag.length then frag.get ⟨n, h⟩ else final)
-  | .error e => (fun _ => init)
-
-def orangeTrace := getTrace init getOrange
-```
-
-### Our first proposition
-
-Here's a useful thing to prove: in this specific execution trace, is a can
-ever dispensed?
-
-## Traces, abstractly
 
