@@ -4,7 +4,8 @@
   "description": "A minimal modern blog built with 11ty, HTMX, and Pico.css",
   "scripts": {
     "start": "eleventy --serve",
-    "build": "eleventy"
+    "build": "node scripts/fetch-feeds.js && eleventy",
+    "fetch-feeds": "node scripts/fetch-feeds.js"
   },
   "keywords": [
     "blog",
