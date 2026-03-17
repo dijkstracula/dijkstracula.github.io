@@ -14,6 +14,11 @@ module.exports = async function () {
       const xml = await EleventyFetch(entry.feed, {
         duration: "1d",
         type: "text",
+        fetchOptions: {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; BlogrollFetcher/1.0)",
+          },
+        },
       });
       const feed = await parser.parseString(xml);
 
