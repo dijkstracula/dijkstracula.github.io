@@ -1,6 +1,6 @@
 ---
 layout: post.njk
-title: "Reactive Programming in Lean 4"
+title: "Reactive Programming in Lean 4: transition systems"
 date: 2026-02-23
 tags: [post, lean, reactive-programming]
 excerpt: "Extending Lean's dependent type system to reason about reactive programs"
