@@ -6,6 +6,7 @@ const parser = new RssParser();
 
 module.exports = async function () {
   const posts = [];
+  const failedFeeds = [];
 
   for (const entry of blogroll) {
     if (!entry.feed) continue;
@@ -33,9 +34,10 @@ module.exports = async function () {
       }
     } catch (err) {
       console.warn(`[blogroll] Failed to fetch feed for ${entry.name}: ${err.message}`);
+      failedFeeds.push({ name: entry.name, feed: entry.feed, url: entry.url });
     }
   }
 
   posts.sort((a, b) => b.date - a.date);
-  return posts.slice(0, 20);
+  return { posts: posts.slice(0, 20), failedFeeds };
 };

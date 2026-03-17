@@ -9,16 +9,19 @@ permalink: /blogroll/
 Curating and getting into the habit of checking a blogroll has been a really
 useful substitute for high-frutose corn syrup social media consumption.
 
-{% if blogrollPosts.length %}
+{% if blogrollPosts.posts.length %}
 <h2>Recent posts</h2>
-<ul class="blogroll-posts">
-  {%- for post in blogrollPosts %}
-  <li>
+<ul class="blogroll-posts" id="blogroll-posts">
+  {%- for post in blogrollPosts.posts %}
+  <li data-date="{{ post.date | isoDate }}">
     <a href="{{ post.url }}">{{ post.title }}</a>
     <span class="blogroll-meta">— {{ post.source }}, {{ post.date | readableDate }}</span>
   </li>
   {%- endfor %}
 </ul>
+{% else %}
+<h2>Recent posts</h2>
+<ul class="blogroll-posts" id="blogroll-posts"></ul>
 {% endif %}
 
 <p>Sources</p>
@@ -29,3 +32,75 @@ useful substitute for high-frutose corn syrup social media consumption.
   </li>
   {%- endfor %}
 </ul>
+
+{% if blogrollPosts.failedFeeds.length %}
+<script>
+(function () {
+  var failedFeeds = {{ blogrollPosts.failedFeeds | dump | safe }};
+  var list = document.getElementById("blogroll-posts");
+  if (!failedFeeds.length || !list) return;
+
+  var corsProxy = "https://corsproxy.io/?url=";
+
+  Promise.all(failedFeeds.map(function (entry) {
+    return fetch(corsProxy + encodeURIComponent(entry.feed))
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function (xml) {
+        var doc = new DOMParser().parseFromString(xml, "application/xml");
+        var items = doc.querySelectorAll("item");
+        var posts = [];
+        items.forEach(function (item) {
+          var title = (item.querySelector("title") || {}).textContent;
+          var link = (item.querySelector("link") || {}).textContent;
+          var pubDate = (item.querySelector("pubDate") || {}).textContent;
+          if (title && link) {
+            posts.push({
+              title: title,
+              url: link,
+              date: pubDate ? new Date(pubDate) : new Date(0),
+              source: entry.name
+            });
+          }
+        });
+        return posts;
+      })
+      .catch(function () { return []; });
+  })).then(function (results) {
+    var newPosts = results.flat();
+    if (!newPosts.length) return;
+
+    // Collect existing posts from the server-rendered list
+    var existing = Array.from(list.querySelectorAll("li")).map(function (li) {
+      var a = li.querySelector("a");
+      var meta = li.querySelector(".blogroll-meta");
+      return {
+        title: a ? a.textContent : "",
+        url: a ? a.href : "",
+        date: new Date(li.dataset.date || 0),
+        source: meta ? meta.textContent.replace(/^— /, "").split(",")[0] : ""
+      };
+    });
+
+    var allPosts = existing.concat(newPosts);
+    allPosts.sort(function (a, b) { return b.date - a.date; });
+    allPosts = allPosts.slice(0, 20);
+
+    list.innerHTML = "";
+    allPosts.forEach(function (post) {
+      var li = document.createElement("li");
+      var a = document.createElement("a");
+      a.href = post.url;
+      a.textContent = post.title;
+      var span = document.createElement("span");
+      span.className = "blogroll-meta";
+      span.textContent = "\u2014 " + post.source + ", " + post.date.toLocaleDateString("en-CA", {
+        year: "numeric", month: "long", day: "numeric"
+      });
+      li.appendChild(a);
+      li.appendChild(span);
+      list.appendChild(li);
+    });
+  });
+})();
+</script>
+{% endif %}
