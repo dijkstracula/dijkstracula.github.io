@@ -117,26 +117,25 @@
     }
 
     .post-list li {
-      margin-bottom: 2rem;
-      padding-bottom: 2rem;
-      border-bottom: 1px solid var(--pico-muted-border-color);
-    }
-
-    .post-list li:last-child {
+      margin-bottom: 0.25rem;
+      padding-bottom: 0;
       border-bottom: none;
     }
 
-    .post-list h2 {
-      margin-bottom: 0.5rem;
-    }
-
-    .post-list p:last-of-type {
-      margin-bottom: 0;
+    .post-list li a {
+      font-weight: bold;
     }
 
     .post-date {
       color: var(--pico-muted-color);
       font-size: 0.9rem;
+    }
+
+    .post-subtitle {
+      display: block;
+      color: var(--pico-muted-color);
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
     }
 
     /* Compact styling for recent posts on main page */
@@ -151,7 +150,7 @@
     }
 
     .post-meta {
-      margin-bottom: 1rem;
+      margin-bottom: 0;
     }
 
     article header {

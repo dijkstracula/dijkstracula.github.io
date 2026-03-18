@@ -26,10 +26,9 @@ words on this site are meant to be read by people, not machines._
 <ul class="post-list recent-posts">
 {% for post in collections.publishedPosts | limit(5) %}
   <li>
-    <time class="post-date" datetime="{{ post.date | isoDate }}">{{ post.date | readableDate }}</time> — <a href="{{ post.url }}">{{ post.data.title }}</a>
-    {% if post.data.excerpt %}
-      {{ post.data.excerpt }}
-    {% endif %}
+    <a href="{{ post.url }}">{{ post.data.title }}</a>
+    <time class="post-date" datetime="{{ post.date | isoDate }}">({{ post.date | readableDate }})</time>
+    {% if post.data.excerpt %}<span class="post-subtitle">{{ post.data.excerpt }}</span>{% endif %}
   </li>
 {% endfor %}
 </ul>

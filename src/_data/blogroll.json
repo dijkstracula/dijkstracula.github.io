@@ -25,6 +25,11 @@
         "feed": "https://ferd.ca/feed.rss"
     },
     {
+        "name": "Graydon's blog",
+        "url": "https://graydon2.dreamwidth.org/",
+        "feed": "https://graydon2.dreamwidth.org/data/atombl"
+    },
+    {
         "name": "Programming is terrible",
         "url": "https://programmingisterrible.com",
         "feed": "https://programmingisterrible.com/rss"
