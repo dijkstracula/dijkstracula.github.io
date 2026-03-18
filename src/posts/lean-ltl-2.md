@@ -120,6 +120,10 @@ VMState`.)
 at time 0, 1, 2, and 3.  We'll say a bit shortly about how to take a _finite
 trace fragment_ and extend into a proper infinite trace.)
 
+(Conal Elliott, whose work will come into play in later chapters, has
+[bemoaned](https://www.youtube.com/watch?v=rfmkzp76M4M) descretizing time like
+we're doing here.  We'll refine this definition of time soon enough.)
+
 ### All time is relative
 
 One of the things we _don't_ have is the notion of a global clock that tells
