@@ -4,17 +4,9 @@ title: "Proving the Coding Interview II"
 date: 2022-04-28T09:19:51-05:00
 tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "Integer.toString() 2 furious"
+series: proving-the-coding-interview-dafny
+series_title: "Part 2"
 ---
-
-::: tip
-This is the second of a three part series:
-[Part 1](/posts/proving-the-coding-interview/) |
-Part 2 |
-[Part 3](/posts/proving-the-coding-interview-3/)
-
-All previous Proving The Coding Interview posts can be found
-[here](http://localhost:8080/tags/provingthecodinginterview/).
-:::
 
 Welcome back to Proving the Coding Interview!  In the [previous
 article](/posts/proving-the-coding-interview/) we started to verify

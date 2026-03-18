@@ -4,19 +4,9 @@ title: "Leaning Into the Coding Interview 2: static bounds checks and dependent 
 date: 2026-01-11T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "Pls types?  No terms!  Only (indexed, dependent) types!"
+series: proving-the-coding-interview-lean
+series_title: "Part two - static bounds checks and dependent types"
 ---
-
-::: tip
-_This is part of an ongoing introduction to Lean 4 series_: 
-  * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
-  * --> [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
-  * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3).
-  * [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
-  * [Part four - proof-carrying code](/posts/proving-the-coding-interview-lean-4)
-
-All previous Proving The Coding Interview posts can be found
-[here](/tags/provingthecodinginterview/).
-:::
 
 In an [earlier](/posts/proving-the-coding-interview-lean/) post, we learned a
 bunch of Lean's syntax and saw how to write some simple theorems about the

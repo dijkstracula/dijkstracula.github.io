@@ -4,6 +4,8 @@ title: "Let's Build a Theorem Prover: SATvatar 2: the way of solver"
 date: 2022-12-16T22:02:43.482Z
 tags: [post, sat, logic, verification]
 excerpt: "From Davis-Putnam to DPLL to CDCL: improving SAT solvers with backtracking and conflict-driven clause learning"
+series: lets-build-a-theorem-prover
+series_title: "Part two - DPLL to CDCL"
 ---
 
 *This post originally appeared on [Cohost](https://web.archive.org/web/20241104063350/https://cohost.org/nathan/post/559376-let-s-build-a-theore).*

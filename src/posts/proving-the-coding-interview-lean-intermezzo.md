@@ -4,19 +4,9 @@ title: "Leaning into the Coding Interview: proving equality of different Fuzzbuz
 date: 2026-01-30T00:00:00-05:00
 tags: [post, lean, verification, provingthecodinginterview]
 excerpt: "There are lots of different ways to implement Fizzbuzz but this one is mine - how can we prove different implementations are actually the same, and what does it look like when they're actually not?"
+series: proving-the-coding-interview-lean
+series_title: "Intermezzo - equality proofs between different Fizzbuzzes"
 ---
-
-::: tip
-_This is part of an ongoing introduction to Lean 4 series_: 
-  * [Part one - theorem-proving basics](/posts/proving-the-coding-interview-lean)
-  * [Part two - static bounds checks and dependent types](/posts/proving-the-coding-interview-lean-2)
-  * [Part three - completing the spec with tactic combinators](/posts/proving-the-coding-interview-lean-3)
-  * --> [Intermezzo - equality proofs between different Fizzbuzzes](/posts/proving-the-coding-interview-lean-intermezzo)
-  * [Part four - Proof-carrying code](/posts/proving-the-coding-interview-lean-4)
-
-All previous Proving The Coding Interview posts can be found
-[here](/tags/provingthecodinginterview/).
-:::
 
 We started this series with a particular implementation of Fizzbuzz, and wrote
 our specification around that implementation.  Having a tight coupling made it

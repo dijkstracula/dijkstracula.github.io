@@ -3,15 +3,9 @@ layout: post.njk
 title: "Reactive Programming in Lean Part 2: Execution traces"
 date: 2026-03-15
 tags: [post, lean, reactive-programming]
+series: lean-ltl
+series_title: "Part two - execution traces"
 ---
-
-::: tip
-_This is part of an ongoing series about reactive programming in Lean_: 
-  * [Part one - transition systems](/posts/lean-ltl)
-  * --> [Part two - execution traces](/posts/lean-ltl-2)
-  * Part three - temporal logic and the LTL -> FRP correspondance
-  * Part four - concurrency
-:::
 
 ## Welcome back!
 

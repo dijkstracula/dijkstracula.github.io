@@ -4,17 +4,9 @@ title: "Proving the Coding Interview: verifying the JDK's `Integer.toString()`"
 date: 2022-04-30T20:47:23-05:00
 tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "A faster, but just as correct, nat -> string converter"
+series: proving-the-coding-interview-dafny
+series_title: "Part 3"
 ---
-
-::: tip
-This is the third of a three part series:
-[Part 1](/posts/proving-the-coding-interview/) | 
-[Part 2](/posts/proving-the-coding-interview-2/) |
-Part 3
-
-All previous Proving The Coding Interview posts can be found
-[here](http://localhost:8080/tags/provingthecodinginterview/).
-:::
 
 Welcome back to the final installment of Proving The Coding Interview!  In the
 [previous article](/posts/proving-the-coding-interview-2/) we

@@ -4,6 +4,8 @@ title: "Let's Build a Theorem Prover: Decision procedure lifestyle trends"
 date: 2022-12-07T01:22:23.770Z
 tags: [post, sat, logic, verification]
 excerpt: "The president has ordered all programmers to maximise their automated reasoning with these weird tricks! Logical agents hate this!"
+series: lets-build-a-theorem-prover
+series_title: "Part one - decision procedures lifestyle trends"
 ---
 
 *This post originally appeared on [Cohost](https://web.archive.org/web/20241104063350/https://cohost.org/nathan/post/372692-let-s-build-a-sat-so).*

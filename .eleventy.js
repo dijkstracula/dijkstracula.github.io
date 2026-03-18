@@ -110,6 +110,13 @@ module.exports = function(eleventyConfig) {
     return array.slice(0, limit);
   });
 
+  // Filter posts belonging to a series, sorted by date (oldest first)
+  eleventyConfig.addFilter("seriesPosts", (posts, seriesId) => {
+    return posts
+      .filter(p => p.data.series === seriesId)
+      .sort((a, b) => a.date - b.date);
+  });
+
   // Sort posts by date (newest first)
   eleventyConfig.addCollection("posts", function(collectionApi) {
     return collectionApi.getFilteredByGlob("src/posts/*.md")
@@ -125,6 +132,26 @@ module.exports = function(eleventyConfig) {
       .sort((a, b) => {
         return b.date - a.date;
       });
+  });
+
+  // Series list for the blog index
+  eleventyConfig.addCollection("seriesList", function(collectionApi) {
+    const posts = collectionApi.getFilteredByGlob("src/posts/*.md")
+      .filter(p => !p.data.draft);
+    const seriesMap = {};
+    posts.forEach(post => {
+      const id = post.data.series;
+      if (!id) return;
+      if (!seriesMap[id]) seriesMap[id] = [];
+      seriesMap[id].push(post);
+    });
+    // Sort each series by date (oldest first), then sort series by earliest post date
+    return Object.entries(seriesMap)
+      .map(([id, seriesPosts]) => ({
+        id,
+        posts: seriesPosts.sort((a, b) => a.date - b.date)
+      }))
+      .sort((a, b) => a.posts[0].date - b.posts[0].date);
   });
 
   // Tag list with counts

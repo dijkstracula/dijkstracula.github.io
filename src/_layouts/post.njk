@@ -20,5 +20,30 @@ layout: base.njk
     </div>
   </header>
 
+  {% if series %}
+  {% set seriesItems = collections.posts | seriesPosts(series) %}
+  {% if seriesItems.length > 1 %}
+  <div class="callout callout-tip">
+    {% if seriesMeta[series] %}
+    <p><em>This is part of {{ seriesMeta[series].description }}</em>:</p>
+    {% endif %}
+    <ul>
+    {% for post in seriesItems %}
+      {% if not post.data.draft or post.page.url == page.url %}
+      {% if post.page.url == page.url %}
+        <li>&rarr; {{ post.data.series_title or post.data.title }}</li>
+      {% else %}
+        <li><a href="{{ post.page.url }}">{{ post.data.series_title or post.data.title }}</a></li>
+      {% endif %}
+      {% endif %}
+    {% endfor %}
+    </ul>
+    {% if seriesMeta[series].tagPage %}
+    <p>All previous posts in this series can be found <a href="{{ seriesMeta[series].tagPage }}">here</a>.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+
   {{ content | safe }}
 </article>

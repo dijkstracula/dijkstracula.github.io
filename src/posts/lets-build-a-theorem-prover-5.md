@@ -4,6 +4,8 @@ title: "Let's Build a Theorem Prover: Lazy and Basic? SAME"
 date: 2023-01-17T20:04:09.810Z
 tags: [post, sat, logic, verification]
 excerpt: "Implementing the lazy CDCL(T) algorithm with Union-Find for equality reasoning"
+series: lets-build-a-theorem-prover
+series_title: "Part five - lazy CDCL(T)"
 ---
 
 *This post originally appeared on [Cohost](https://web.archive.org/web/20241104063507/https://cohost.org/nathan/post/861374-let-s-build-a-theore).*

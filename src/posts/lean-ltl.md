@@ -4,19 +4,10 @@ title: "Reactive Programming in Lean 4: transition systems"
 date: 2026-02-23
 tags: [post, lean, reactive-programming]
 excerpt: "Extending Lean's dependent type system to reason about reactive programs"
+series: lean-ltl
+series_title: "Part one - transition systems"
 ---
 
-::: tip
-_This is part of an ongoing series about reactive programming in Lean_: 
-  * --> [Part one - transition systems](/posts/lean-ltl)
-  * [Part two - execution traces](/posts/lean-ltl-2)
-  * Part three - temporal logic and the LTL -> FRP correspondance
-  * Part four - concurrency
-:::
-
-All previous Proving The Coding Interview posts can be found
-[here](/tags/provingthecodinginterview/).
-:::
 Over the holidays I spent a bunch of time seeing how far we could push Lean's
 type system and built-in theorem prover to reason about everybody's
 [least-favourite interview problem](/posts/proving-the-coding-interview-lean).
