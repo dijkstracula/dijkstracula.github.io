@@ -1,0 +1,20 @@
+{
+  "proving-the-coding-interview-dafny": {
+    "title": "Proving the Coding Interview (Dafny)",
+    "description": "a three-part series on verification with Dafny",
+    "tagPage": "/tags/provingthecodinginterview/"
+  },
+  "proving-the-coding-interview-lean": {
+    "title": "Proving the Coding Interview (Lean 4)",
+    "description": "an ongoing introduction to Lean 4 series",
+    "tagPage": "/tags/provingthecodinginterview/"
+  },
+  "lean-ltl": {
+    "title": "Reactive Programming in Lean",
+    "description": "an ongoing series about reactive programming in Lean"
+  },
+  "lets-build-a-theorem-prover": {
+    "title": "Let's Build a Theorem Prover",
+    "description": "a series on building SAT and SMT solvers from scratch"
+  }
+}
