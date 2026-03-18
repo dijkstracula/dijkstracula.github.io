@@ -10,49 +10,53 @@ Here I write about formal methods, low-level and concurrent systems, and
 anything else I might find interesting.
 <p/>
 
-{% if collections.seriesList.length > 0 %}
-<h2>Series</h2>
-<ul class="series-list">
-  {% for s in collections.seriesList %}
-  <li>
-    <strong>{% if seriesMeta[s.id].title %}{{ seriesMeta[s.id].title }}{% else %}{{ s.id }}{% endif %}</strong>
-    <ul>
-    {% for post in s.posts %}
-      <li><a href="{{ post.url }}">{{ post.data.series_title or post.data.title }}</a></li>
-    {% endfor %}
+<div class="blog-layout">
+  <div class="blog-main">
+    <h2>All Posts</h2>
+
+    {% if collections.posts.length > 0 %}
+    <ul class="post-list">
+      {% for post in collections.posts %}
+      {% if not post.data.draft %}
+      <li>
+        <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
+        <div class="post-meta">
+          <time class="post-date" datetime="{{ post.date | isoDate }}">
+            {{ post.date | readableDate }}
+          </time>
+        </div>
+        <div class="post-excerpt">
+        {% if post.data.excerpt %}
+          {{ post.data.excerpt }}
+        {% else %}
+          <p>{{ post.templateContent | striptags | truncate(300) }}</p>
+        {% endif %}
+        </div>
+        <p><a href="{{ post.url }}">Read more →</a></p>
+      </li>
+      {% endif %}
+      {% endfor %}
     </ul>
-  </li>
-  {% endfor %}
-</ul>
-{% endif %}
-
-<hr/>
-
-<h2>All Posts</h2>
-
-{% if collections.posts.length > 0 %}
-<ul class="post-list">
-  {% for post in collections.posts %}
-  {% if not post.data.draft %}
-  <li>
-    <h2><a href="{{ post.url }}">{{ post.data.title }}</a></h2>
-    <div class="post-meta">
-      <time class="post-date" datetime="{{ post.date | isoDate }}">
-        {{ post.date | readableDate }}
-      </time>
-    </div>
-    <div class="post-excerpt">
-    {% if post.data.excerpt %}
-      {{ post.data.excerpt }}
     {% else %}
-      <p>{{ post.templateContent | striptags | truncate(300) }}</p>
+    <p>No posts yet. Start writing!</p>
     {% endif %}
-    </div>
-    <p><a href="{{ post.url }}">Read more →</a></p>
-  </li>
+  </div>
+
+  {% if collections.seriesList.length > 0 %}
+  <aside class="blog-sidebar">
+    <h2>Series</h2>
+    <ul class="series-list">
+      {% for s in collections.seriesList %}
+      <li>
+        <strong>{% if seriesMeta[s.id].title %}{{ seriesMeta[s.id].title }}{% else %}{{ s.id }}{% endif %}</strong>
+        <ul>
+        {% for post in s.posts %}
+          <li><a href="{{ post.url }}">{{ post.data.series_title or post.data.title }}</a></li>
+        {% endfor %}
+        </ul>
+      </li>
+      {% endfor %}
+    </ul>
+  </aside>
   {% endif %}
-  {% endfor %}
-</ul>
-{% else %}
-<p>No posts yet. Start writing!</p>
-{% endif %}
+</div>

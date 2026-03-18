@@ -179,6 +179,66 @@
       height: auto;
     }
 
+    /* Blog page: two-column layout with sidebar */
+    .blog-layout {
+      display: flex;
+      gap: 3rem;
+      align-items: flex-start;
+    }
+
+    .blog-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .blog-sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      font-size: 0.9rem;
+      border-left: 1px solid var(--pico-muted-border-color);
+      padding-left: 1.5rem;
+    }
+
+    .blog-sidebar h2 {
+      font-size: 1.2rem;
+      margin-top: 0;
+    }
+
+    .blog-sidebar .series-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .blog-sidebar .series-list > li {
+      margin-bottom: 1.25rem;
+    }
+
+    .blog-sidebar .series-list ul {
+      padding-left: 1rem;
+      margin-top: 0.25rem;
+    }
+
+    .blog-sidebar .series-list ul li {
+      margin-bottom: 0.2rem;
+      padding: 0;
+    }
+
+    @media (max-width: 900px) {
+      .blog-layout {
+        flex-direction: column-reverse;
+      }
+
+      .blog-sidebar {
+        width: 100%;
+        position: static;
+        border-left: none;
+        border-bottom: 1px solid var(--pico-muted-border-color);
+        padding-left: 0;
+        padding-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+    }
+
     @media (max-width: 768px) {
       .headshot {
         float: none;

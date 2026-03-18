@@ -145,13 +145,13 @@ module.exports = function(eleventyConfig) {
       if (!seriesMap[id]) seriesMap[id] = [];
       seriesMap[id].push(post);
     });
-    // Sort each series by date (oldest first), then sort series by earliest post date
+    // Sort each series by date (oldest first), then sort series by most recent post (newest first)
     return Object.entries(seriesMap)
       .map(([id, seriesPosts]) => ({
         id,
         posts: seriesPosts.sort((a, b) => a.date - b.date)
       }))
-      .sort((a, b) => a.posts[0].date - b.posts[0].date);
+      .sort((a, b) => b.posts[b.posts.length - 1].date - a.posts[a.posts.length - 1].date);
   });
 
   // Tag list with counts
