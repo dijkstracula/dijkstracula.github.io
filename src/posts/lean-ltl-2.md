@@ -121,7 +121,7 @@ at time 0, 1, 2, and 3.  We'll say a bit shortly about how to take a _finite
 trace fragment_ and extend into a proper infinite trace.)
 
 (Conal Elliott, whose work will come into play in later chapters, has
-[bemoaned](https://www.youtube.com/watch?v=rfmkzp76M4M) descretizing time like
+[bemoaned](https://www.youtube.com/watch?v=rfmkzp76M4M) discretizing time like
 we're doing here.  We'll refine this definition of time soon enough.)
 
 ### All time is relative
@@ -285,6 +285,12 @@ quantifying over the argument to `orangeTrace`.  What's a lot harder is to make
 such statements about arbitrary traces, where the only thing we know is that at
 every step it satisfies `validTrace`.
 
+Consider a statement like "a can was dispensed and it hasn't been taken" - we'd
+need to be able to say something like "at some point `t` a can was dispensed,
+and for all times between then and now, it wasn't taken.  This is about
+quantifying over part of a trace itself and we don't have the vocabulary to
+make that statement yet.
+
 ## Next time: temporal propositions
 
 Today we built up some mechanism to reason about specific states in our traces.
@@ -308,5 +314,6 @@ isn't the only kind of system that can yield such a trace. In a spreadsheet, if
 cell `C` says `A + B`, the relationship between `C` and its dependencies moves
 through time independently of, say, `D` and `E`. In aggregate, a spreadsheet
 doesn't form a single monolithic trace, but rather a constellation of
-interconnected ones. Next time, we'll see what temporal properties look like
-for systems like that.
+interconnected ones. 
+
+Next time, we'll see what temporal properties look like for systems like that.
