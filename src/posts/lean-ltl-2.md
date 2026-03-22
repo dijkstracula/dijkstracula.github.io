@@ -143,8 +143,9 @@ relative" to be all that scary of a notion.
 ```lean4
 def Trace α := Time → α
 
-def drop k (t : Trace α):= fun n => t (k + n)
-def next (t : Trace α) := fun n => t (n + 1)
+def now (t : Trace α) : α := t 0
+def drop (k : Nat) (t : Trace α) : Trace α := fun n => t (k + n)
+def next : Trace α → Trace α := drop 1
 ```
 
 ## Traces, concretely
