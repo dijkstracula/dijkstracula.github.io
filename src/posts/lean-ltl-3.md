@@ -42,7 +42,7 @@ def getOrange : TSM Flavour := do
 When we executed these actions on our initial pop machine state, we ended up
 with:
 
-```
+```lean4
 #eval getOrange.run init 
 
 Except.ok (
@@ -82,11 +82,6 @@ logic as "the language of boolean formulas".  First order logic has existental
 and universal quantifiers ("there exists" and "for all") over arbitrary
 predicates.  Type systems are a logical system, as we've seen.  And, of course,
 we can have _metalogics_ that state logical facts about logical systems.
-
-Here are the relevant _modalities_ of LTL for us:
-
-* `next`: Given some point in time, the `next` modality makes a statement
-about the state to come, following whatever action comes next
 
 ::: margin-note
 LTL isn't the only temporal logic we could use - another one is _computation
@@ -178,16 +173,17 @@ time, we can finish the definition.
 To make use of `LTL.atom`, we use it as part of a `theorem`, just like any
 other proposition in Lean.  
 
+```lean4
+namespace LTL
+   def atom (p : σ → Prop) (t : Trace σ) : Prop := p (now t)
+end LTL
+```
 ::: margin-note
 `rfl` is enough to discharge the proof of this theorem, but we can make a
 more general statement: _for every_ trace where `t 0` is `init`, the hopper
 starts out empty.  Can you state this formally and prove it?
 :::
 ```lean4
-namespace LTL
-   def atom (p : σ → Prop) (t : Trace σ) : Prop := p (now t)
-end LTL
-
 def hopperEmpty (s : VMState) : Prop := s.coins = 0
 def isCurrentlyEmpty := LTL.atom hopperEmpty
 
@@ -262,7 +258,7 @@ saying "you don't get a can until you've paid":
 
 ```lean4
 def mustPayFirst : Trace VMState → Prop :=
-  until (atom (·.dispensed = none)) (atom (·.coins ≥ 2))
+  LTL.U (LTL.atom (·.dispensed = none)) (LTL.atom (·.coins ≥ 2))
 ```
 
 Applying this proposition to our sample trace isn't as scary as it might look:
@@ -311,4 +307,69 @@ namespace LTL
 end LTL
 ```
 
+## The Curry-Howard correspondence, for time
 
+::: note
+(Note: the following section, and indeed, a lot of what is to come in this
+series, was insprired by Alan Jeffrey's paper, [LTL Types
+FLP](https://dl.acm.org/doi/epdf/10.1145/2103776.2103783).  All credit where
+credit's due!)
+:::
+
+So far, what we've been doing is playing with LTL in the way that someone
+using a model checker like TLA+ might.  We build a reactive system, built
+some traces over that system, wrote formulas about that system, and asked
+"does this trace satisfy this formula?"
+
+All the dependently-typed programming we've done in this and other series has
+been the _Curry-Howard correspondence_ in action.  When we say "a `Prop` is a
+type" and "we prove a proposition by writing a program that typechecks to that
+`Prop`-type", that's Curry-Howard in action.
+
+We've extended the notion of a `Prop` to temporal logic.  By Curry-Howard, that
+must mean that there are some program types (and therefore program
+compuatations) that align with those propositions.  The *LTL Types FRP* paper
+shows exactly what that connection is.
+
+## A `Signal` is a time-varying value
+
+Functional reactive programming is all about modeling your problem domain in
+terms of how your program's values change over time.
+
+In FRP, a _signal_ (sometimes called a _behaviour; I may use these terms
+interchangably even though true FRP-heads would point out technical differences
+between them) is such a time-parameterized value.
+
+```lean4
+type Signal α := Nat → α
+```
+
+Notice that this the same type as our execution traces!  We'll see that the
+intended meaning of a signal is different, though.  Earlier, a `Trace` was an
+artifact of running some computation; it was in some sense an "output".  You
+can poke at it by writing theorems about the trace, but it just sits there;
+running the system through our monadic API produced the trace, and then we
+use Lean's theorem proving capabilities to inspect it.
+
+::: margin-note
+We said just now that a `Signal` is a time-varying value. Technically, FRP
+allows for so called _reactive types_, which are _time-varying types_.
+Concretely, imagine a value such that on time steps `[0,5)`, it's a `Nat`, but
+from `[5,10)` it's a `String`.  This is a dependently-typed signal!
+
+You might enjoy trying to define such a type in Lean.
+:::
+A functional reactive program, on the other hand, treats Signals as core
+program values.  A `Signal Int` isn't "here's the integers that were observed
+at time steps 0, 1, 2, ...", but rather "here's an integer that changes over
+time; let's build other time-varying values out of it".  (How we actually _do_
+that will come soon enough, but you can imagine that it might involve the
+"functional" part of "FRP".)
+
+Before proceeding, you should convince yourself of the fact that one way to
+summarise a `Signal α` is as an `α` value that's always available, no matter
+what time-step we're atl.
+
+## An `Event` occurs at some point in time
+
+The dual of a `Signal` is an `Event`:
