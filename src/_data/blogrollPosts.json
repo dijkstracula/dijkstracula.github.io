@@ -1,5 +1,17 @@
 [
   {
+    "title": "My heuristics are wrong. What now?",
+    "url": "http://brooker.co.za/blog/2026/03/20/ic-leadership.html",
+    "date": "2026-03-20T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "Music To Build Agents By",
+    "url": "http://brooker.co.za/blog/2026/03/18/apprentice.html",
+    "date": "2026-03-18T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
     "title": "Chatting about Napoleon with Solomon & Smith",
     "url": "https://cecilycarver.substack.com/p/chatting-about-napoleon-with-solomon",
     "date": "2026-03-13T20:46:39.000Z",
@@ -106,17 +118,5 @@
     "url": "http://brooker.co.za/blog/2025/12/16/natural-language.html",
     "date": "2025-12-16T00:00:00.000Z",
     "source": "Marc Brooker's blog"
-  },
-  {
-    "title": "What Does a Database for SSDs Look Like?",
-    "url": "http://brooker.co.za/blog/2025/12/15/database-for-ssd.html",
-    "date": "2025-12-15T00:00:00.000Z",
-    "source": "Marc Brooker's blog"
-  },
-  {
-    "title": "Tech predictions for 2026 and beyond",
-    "url": "https://www.allthingsdistributed.com/2025/11/tech-predictions-for-2026-and-beyond.html?utm_campaign=inbound&utm_source=rss",
-    "date": "2025-11-25T11:00:00.000Z",
-    "source": "All Things Distributed (Werner Vogels' blog)"
   }
 ]
