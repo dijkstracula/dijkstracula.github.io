@@ -196,15 +196,6 @@ The first of the real modalities is `eventually`, which states that at some
 point in the future, some statement holds.  (Symmetrically, `always` makes
 the claim about a statement holding at every future point.)
 
-::: margin-note
-"the diamond operator is a box that will _eventually_ fall over, whereas a
-square operator will _always_ lie flat on the floor"?  I donno.
-:::
-`eventually` is sometimes abbreviated to the somewhat-opaque `F` (for _F_uture)
-and the very-opaque `⋄`, and `always` to `G` (for _G_lobal) and `□`.  I will
-suffer `F` and `G` since I kind of have a mnemonic for them, but "the diamond
-operator" and "the square operator" will forever be utterly impossible for me
-to keep straight, so we'll pretend those don't exist.
 
 `eventually` is an _existential_ proposition because it's saying _there exists_
 some point in time where the statement is true, and dually, `always`
@@ -232,6 +223,28 @@ namespace LTL
     def eventually (p : Trace σ → Prop) (t : Trace σ) : Prop := 
       ∃ i, p (drop i t)
 end LTL
+```
+
+::: margin-note
+"the diamond operator is a box that will _eventually_ fall over, whereas a
+square operator will _always_ lie flat on the floor"?  I donno.
+:::
+`eventually` is sometimes abbreviated to the somewhat-opaque `F` (for _F_uture)
+and the very-opaque `⋄`, and `always` to `G` (for _G_lobal) and `□`.  I will
+suffer `F` and `G` since I kind of have a mnemonic for them, but "the diamond
+operator" and "the square operator" will forever be utterly impossible for me
+to keep straight.  Maybe writing this blog post will help, so let's create
+new Lean syntax to accommodate them.  The `prefix:max` directive indicates that
+they're prefix operators, bound as tightly as possible.
+
+```lean4
+namespace LTL
+    ...
+
+    prefix:max "□" => always
+    prefix:max "◇" => eventually
+end LTL
+
 ```
 
 ### `until` generalises `eventually` and `always`
@@ -341,7 +354,8 @@ interchangably even though true FRP-heads would point out technical differences
 between them) is such a time-parameterized value.
 
 ```lean4
-type Signal α := Nat → α
+abbrev Time := Nat
+type Signal α := Time → α
 ```
 
 Notice that this the same type as our execution traces!  We'll see that the
@@ -366,9 +380,127 @@ time; let's build other time-varying values out of it".  (How we actually _do_
 that will come soon enough, but you can imagine that it might involve the
 "functional" part of "FRP".)
 
+## The Curry-Howard correspondence for `Signal`
+
 Before proceeding, you should convince yourself of the fact that one way to
 summarise a `Signal α` is as an `α` value that's always available, no matter
-what time-step we're atl.
+what time-step we're at.
+
+Since the definition of `Signal` essentially makes an `α : T` available at all
+points in time.  Since under Curry-Howard, `a` is a proof of `T`, 
+
+TODO: introduce 
+
+```
+  namespace FRP
+    notation "□" α => Signal α
+  end FRP
+```
+
+## Some `Signal` and a few signal combinators
+
+Here's our first `Signal`, which doesn't do more than act as a "what time is it"
+clock:
+
+```lean4
+def now : □ Time := fun t => t --At time step t, our output is t itself
+```
+
+Next, let's define a way that lifts a value into the world of `Signal`s:
+
+```lean4
+def const (v: α) : □ α := fun _ => v
+
+#eval (const 42) 5 -- at t=5, this signal has value 42, unsurprisingly.
+```
+
+OK, we can define some pretty uninteresting signals - FRP is really all
+about writing functions that transform signals by way of _functional
+combinators_.  Let's write a few of those.
+
+We can transform existing signals by performing a mapping operation over them:
+
+```lean4
+def map (f: α → β) (s : □ α) : □ β := 
+  fun t => f (s t)  
+
+def map2 (f: α → β → γ) (s1 : □ α) (s2 : □ β) : □ γ := 
+  fun t => f (s1 t) (s2 t)
+
+def evens : □ Nat := map (· * 2) now
+def incrementing := map2 (· + ·) (const 10) evens
+#eval incrementing 42 -- at t=42, output is 94
+```
+
+These map functions are called _pointwise_ because they only operate on a
+signal at the "present moment" (that is, whatever the value of `t` is). You
+could imagine a _time-dependent tranformation_ that somehow involves other
+values of `t` (say, computing the fininite difference of `t` and `t-1`)
+but we can't do that with `map`.
+
+## A more interesting signal
+
+Here's a silly data definition for a traffic light type.  Let's write a signal
+that defines how a value of this type could change over time, say, where the
+colour changes once per time step:
+
+```lean4
+inductive Light where | Red | Yellow | Green
+
+def cycling : □ Light := 
+  fun n => 
+    match n % 3 with 
+    | 0 => .Red
+    | 1 => .Yellow
+    | 2 => .Green
+    | _ => panic "impossible: forall n, 0 <= n % 3 < 3"
+
+#eval cycling 42 -- Light.red
+```
+
+Not the most realistic definition of a traffic light, but whatever.  
+
+### Matching on a value and proof to eliminate imposible branches
+
+A quick diversion into how dependent types can help us write simple programs
+more easily:
+
+In Lean and other functional languages that have _exhaustiveness checking_, we,
+ro make the pattern matching well-formed for all possible values of `n`, have a
+fourth catch-all case that we know we'll never hit.  Without this final case,
+we'll get an error that looks like `Missing cases: (3 + _)`.
+
+::: margin-note
+Recall from some previous posts that `have` is like `let`, but instead of
+introducing a program value (something of type `Type`), it introduces a
+proof (of type `Prop`) which exists only at typechecking time.
+:::
+Of course, if I can write this explanation in my panic string, maybe we can
+explain it to Lean's typechecker, too.  And, of course, we can: `have h : n % 3
+< 3 := (by lia)` proves a statement about `Nat.mod_lt`, which we can use to
+explain away our catch-all `match` arm.
+
+```lean4
+def cycling : □ Light := 
+  fun n => 
+    have h : n % 3 < 3 := Nat.mod_lt n (by lia)
+    match n % 3, h with 
+    | 0, _ => .Red
+    | 1, _ => .Yellow
+    | 2, _ => .Green
+```
+
+Notice we are threading through a value and _evidence about that value_.  Lean
+will check each match arm and ask, "could this proof exist for the given
+value?". The pair in the firt match arm would be `0 : Nat, 0 < 3 : Prop` (the
+latter of which is a true), for example, so that's a valid case arm.  Since any
+fourth case arm we would write -- a `_` wildcard, or explicitly `3` or `42` or
+whatever -- would ask Lean to prove `3 < 3` or `42 < 3`, which is false, the
+exhaustiveness checker stops complaining here.
+
+This is Curry-Howard in action: we have a value and a proof about that value;
+however, a proof _is also_ a value, with a type, and some types are empty.
+Matching against an empty type eliminates the branch.
 
 ## An `Event` occurs at some point in time
 
