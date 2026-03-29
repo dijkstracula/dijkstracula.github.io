@@ -3,15 +3,15 @@ layout: post.njk
 title: "LTL-in-Lean part 3: Temporal Logic as Types"
 date: 2026-03-17
 tags: [post, lean, reactive-programming]
-excerpt: "Get in losers, we're doing temporal logic"
+excerpt: "Get in losers, we're doing Curry-Howard"
 draft: true
 series: lean-ltl
-series_title: "Part three - temporal logic as types"
+series_title: "Part three - OMG LTL FRP BBQ"
 ---
 
-In the previous posts, we saw how dependent types let us enforce validity
-of a reactive program's step function, and how our monadic API gives us
-a nice way to sequence those steps.
+In the previous posts, we saw how dependent types let us enforce that every
+step our reactive program took was valid, and how our monadic API gives us a
+nice way to sequence those steps (evenj.
 
 However, we hit the limits of what we could express in terms of propositions
 over our system's traces.  It's straightforward enough to write statements
@@ -40,7 +40,8 @@ def getOrange : TSM Flavour := do
 ```
 
 When we executed these actions on our initial pop machine state, we ended up
-with:
+with the returned `Flavour` (the result of the computation), all the states
+we stepped through, and the final state:
 
 ```lean4
 #eval getOrange.run init 
@@ -72,10 +73,10 @@ of the computation, we could ensure that at time step `t=3` we had dispensed a
 
 These kind of aren't terribly _interesting_ propositions, though, and this
 makes sense becaue what makes reactive programs interesting is that they change
-over time.  So, our logical propositions also need to be able to talk about
+over time, so our logical propositions also need to be able to talk about
 change over time.
 
-## Linear temporal logic
+# LTL is linear temporal logic
 
 There's lots of different kind of logics out there: you know propositional
 logic as "the language of boolean formulas".  First order logic has existental
@@ -146,9 +147,10 @@ def hopperEmpty (s: VMState) : Prop := s.coins > 0
 
 If we weren't programming in a dependently-typed language, this would probably
 be a predicate function that consumes a state and returns a boolean.  Here,
-though, we're not evaluating a conditional expression so much as returning the
-expression itself, for a given state.  So, this means `LTL.atom` will want
-to consume such a function, for an arbitrary state type sigma:
+though, we're not evaluating a conditional expression but intead returning the
+expression (of type `Prop`, remember) itself, for a given state.  So, this
+means `LTL.atom` will want to consume such a function, for an arbitrary state
+type sigma:
 
 ```lean4
 namespace LTL
@@ -193,9 +195,16 @@ theorem startsEmpty : isCurrentlyEmpty (getFragment init getOrange) := by rfl
 ### `eventually` and `always` make existential and universal claims about traces
 
 The first of the real modalities is `eventually`, which states that at some
-point in the future, some statement holds.  (Symmetrically, `always` makes
-the claim about a statement holding at every future point.)
+point in the future, some statement holds.  The second, `always`, makes the
+claim about a statement holding now and at every future time step.
 
+```lean4
+namespace LTL
+    ...
+    def always     -- TODO
+    def eventually -- TODO
+end LTL
+```
 
 `eventually` is an _existential_ proposition because it's saying _there exists_
 some point in time where the statement is true, and dually, `always`
@@ -206,8 +215,9 @@ that's the case:
 ```lean4
 namespace LTL
     ...
-    def always     /- TODO: what types are p and t? -/ : Prop := ∀ i, p (drop i t)
-    def eventually /- TODO: what types are p and t? -/ : Prop := ∃ i, p (drop i t)
+    -- TODO: what types are `p` and `t`?
+    def always     : Prop := ∀ i, p (drop i t)
+    def eventually : Prop := ∃ i, p (drop i t)
 end LTL
 ```
 
@@ -244,7 +254,6 @@ namespace LTL
     prefix:max "□" => always
     prefix:max "◇" => eventually
 end LTL
-
 ```
 
 ### `until` generalises `eventually` and `always`
@@ -255,14 +264,18 @@ some indeterminate point in the future, upon which `p2` will start to hold.
 We can, in fact, write `always` and `eventually` in terms of `until`.
 
 ::: margin-note
-`until` seems to be a reserved word??? So I'm just calilng it U.
+`until` seems to be a reserved word??? So I'm just calilng it U, and, of course,
+we can come up with a nice operator to overload if we really want too.
 :::
 ```lean4
 namespace LTL
     ...
     def U (p1 : Trace σ → Prop) (p2 : Trace σ → Prop) (t : Trace σ) : Prop :=
-      ∃ n, (∀ i, i < n → p1 (drop i t)) ∧ p2 (drop n t)
+      ∃ n, 
+        (∀ i, i < n → p1 (drop i t)) ∧ 
+        p2 (drop n t)
 
+    infixr:25 " U " => LTL.U
 end LTL
 ```
 
@@ -271,7 +284,7 @@ saying "you don't get a can until you've paid":
 
 ```lean4
 def mustPayFirst : Trace VMState → Prop :=
-  LTL.U (LTL.atom (·.dispensed = none)) (LTL.atom (·.coins ≥ 2))
+  (LTL.atom (·.dispensed = none)) U (LTL.atom (·.coins ≥ 2))
 ```
 
 Applying this proposition to our sample trace isn't as scary as it might look:
@@ -310,24 +323,27 @@ Goals accomplished!
 ### `LTL.next` looks ahead one step
 
 Here's our final true temporal modality: Given a trace, we can make a statement
-about one unit of time in the future with the `next` (abbeviated `X`) operator:
-after `U`, it's not that goofy looking:
+about one unit of time in the future with the `next` (abbeviated `X` or
+sometimes `○`) operator: after `U`, it's not that goofy looking:
 
 ```lean4
 namespace LTL
     ...
     def next (p : Trace σ → Prop) (t : Trace σ) : Prop := p (drop 1 t)
+
+    prefix:max "○" => LTL.next
 end LTL
 ```
 
-## The Curry-Howard correspondence, for time
-
 ::: note
-(Note: the following section, and indeed, a lot of what is to come in this
-series, was insprired by Alan Jeffrey's paper, [LTL Types
-FLP](https://dl.acm.org/doi/epdf/10.1145/2103776.2103783).  All credit where
+(Note: the sections about Curry-Howard, LTL, and the to-be-discussed FRP model,
+and indeed, a lot of what is to come in this series, was insprired by Alan
+Jeffrey's paper, [LTL Types
+FRP](https://dl.acm.org/doi/epdf/10.1145/2103776.2103783).  All credit where
 credit's due!)
 :::
+
+# The Curry-Howard correspondence for LTL: FRP
 
 So far, what we've been doing is playing with LTL in the way that someone
 using a model checker like TLA+ might.  We build a reactive system, built
@@ -342,16 +358,38 @@ type" and "we prove a proposition by writing a program that typechecks to that
 We've extended the notion of a `Prop` to temporal logic.  By Curry-Howard, that
 must mean that there are some program types (and therefore program
 compuatations) that align with those propositions.  The *LTL Types FRP* paper
-shows exactly what that connection is.
+shows exactly what that connection is: it's to a programming model called
+_functional reactive programming_.
+
+In FRP, your core program values (which we'll see soon are called _signals_)
+are _time-varying_, and you build your program by composing these signals using
+pure functions.  Instead of thinking about our reactive systems imperatively,
+where we're mutating a state structure action by action, FRP is about building
+relationships between different values.
+
+The `LTL types FRP` paper builds up a formulation that shows that under
+Curry-Howard, the LTL logic maps to types of value in an FRP program.  Building
+this connection up will be the ultimate goal of this post; by the end of it,
+we should end up with two Lean namespaces that look pretty similar in structure
+and function.
+
+```lean4
+namespace LTL
+    ...
+end LTL
+
+namespace FRP
+    ...
+end FRP
+```
 
 ## A `Signal` is a time-varying value
 
-Functional reactive programming is all about modeling your problem domain in
-terms of how your program's values change over time.
-
-In FRP, a _signal_ (sometimes called a _behaviour; I may use these terms
-interchangably even though true FRP-heads would point out technical differences
-between them) is such a time-parameterized value.
+We just said that FRP is all about modeling your problem domain in terms of how
+your program's values change over time.  In this programming model, a _signal_
+(sometimes called a _behaviour; I may use these terms interchangably even
+though true FRP-heads would point out technical differences between them) is
+such a time-parameterized value.
 
 ```lean4
 abbrev Time := Nat
@@ -371,7 +409,8 @@ allows for so called _reactive types_, which are _time-varying types_.
 Concretely, imagine a value such that on time steps `[0,5)`, it's a `Nat`, but
 from `[5,10)` it's a `String`.  This is a dependently-typed signal!
 
-You might enjoy trying to define such a type in Lean.
+You might enjoy trying to extend our `Signal` type to allow for time-dependent
+types.
 :::
 A functional reactive program, on the other hand, treats Signals as core
 program values.  A `Signal Int` isn't "here's the integers that were observed
@@ -380,24 +419,8 @@ time; let's build other time-varying values out of it".  (How we actually _do_
 that will come soon enough, but you can imagine that it might involve the
 "functional" part of "FRP".)
 
-## The Curry-Howard correspondence for `Signal`
 
-Before proceeding, you should convince yourself of the fact that one way to
-summarise a `Signal α` is as an `α` value that's always available, no matter
-what time-step we're at.
-
-Since the definition of `Signal` essentially makes an `α : T` available at all
-points in time.  Since under Curry-Howard, `a` is a proof of `T`, 
-
-TODO: introduce 
-
-```
-  namespace FRP
-    notation "□" α => Signal α
-  end FRP
-```
-
-## Some `Signal` and a few signal combinators
+## Some `Signal`s and a few basic combinators
 
 Here's our first `Signal`, which doesn't do more than act as a "what time is it"
 clock:
@@ -420,6 +443,13 @@ combinators_.  Let's write a few of those.
 
 We can transform existing signals by performing a mapping operation over them:
 
+::: margin-note
+If you're a type zoologist, you might recognise that `const` and the `map`s
+mean that `Signal` is an applicative functor (which are more expressive than
+ordinary functors but not as expressive as a Monad - we have defined `map` but
+not `bind`).  Should perhaps `Signal`s be outright Monads?  Stay tuned for the
+tradeoffs.
+:::
 ```lean4
 def map (f: α → β) (s : □ α) : □ β := 
   fun t => f (s t)  
@@ -427,6 +457,7 @@ def map (f: α → β) (s : □ α) : □ β :=
 def map2 (f: α → β → γ) (s1 : □ α) (s2 : □ β) : □ γ := 
   fun t => f (s1 t) (s2 t)
 
+-- examples
 def evens : □ Nat := map (· * 2) now
 def incrementing := map2 (· + ·) (const 10) evens
 #eval incrementing 42 -- at t=42, output is 94
@@ -435,7 +466,7 @@ def incrementing := map2 (· + ·) (const 10) evens
 These map functions are called _pointwise_ because they only operate on a
 signal at the "present moment" (that is, whatever the value of `t` is). You
 could imagine a _time-dependent tranformation_ that somehow involves other
-values of `t` (say, computing the fininite difference of `t` and `t-1`)
+values of `t` (say, computing the finite difference of `t` and `t-1`)
 but we can't do that with `map`.
 
 ## A more interesting signal
@@ -502,6 +533,87 @@ This is Curry-Howard in action: we have a value and a proof about that value;
 however, a proof _is also_ a value, with a type, and some types are empty.
 Matching against an empty type eliminates the branch.
 
-## An `Event` occurs at some point in time
+## The Curry-Howard correspondence for `Signal`
 
-The dual of a `Signal` is an `Event`:
+Before proceeding, you should convince yourself of the fact that one way to
+summarise a `Signal α` is as an `α` value that's always available, no matter
+what time-step we're at.
+
+Since a `Signal T` makes an value of type `T` _always_ available at all points
+in time, this is our first Curry-Howard correspondence: The type of a
+`Signal T` is `□ T`.  `□` means the same thing in both worlds.
+
+```lean4
+namespace LTL
+    ...
+    prefix:max "□" => always
+end LTL
+namespace FRP
+    notation "□" α => Signal α
+end FRP
+```
+
+On its own, this isn't all that interesting, because so far the
+`α` parameters we've seen for Signal (`Int`, `String`, `Light`) themselves
+aren't all that interesting as logical propositions.  If you told a
+Java programmer "`String.valueOf(i)` proves `String` given a proof of `Int`,
+isn't type theory amazing??", they probably wouldn't be impressed;
+similarly, "A `Signal Int` always makes an `Int` available" isn't super cool
+on its own either.  We need a second fundamental primitive to add reactivity to
+FRP systems.
+
+# An `Event` occurs at some point in time
+
+The dual of a `Signal` is an `Event`, which you can think of a stream of values
+to be consumed by the system at a particular moment in time.  For an
+interactive webapp, you might, "right at this moment", send a "click" `Event`
+to a form button, which perhaps triggers other events to fire.  Or, maybe, you
+enqueue an event to fire some point in the future, like registering a timeout
+on a network call or something.  (If you come from an OO background, an `Event`
+is very much like an
+[Observable](https://reactivex.io/documentation/observable.html).)
+
+## Designing an `Event` type
+
+The second example I gave you, where we just define "at these points in the
+future, consume these actions" feels, operationally, extremely different from
+the first example, "wait for the outside world to inject an action", though.
+One's a _closed system_ where the whole timeline exists in advance and the
+other is _open_, where we need to discover what actually happens at runtime.
+These will by necessity require fundamentally different data definitions; for
+today, I'm going to focus on the closed system definition.  This one is both
+conceptually simpler and has a nicer LTL correspondence that the equivalent one
+that has to messily interact with the real world.
+
+OK, so what's the type of a (closed) Event?  Before we can start reasoning
+about `Event`s we need to make sure our data definition is well-formed.
+
+Just like `Signal`, we'll want the type parameterised on whatever the valid
+action space is, so it'll be a polymorphic type for sure, so `def Event α :=
+... α` is not a terrible place to start.
+
+Since an action can be taken or not taken at any given moment in time, the
+rough shape will be `def Event α := Time → (Option α)`.  That this looks a
+lot like the datatype for `Signal` perhaps indicates to us that we're on the
+right track, and maybe that `Event`s are actually just a particular sort of
+`Signal`?  (This is a valid design choice -- Elm originally did just this --
+but I'm going to deliberately keep the datatypes distinct here.)
+
+OK!  So, in our vending machine example, an `Event VMAction` that corresponds
+to our "choose an Orange pop" might look like:
+
+::: margin-note
+Maybe, in a later installment, we'll revisit the open-termed version of
+`Event`, where input can come in from the outside world.  It might be worth
+meditating on what a good datatype for such an `Event` would be.
+:::
+```lean4
+def Event α := Time → (Option α)
+...
+def orangeActions : Event VMAction := fun t =>
+  match t with
+  | 0 | 1 => some .DropCoin
+  | 2 => some (.Choose .LemonLime)
+  | 3 => some .TakeItem
+  | _ => none
+```

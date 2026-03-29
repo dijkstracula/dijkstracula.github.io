@@ -1,5 +1,17 @@
 [
   {
+    "title": "What about juniors?",
+    "url": "http://brooker.co.za/blog/2026/03/25/ic-junior.html",
+    "date": "2026-03-25T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "From error-handling to structured concurrency",
+    "url": "https://blog.nelhage.com/post/concurrent-error-handling/",
+    "date": "2026-03-23T15:30:00.000Z",
+    "source": "Made of Bugs (Nelson Elhage's blog)"
+  },
+  {
     "title": "My heuristics are wrong. What now?",
     "url": "http://brooker.co.za/blog/2026/03/20/ic-leadership.html",
     "date": "2026-03-20T00:00:00.000Z",
@@ -106,17 +118,5 @@
     "url": "https://ferd.ca/software-acceleration-and-desynchronization.html",
     "date": "2026-01-05T16:00:00.000Z",
     "source": "ferd.ca"
-  },
-  {
-    "title": "A little bit uncomfortable",
-    "url": "https://www.allthingsdistributed.com/2025/12/a-little-bit-uncomfortable.html?utm_campaign=inbound&utm_source=rss",
-    "date": "2025-12-16T12:30:00.000Z",
-    "source": "All Things Distributed (Werner Vogels' blog)"
-  },
-  {
-    "title": "On the success of 'natural language programming'",
-    "url": "http://brooker.co.za/blog/2025/12/16/natural-language.html",
-    "date": "2025-12-16T00:00:00.000Z",
-    "source": "Marc Brooker's blog"
   }
 ]
