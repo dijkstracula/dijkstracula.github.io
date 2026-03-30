@@ -10,6 +10,11 @@
         "feed": "https://cecilycarver.substack.com/feed"
     },
     {
+        "name": "Anil Madhavapeddy's .plan",
+        "url": "https://anil.recoil.org/notes",
+        "feed": "https://anil.recoil.org/perma.xml"
+    },
+    {
         "name": "Ben Linsay's blog",
         "url": "https://blinsay.com/posts",
         "feed": "https://blinsay.com/posts/atom.xml"
@@ -27,7 +32,7 @@
     {
         "name": "Graydon's blog",
         "url": "https://graydon2.dreamwidth.org/",
-        "feed": "https://graydon2.dreamwidth.org/data/atombl"
+        "feed": "https://graydon2.dreamwidth.org/data/atom"
     },
     {
         "name": "Programming is terrible",
