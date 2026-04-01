@@ -339,7 +339,7 @@ With a shallow embedding, it's pretty trivial to prove this, since we're just
 operating on Lean functions and `Prop`s!  A deep embedding would require first
 writing a bunch of theorems about that formula-to-prop evaluation function.
 
-## Safety and Liveness
+# Safety and Liveness
 
 LTL is the workhorse logic for two broad classes of propositions: _safety_
 properties, which ensures that a system never fails to behave according to its
@@ -348,39 +348,59 @@ desired property will always eventually happen (`◇ good`).
 
 Let's wrap this post up by looking at one of each kind of property.
 
-### Safety properties can be proven for arbitrary (valid) traces
+## Safety properties can be proven for arbitrary (valid) traces
 
 A brief reminder: a system `s` can step with action `a` if the type `validStep
-s a` is inhabited.  Extending this to traces, an entire trace is valid if
-we start from a valid trace (a property called _initialization_), and we only
-step from a valid state to another one (_consecution_).
+s a` is inhabited.  In other words, it encodes what has to be true about `s`
+before `a` happens.
 
+It might feel as though any safety property is inherent in the definition of
+our `validStep` type.  But safety properties might not be a precondition on
+taking a step.  They could be a property on the step itself, or on the initial
+state of the system.  They could even be a property over all three (a special
+kind of invariant called an _inductive invariant_; if you're into model
+checking then you're always on the hunt for inductive invariants, or ways to
+turn a non-inductive invariant into an inductive one).
+
+Extending `validStep` to traces, an entire trace is valid if we start from a
+valid trace (a property called _initialization_), and we only step from a valid
+state to another one (_consecution_).
+
+::: margin-note
+It might be worth pondering about the relationship between a valid trace and an
+inductive invariant, and what sorts of invariants might not be inductive.
+:::
 ```lean4
 def validTrace (t : Trace VMState) : Prop :=
   t 0 = init ∧
-  ∀ i, ∃ a, ∃ h : validAction (t i) a, t (1 + i) = vmStep (t i) a h
+  ∀ i, 
+    ∃ a, 
+      ∃ h : validAction (t i) a, 
+        t (1 + i) = vmStep (t i) a h
 ```
 
 Here's an important property of making a profitable pop machine: it should
 always be the case that if the user hasn't put enough money in the machine, no
 can should be subsequently dispensed.
 
+::: margin-note
+As it happens, `noFreeLunch` happens to be inductive!
+:::
 ```lean4
 -- Helper definition for implication in LTL
 def implies (p q : TraceProp σ) : TraceProp σ := fun t => p t → q t
 
 -- ...and an operator for LTL implication, typed as \nat_trans 
 infixr:20 " ⟹  " => implies
-
-...
-
+```
+```lean4
 -- If the user hasn't paid enough, we will never dispense a can
 def noFreeLunch : TraceProp VMState :=
   □ ((atom (fun s => s.dispensed.isNone ∧ s.coins < 2)) ⟹
     (○ (atom (fun s => s.dispensed.isNone))))
 ```
 
-### Liveness properties can't be proven for arbitrary traces
+## Liveness properties can't be proven for arbitrary traces
 
 Here's something else that's worth stating:
 
