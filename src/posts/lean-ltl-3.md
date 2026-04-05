@@ -1,17 +1,17 @@
 ---
 layout: post.njk
-title: "LTL-in-Lean part 3: Linear Temporal Logic"
-date: 2026-03-29
+title: "Reactive programming in Lean part 3: Linear Temporal Logic"
+date: 2026-04-02
 tags: [post, lean, reactive-programming]
 excerpt: "Specifications that move through time"
-draft: true
 series: lean-ltl
-series_title: "Part three - linear temporal logic"
+series_title: "Part three - LTL"
 ---
 
 In the previous posts, we saw how dependent types let us enforce that every
 step our reactive program took was valid, and how our monadic API gives us a
-nice way to sequence those steps (evenj.
+nice way to sequence those steps (even if we lose static guarantees in the
+process).
 
 However, we hit the limits of what we could express in terms of propositions
 over our system's traces.  It's straightforward enough to write statements
@@ -141,7 +141,7 @@ about.  For example, we might define a `Prop` that expresses whether the
 pop machine's coin hopper is empty:
 
 ```lean4
-def hopperEmpty (s: VMState) : Prop := s.coins > 0
+def hopperEmpty (s: VMState) : Prop := s.coins = 0
 ```
 
 If we weren't programming in a dependently-typed language, this would probably
@@ -278,13 +278,13 @@ namespace LTL
         (∀ i, i < n → p1 (drop i t)) ∧ 
         p2 (drop n t)
 
-    infixr:25 " U " => LTL.U
+    infixr:25 " U " => LTL.until_then
 end LTL
 ```
 
-`until` is in fact a more general form of `always` and until (in fact, we could
-have written `always` and `eventually` in terms of `until`).  (In a bit, we'll
-prove that this is true!)
+`until` is in fact a more general form of `always` and `eventually` (in fact,
+we could have written `always` and `eventually` in terms of `until`).  (In a
+bit, we'll prove that this is true!)
 
 ### `LTL.next` looks ahead one step
 
@@ -306,25 +306,36 @@ end LTL
 Having spent so much time defining the syntax of LTL, you might expect we need
 to spend as much time describing the _meaning_ of the syntax.  But, because we
 defined LTL's connectives as functions that ultimately return `Prop`s, the
-semantics of LTL ends up being "whatever Lean's propositions" means.
+semantics of LTL ends up being "whatever Lean's propositions" means. (An
+earlier draft of this post, by contrast, did a _deep embedding_, where we build
+up a syntax tree of LTL formulas and also implement an evaluation function that
+crunches down the formula down to a final prop.)
 
-(An earlier draft of this post, by contrast, did a _deep embedding_, where we
-build up a syntax tree of LTL formulas and also implement an evaluation
-function that crunches down the formula down to a final prop.)
+What's cool about shallow embeddings is that it's trivial to prove identities
+about LTL in Lean's proof system.  (In a deep embedding, we'd have to reason
+about LTL in terms of how its evaluation function interprets those LTL
+propositions.)
 
-What's cool about shallow embeddings is that it's trivial to prove metatheorems
-about LTL in Lean's proof system.  For instance, we said earlier that `until`
-is a generalisation of `eventually` and `always`: if that's true, we should be
-able to express those two modalities in terms of ` U `.  Indeed we can!
+For instance, we said earlier that `until` is a generalisation of `eventually`
+and `always`: if that's true, we should be able to express those two modalities
+in terms of ` U `.  Indeed we can!
+
 
 ```lean4
 -- Two helpers to make the statements a bit nicer to read:
+
 -- 1. "True" as a trace predicate: holds for any trace, at any time
+-- "True" as a trace predicate: holds for any trace, at any time
 @[simp]
-def true : StateProp σ := (fun _ => True)
+def true : σ → Prop := (fun _ => True)
+
 -- 2. "Not" negates `p` at every step in the trace.
 def not (p : TraceProp σ) : TraceProp σ := (fun t => ¬ p t)
 
+-- OK, our derived equivalences:
+
+-- Eventually p means things are trivially true up until some point, after 
+-- which p holds
 example : ◇ p = true U p := by 
   unfold eventually; unfold until_then; unfold true
   simp
@@ -384,7 +395,11 @@ always be the case that if the user hasn't put enough money in the machine, no
 can should be subsequently dispensed.
 
 ::: margin-note
-As it happens, `noFreeLunch` happens to be inductive!
+As it happens, `noFreeLunch` happens to not be inductive because it's not a
+predicate on states that's preserved by every step, but rather a conditional
+property of the form "if we look like this now, we'll look like this next". 
+
+We'll see the consequences of this when we start proving it.
 :::
 ```lean4
 -- Helper definition for implication in LTL
@@ -398,6 +413,265 @@ infixr:20 " ⟹  " => implies
 def noFreeLunch : TraceProp VMState :=
   □ ((atom (fun s => s.dispensed.isNone ∧ s.coins < 2)) ⟹
     (○ (atom (fun s => s.dispensed.isNone))))
+```
+
+This says: "if, right now, the dispenser is empty, and you've not paid enough,
+then in the next step the dispenser is still empty."  Note that this works
+because `validAction` for `Choose` requires `coins >= 2`, and you can't jump
+from `coins < 2` to `dispensed.isSome` in one step.)
+
+### Proving safety properties over arbitrary traces
+
+Let's prove that this theorem holds not just for our `getOrange` trace but _for
+all valid traces_.  That we can do this for safety properties (in particular,
+for inductive invariants) is critical to verifying real-systems; if we can
+state our system's specifications in terms of inductive invariants then the
+claims we can make about the design are strong.
+
+```lean4
+theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+  intro t HValid
+  -- TODO: what next?
+
+1 goal
+t : Trace VMState
+HValid : validTrace t
+⊢ noFreeLunch t
+```
+
+### Inline destructuring of a conjunction with `<` and `>`
+
+Remember that our proof that `t` is a `validTrace` falls back to a proof of
+initialization (that is, `t 0 = init`) _and_ of consecution (`∀ (i : Nat), ∃ a
+h, t (1 + i) = vmStep (t i) a h`).  Proving an inductive invariant always means
+wanting to reason about both of those sub-pieces individually.
+
+We _could_ write `have ⟨h_init, h_cons⟩ := HValid` to pattern-match out the two
+pieces of the conjunction (recall that `have` is like `let` but for the proof-world).
+But, we can actually do that pattern-match right in the intro step, saving us
+a step and emphasizing that what's important are the two components of the
+statement.
+
+```lean4
+theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+  intro t ⟨h_init, h_cons⟩
+  -- TODO: OK, what now??
+
+1 goal
+t : Trace VMState
+h_init : t 0 = init
+h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+⊢ noFreeLunch t
+```
+
+### Getting to the heart of the theorem
+
+As usual, let's introduce our variables into the context (remember, this is
+like stating "let `t` be some trace and assume `t` is a `validTrace`" in an
+English-language proof.  A lot of machinery is hidden behind `noFreeLunch`, so
+let's unfold that definition, and also simplify away all the LTL connectives
+that make up the definition:
+
+```lean4
+theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+  intro t ⟨h_init, h_cons⟩
+  simp [noFreeLunch, always, implies, next, atom, now, drop]
+
+1 goal
+t : Trace VMState
+h_init : t 0 = init
+h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (1 + i)).dispensed = none
+```
+
+Before proceeding, you should make sure that you're convinced that our goal
+is still stating the no-free-lunch theorem.
+
+OK, We now have a new universal and two hypotheses, so let's pull them into the context too.
+
+```lean4
+theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+  intro t ⟨h_init, h_cons⟩
+  simp [noFreeLunch, always, implies, next, atom, now, drop]
+  intro i h_empty h_unpaid
+
+1 goal
+t : Trace VMState
+h_init : t 0 = init
+h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+i : Nat
+h_empty : (t i).dispensed = none
+h_unpaid : (t i).coins < 2
+⊢ (t (1 + i)).dispensed = none
+```
+
+### Specializing a universally-quantified proof is like calling a function
+
+Great progress, but it might not be clear how to proceed from here.  The key is to
+notice that `h_cons` is universally quantified over all timesteps and so it's really
+a function from any given `i` to a proof about that step.  And as it happens,
+we have an `i` timestep in our context!
+
+`h_cons i` _specializes_ `h_cons` from talking about all `Nat`s universally to
+the specific `i` we have in scope now.  It gives us the concrete witness we
+want: the action taken, its proof of validity, and the equation relating `t i`
+to `t (i+1)`.
+
+Since everything in these series boils down to Curry-Howard: under the
+propositions-as-types reading, a universal quantifier is a function, and
+instantiating a universal is function application.  (If this feels funny, think
+about how parametric polymorphism is _also_ a universal quantification over
+type parameters, and so, say, instantiating `List` with `Int` looks just like
+function application too.)
+
+```lean4
+theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+  intro t ⟨h_init, h_cons⟩
+  simp [noFreeLunch, always, implies, next, atom, now, drop]
+  intro i h_empty h_unpaid
+  have ⟨a, h_valid, h_step⟩ := h_cons i
+
+1 goal
+t : Trace VMState
+h_init : t 0 = init
+h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+i : Nat
+h_empty : (t i).dispensed = none
+h_unpaid : (t i).coins < 2
+a : VMAction
+h_valid : validAction (t i) a
+h_step : t (1 + i) = vmStep (t i) a h_valid
+⊢ (t (1 + i)).dispensed = none
+```
+
+All this work has just gotten us to the following point: we need to prove that
+no matter which step we took at `t i`, consecution is preserved.  So, having
+the actual definition of a `validAction` at that time, for our given
+`VMAction`, unfolded for us is probably going to be useful.  However, when we
+do that unfolding, we end up with a real dog's breakfast in our context:
+
+```lean4
+...
+  unfold vmStep at h_step
+
+...
+h_step : t (1 + i) =
+  match a, h_valid with
+  | VMAction.DropCoin, H =>
+    { coins := (t i).coins + 1, dispensed := (t i).dispensed, numOrange := (t i).numOrange, numLL := (t i).numLL }
+  | VMAction.TakeItem, H =>
+    { coins := (t i).coins, dispensed := none, numOrange := (t i).numOrange, numLL := (t i).numLL }
+  | VMAction.Choose Flavour.Orange, H =>
+    { coins := (t i).coins - 2, dispensed := some Flavour.Orange, numOrange := (t i).numOrange - 1,
+      numLL := (t i).numLL }
+  | VMAction.Choose Flavour.LemonLime, H =>
+    { coins := (t i).coins - 2, dispensed := some Flavour.LemonLime, numOrange := (t i).numOrange,
+      numLL := (t i).numLL - 1 }
+  | VMAction.Restock, H => init
+...
+```
+
+Reflexively trying to simplify this with `simp at h_step` doesn't work because
+we don't know anything about which `a` we're talking about here.  So, we'll have to
+break up the proof by the different possible actions, and then simplify.
+
+```lean4
+  ...
+  cases a <;> simp at h_step 
+
+4 goals
+...
+⊢ (t (1 + i)).dispensed = none
+```
+
+Once we prove consecution for each of the four actions, we'll be done with our
+liveness proof.
+
+### Immediately closing a contradictory goal
+
+Before proceeding, you should pause and think about which action is outright impossible to
+step to given the propositions in our context.  (Hint: it relates to `h_empty`.)
+
+::: margin-note
+Despite looking similar, they do different things:
+
+- `simp at h_step` simplifies the hypothesis itself: it reduces the match
+  expression inside h_step now that a is concrete, turning the big match into a
+  simple equation like `t (1 + i) = { dispensed := (t i).dispensed, ... }`.
+- `simp [h_step]` simplifies the goal using `h_step` as a rewrite rule: it
+  substitutes that equation into the goal `(t (1 + i)).dispensed = none`,
+  replacing `(t (1 + i)).dispensed` with `(t i).dispensed`.
+:::
+If you said something to the effect of, "`validAction` for `TakeItem` requires
+`(t i).dispensed.isSome`, but `h_empty` says `(t i).dispensed = none`", then
+well done!  So `h_valid` is contradictory with `h_empty`, and `simp [h_step]`
+finds the contradiction automatically.  We're now ready to proceed with the
+remaining subproofs:
+
+```lean4
+  cases a <;> simp at h_step <;> simp [h_step]
+  case Restock =>  sorry --TODO
+  case DropCoin => sorry --TODO
+  case Choose f => sorry --TODO
+
+3 goals
+...
+⊢ (t i).dispensed = none
+```
+
+### `Restock` and `DropCoin` don't change the state of the dispenser
+
+When we focus in on the `Restock` case, our goal becomes `⊢ init.dispensed =
+none`  This is a fact that can be trivially proved!  So `rfl` closes the goal.
+Similarly, in the `DropCoin` case, our goal becomes `(t i).dispensed = none`,
+which is already in our context.  So, `assumption` closes the goal.
+
+```lean4
+...
+  case Restock => rfl
+  case DropCoin => assumption
+```
+
+### `Choose` wouldn't have been a valid action anyway
+
+We know that since `t` is a valid trace, we are statically blocked from
+choosing `Choose`ing any flavour.  So, that tells us that we're looking
+for a contradiction here.  And indeed, it's not hard to get to a `False`
+goal no matter which flavour is chosen:
+
+```lean4
+  case Choose f => 
+    cases f <;> simp
+
+2 goals
+...
+h_unpaid : (t i).coins < 2
+h_valid : validAction (t i) (VMAction.Choose Flavour.Orange)
+...
+⊢ False
+```
+
+Where's the contradiction going to lie?  Well, it's got to be somewhere in
+`validAction` when we choose `Choose`.  `simp at h_valid` unfolds the
+definition and gets to the heart of the problem: `h_valid : 2 ≤ (t i).coins ∧ 0
+< (t i).numOrange` is our precondition for choosing Orange (and similarly for
+LemonLime), but this contradicts `h_unpaid`.  `lia` knows enough about
+arithmetic inequalities to prove this final step.
+
+Here it is, our final proof!
+
+```lean4
+theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+  intro t ⟨h_init, h_cons⟩
+  simp [noFreeLunch, always, implies, next, atom, now, drop]
+  intro i h_empty h_unpaid
+  have ⟨a, h_valid, h_step⟩ := h_cons i
+  unfold vmStep at h_step
+  cases a <;> simp at h_step <;> simp [h_step]
+    case Restock => rfl
+    case DropCoin => assumption
+    case Choose f => 
+      cases f <;> simp <;> simp at h_step <;> simp at h_valid <;> lia
 ```
 
 ## Liveness properties can't be proven for arbitrary traces
@@ -461,7 +735,7 @@ interesting systems.)
 
 ## Our LTL operators, summarised:
 
-Here's where we ended up:
+Here's where we ended up today:
 
 ```lean4
   -- A property of a single state (no temporal structure)
