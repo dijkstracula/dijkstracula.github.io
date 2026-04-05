@@ -713,6 +713,7 @@ theorem allPaidUp : mustPayFirst (getFragment init getOrange) := by
   simp [mustPayFirst, LTL.U, LTL.atom]
   exists 2
 
+0 Goals
 Goals accomplished!
 ```
 
@@ -748,7 +749,7 @@ Here's where we ended up today:
   always     : TraceProp σ → TraceProp σ      -- trace in, trace out
   eventually : TraceProp σ → TraceProp σ
   next       : TraceProp σ → TraceProp σ
-  U          : TraceProp σ → TraceProp σ → TraceProp σ
+  until_then : TraceProp σ → TraceProp σ → TraceProp σ
 ```
 
 We could do what we did in the first two sections, writing reactive programs

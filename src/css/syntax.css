@@ -251,6 +251,57 @@ mjx-container[display="false"] {
 }
 
 /* ============================================ */
+/* Lean Proof State Blocks                     */
+/* ============================================ */
+
+.lean-proof-block {
+    margin: 1rem 0;
+}
+
+.lean-proof-block > pre.proof-code {
+    margin-bottom: 0;
+    border-bottom: none;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.lean-proof-block .proof-state {
+    position: relative;
+    border-left: 3px solid var(--syntax-builtin, #005cc5);
+}
+
+.lean-proof-block .proof-state > pre {
+    margin-top: 0;
+    border-top: 1px dashed var(--pico-muted-border-color);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    background-color: color-mix(in srgb, var(--syntax-builtin, #005cc5) 5%, var(--pico-code-background-color));
+}
+
+.lean-proof-block .proof-state::before {
+    content: "⊢ Proof state";
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.7rem;
+    font-family: var(--pico-font-family, sans-serif);
+    color: var(--syntax-builtin, #005cc5);
+    opacity: 0.7;
+    letter-spacing: 0.03em;
+    z-index: 1;
+}
+
+.lean-proof-block .proof-goal {
+    display: inline-block;
+    width: calc(100% + 2rem);
+    margin-left: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    background-color: color-mix(in srgb, var(--syntax-builtin, #005cc5) 10%, var(--pico-code-background-color));
+}
+
+/* ============================================ */
 /* Prism.js Syntax Highlighting - Theme-aware  */
 /* ============================================ */
 

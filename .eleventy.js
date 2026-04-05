@@ -60,6 +60,77 @@ module.exports = function(eleventyConfig) {
     }
   });
 
+  // Post-process lean4 code blocks to visually separate proof code from proof state
+  eleventyConfig.addTransform("lean-proof-state", function(content) {
+    if (!this.page.outputPath || !this.page.outputPath.endsWith(".html")) {
+      return content;
+    }
+
+    return content.replace(
+      /<pre class="language-lean4"><code class="language-lean4">([\s\S]*?)<\/code><\/pre>/g,
+      function(match, codeContent) {
+        const htmlLines = codeContent.split('\n');
+        const plainLines = htmlLines.map(l => l.replace(/<[^>]*>/g, ''));
+
+        // Find goal boundary: line matching "N goal(s)" or "unsolved goals"
+        const goalLineIdx = plainLines.findIndex(
+          l => /^\d+ goals?$/.test(l.trim()) || /^unsolved goals$/.test(l.trim())
+        );
+
+        if (goalLineIdx < 0) return match;
+
+        // Exclude the blank separator line before the goal marker
+        const splitIdx = (goalLineIdx > 0 && plainLines[goalLineIdx - 1].trim() === '')
+          ? goalLineIdx - 1
+          : goalLineIdx;
+
+        const proofHtml = htmlLines.slice(0, splitIdx).join('\n');
+
+        // Wrap ⊢ goal lines (and their indented continuations) in .proof-goal spans
+        const stateLines = htmlLines.slice(goalLineIdx);
+        const statePlain = plainLines.slice(goalLineIdx);
+        const wrappedStateLines = [];
+        let inGoal = false;
+        for (let i = 0; i < stateLines.length; i++) {
+          const plain = statePlain[i];
+          const startsWithTurnstile = /^⊢/.test(plain);
+          const isContinuation = inGoal && /^ /.test(plain);
+
+          if (startsWithTurnstile && !inGoal) {
+            inGoal = true;
+            wrappedStateLines.push('<span class="proof-goal">' + stateLines[i]);
+          } else if (isContinuation) {
+            wrappedStateLines.push(stateLines[i]);
+          } else {
+            if (inGoal) {
+              // Close the previous goal span on the prior line
+              const lastIdx = wrappedStateLines.length - 1;
+              wrappedStateLines[lastIdx] += '</span>';
+              inGoal = false;
+            }
+            if (startsWithTurnstile) {
+              inGoal = true;
+              wrappedStateLines.push('<span class="proof-goal">' + stateLines[i]);
+            } else {
+              wrappedStateLines.push(stateLines[i]);
+            }
+          }
+        }
+        if (inGoal) {
+          const lastIdx = wrappedStateLines.length - 1;
+          wrappedStateLines[lastIdx] += '</span>';
+        }
+        const stateHtml = wrappedStateLines.join('\n');
+
+        return '<div class="lean-proof-block">' +
+          '<pre class="language-lean4 proof-code"><code class="language-lean4">' + proofHtml + '</code></pre>' +
+          '<div class="proof-state">' +
+          '<pre class="language-lean4"><code class="language-lean4">' + stateHtml + '</code></pre>' +
+          '</div></div>';
+      }
+    );
+  });
+
   // Add RSS plugin
   eleventyConfig.addPlugin(rssPlugin);
 
