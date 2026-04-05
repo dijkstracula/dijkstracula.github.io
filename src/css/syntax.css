@@ -265,41 +265,105 @@ mjx-container[display="false"] {
     border-bottom-right-radius: 0;
 }
 
+/* Proof state card */
 .lean-proof-block .proof-state {
-    position: relative;
     border-left: 3px solid var(--syntax-builtin, #005cc5);
-}
-
-.lean-proof-block .proof-state > pre {
-    margin-top: 0;
-    border-top: 1px dashed var(--pico-muted-border-color);
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
+    border-right: 1px solid var(--pico-muted-border-color);
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    border-bottom-left-radius: var(--pico-border-radius, 0.25rem);
+    border-bottom-right-radius: var(--pico-border-radius, 0.25rem);
     background-color: color-mix(in srgb, var(--syntax-builtin, #005cc5) 5%, var(--pico-code-background-color));
+    font-family: "JetBrains Mono", var(--pico-font-family-monospace, monospace);
+    /* Match Pico's <pre> font-size so inner code compounding is identical */
+    font-size: 0.875em;
+    line-height: 1.55;
 }
 
-.lean-proof-block .proof-state::before {
-    content: "⊢ Proof state";
-    position: absolute;
-    top: 0;
-    right: 0;
-    padding: 0.15rem 0.5rem;
-    font-size: 0.7rem;
-    font-family: var(--pico-font-family, sans-serif);
-    color: var(--syntax-builtin, #005cc5);
-    opacity: 0.7;
-    letter-spacing: 0.03em;
-    z-index: 1;
+.lean-proof-block .proof-state code {
+    font-size: 0.88em;
+    font-family: inherit;
+    line-height: inherit;
+    background: none;
+    padding: 0;
 }
 
-.lean-proof-block .proof-goal {
+/* Header with goal count badge */
+.lean-proof-block .proof-state-header {
+    padding: 0.35rem 0.75rem;
+    border-top: 1px dashed var(--pico-muted-border-color);
+}
+
+.lean-proof-block .proof-goal-badge {
     display: inline-block;
-    width: calc(100% + 2rem);
-    margin-left: -1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.75em;
+    font-family: var(--pico-font-family, sans-serif);
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
+    color: var(--syntax-builtin, #005cc5);
     background-color: color-mix(in srgb, var(--syntax-builtin, #005cc5) 10%, var(--pico-code-background-color));
+    border: 1px solid color-mix(in srgb, var(--syntax-builtin, #005cc5) 20%, var(--pico-muted-border-color));
+    border-radius: 1rem;
 }
+
+/* Hypothesis rows */
+.lean-proof-block .proof-hypotheses {
+    padding: 0.25rem 0.75rem;
+}
+
+.lean-proof-block .proof-hyp {
+    padding: 0.1rem 0;
+}
+
+.lean-proof-block .proof-hyp:nth-child(even) {
+    background-color: color-mix(in srgb, var(--syntax-builtin, #005cc5) 3%, transparent);
+    margin: 0 -0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+.lean-proof-block .proof-hyp code {
+    white-space: pre-wrap;
+}
+
+/* Goal block grouping (case header + hyps + goal) */
+.lean-proof-block .proof-goal-block + .proof-goal-block {
+    border-top: 1px dashed color-mix(in srgb, var(--syntax-builtin, #005cc5) 20%, var(--pico-muted-border-color));
+}
+
+/* Case header */
+.lean-proof-block .proof-case-header {
+    padding: 0.3rem 0.75rem 0.15rem;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--syntax-builtin, #005cc5);
+}
+
+.lean-proof-block .proof-case-header code {
+    font-weight: inherit;
+    color: inherit;
+}
+
+/* Goal section */
+.lean-proof-block .proof-goal {
+    padding: 0.4rem 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--syntax-builtin, #005cc5) 25%, transparent);
+    background-color: color-mix(in srgb, var(--syntax-builtin, #005cc5) 10%, var(--pico-code-background-color));
+    border-bottom-left-radius: var(--pico-border-radius, 0.25rem);
+    border-bottom-right-radius: var(--pico-border-radius, 0.25rem);
+}
+
+.lean-proof-block .proof-goal code {
+    white-space: pre-wrap;
+}
+
+/* Make the turnstile symbol more prominent */
+.lean-proof-block .proof-goal .token.operator:first-child {
+    font-size: 1.15em;
+    font-weight: 700;
+    color: var(--syntax-builtin, #005cc5);
+}
+
 
 /* ============================================ */
 /* Prism.js Syntax Highlighting - Theme-aware  */
@@ -322,8 +386,9 @@ code {
 
 code[class*="language-"] {
     color: var(--pico-color);
-    font-family: var(--pico-font-family-monospace, monospace);
-    line-height: 1.5;
+    font-family: "JetBrains Mono", var(--pico-font-family-monospace, monospace);
+    font-size: 0.88em;
+    line-height: 1.55;
 }
 
 /* Inline code (not in pre blocks) */

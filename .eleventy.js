@@ -86,47 +86,91 @@ module.exports = function(eleventyConfig) {
 
         const proofHtml = htmlLines.slice(0, splitIdx).join('\n');
 
-        // Wrap ⊢ goal lines (and their indented continuations) in .proof-goal spans
+        // Parse state lines into goal blocks, each with optional case header, hypotheses, and goal
         const stateLines = htmlLines.slice(goalLineIdx);
         const statePlain = plainLines.slice(goalLineIdx);
-        const wrappedStateLines = [];
+
+        // First line is the goal count
+        const goalCountText = statePlain[0].trim();
+
+        // Group lines into goal blocks: { caseHeader?, hyps[], goalLines[] }
+        const goalBlocks = [];
+        let current = { caseHeader: null, hyps: [], goalLines: [] };
         let inGoal = false;
-        for (let i = 0; i < stateLines.length; i++) {
+
+        for (let i = 1; i < stateLines.length; i++) {
           const plain = statePlain[i];
+          if (plain.trim() === '') continue;
+
           const startsWithTurnstile = /^⊢/.test(plain);
+          const isCase = /^case /.test(plain);
           const isContinuation = inGoal && /^ /.test(plain);
 
-          if (startsWithTurnstile && !inGoal) {
-            inGoal = true;
-            wrappedStateLines.push('<span class="proof-goal">' + stateLines[i]);
+          if (isCase) {
+            // Start a new goal block; save the previous one if it has content
+            if (current.hyps.length > 0 || current.goalLines.length > 0) {
+              goalBlocks.push(current);
+            }
+            inGoal = false;
+            current = { caseHeader: stateLines[i], hyps: [], goalLines: [] };
+          } else if (startsWithTurnstile) {
+            if (inGoal) {
+              // Multiple turnstile lines — shouldn't normally happen, but handle it
+              current.goalLines.push(stateLines[i]);
+            } else {
+              inGoal = true;
+              current.goalLines.push(stateLines[i]);
+            }
           } else if (isContinuation) {
-            wrappedStateLines.push(stateLines[i]);
+            current.goalLines.push(stateLines[i]);
           } else {
             if (inGoal) {
-              // Close the previous goal span on the prior line
-              const lastIdx = wrappedStateLines.length - 1;
-              wrappedStateLines[lastIdx] += '</span>';
+              // We left the goal area — this shouldn't happen within a single block,
+              // but treat it as starting a new implicit block
+              goalBlocks.push(current);
               inGoal = false;
+              current = { caseHeader: null, hyps: [], goalLines: [] };
             }
-            if (startsWithTurnstile) {
-              inGoal = true;
-              wrappedStateLines.push('<span class="proof-goal">' + stateLines[i]);
-            } else {
-              wrappedStateLines.push(stateLines[i]);
-            }
+            current.hyps.push(stateLines[i]);
           }
         }
-        if (inGoal) {
-          const lastIdx = wrappedStateLines.length - 1;
-          wrappedStateLines[lastIdx] += '</span>';
+        if (current.hyps.length > 0 || current.goalLines.length > 0) {
+          goalBlocks.push(current);
         }
-        const stateHtml = wrappedStateLines.join('\n');
+
+        // Build structured HTML
+        let stateHtml = '<div class="proof-state">';
+        stateHtml += '<div class="proof-state-header">';
+        stateHtml += '<span class="proof-goal-badge">' + goalCountText + '</span>';
+        stateHtml += '</div>';
+
+        goalBlocks.forEach(function(block) {
+          stateHtml += '<div class="proof-goal-block">';
+
+          if (block.caseHeader) {
+            stateHtml += '<div class="proof-case-header"><code class="language-lean4">' + block.caseHeader + '</code></div>';
+          }
+
+          if (block.hyps.length > 0) {
+            stateHtml += '<div class="proof-hypotheses">';
+            block.hyps.forEach(function(h) {
+              stateHtml += '<div class="proof-hyp"><code class="language-lean4">' + h + '</code></div>';
+            });
+            stateHtml += '</div>';
+          }
+
+          if (block.goalLines.length > 0) {
+            stateHtml += '<div class="proof-goal"><code class="language-lean4">' + block.goalLines.join('\n') + '</code></div>';
+          }
+
+          stateHtml += '</div>';
+        });
+
+        stateHtml += '</div>';
 
         return '<div class="lean-proof-block">' +
           '<pre class="language-lean4 proof-code"><code class="language-lean4">' + proofHtml + '</code></pre>' +
-          '<div class="proof-state">' +
-          '<pre class="language-lean4"><code class="language-lean4">' + stateHtml + '</code></pre>' +
-          '</div></div>';
+          stateHtml + '</div>';
       }
     );
   });
