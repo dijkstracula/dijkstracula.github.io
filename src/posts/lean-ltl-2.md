@@ -3,6 +3,7 @@ layout: post.njk
 title: "Reactive Programming in Lean Part 2: Execution traces"
 date: 2026-03-15
 tags: [post, lean, reactive-programming]
+excerpt: "Recording and reasoning about the states our programs pass through"
 series: lean-ltl
 series_title: "Part two - execution traces"
 ---

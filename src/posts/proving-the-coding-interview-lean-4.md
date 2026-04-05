@@ -185,7 +185,7 @@ left off the _type ascription_  of our definition like this:
 ```lean4
 def my_favourite_fb := FB.Fizz (by simp)
 
-unsolved goals
+1 goal
 ⊢ ?m.3 % 3 = 0 ∧ ¬?m.3 % 5 = 0
 ```
 :::
@@ -276,6 +276,7 @@ look!
 def fb_one (i : Nat) : FB i :=
     if h15 : i % 15 = 0 then FB.FizzBuzz (by -- NEW
 
+1 goal
 i : Nat
 h15 : i % 15 = 0
 ⊢ i % 15 = 0
@@ -299,6 +300,7 @@ def fb_one (i : Nat) : FB i :=
     if h15 : i % 15 = 0 then FB.FizzBuzz h15 else
     if h5 : i % 5 = 0 then FB.Buzz --TODO: ok now which proof here??
 
+1 goal
 i : ℕ
 h15 : ¬i % 15 = 0
 h5 : i % 5 = 0

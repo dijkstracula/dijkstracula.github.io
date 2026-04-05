@@ -1,5 +1,17 @@
 [
   {
+    "title": "A Proposal for Voluntary AI Disclosure in OCaml Code",
+    "url": "https://anil.recoil.org/notes/opam-ai-disclosure",
+    "date": "2026-04-03T00:00:00.000Z",
+    "source": "Anil Madhavapeddy's .plan"
+  },
+  {
+    "title": "Book Review: What We Can Know",
+    "url": "https://www.stephendiehl.com/posts/what_we_can_know/",
+    "date": "2026-04-02T01:00:00.000Z",
+    "source": "Stephen Diehl's blog"
+  },
+  {
     "title": "How to go to the opera",
     "url": "https://cecilycarver.substack.com/p/how-to-go-to-the-opera",
     "date": "2026-03-29T20:58:47.000Z",
@@ -28,6 +40,12 @@
     "url": "https://blog.nelhage.com/post/concurrent-error-handling/",
     "date": "2026-03-23T15:30:00.000Z",
     "source": "Made of Bugs (Nelson Elhage's blog)"
+  },
+  {
+    "title": "Book Review: There Is No Antimemetics Division",
+    "url": "https://www.stephendiehl.com/posts/no_antimimetics/",
+    "date": "2026-03-22T00:00:00.000Z",
+    "source": "Stephen Diehl's blog"
   },
   {
     "title": "My heuristics are wrong. What now?",
@@ -66,6 +84,12 @@
     "source": "The Amateur"
   },
   {
+    "title": "Book Review: Piranesi",
+    "url": "https://www.stephendiehl.com/posts/piranesi/",
+    "date": "2026-03-09T00:00:00.000Z",
+    "source": "Stephen Diehl's blog"
+  },
+  {
     "title": ".plan-26-10: Streaming TESSERA working, biodiversity action papers, and FPL takes off",
     "url": "https://anil.recoil.org/notes/2026w10",
     "date": "2026-03-08T00:00:00.000Z",
@@ -94,29 +118,5 @@
     "url": "http://brooker.co.za/blog/2026/02/25/sfq.html",
     "date": "2026-02-25T00:00:00.000Z",
     "source": "Marc Brooker's blog"
-  },
-  {
-    "title": "The Picture They Paint of You",
-    "url": "https://ferd.ca/the-picture-they-paint-of-you.html",
-    "date": "2026-02-23T17:00:00.000Z",
-    "source": "ferd.ca"
-  },
-  {
-    "title": "Why Play the Piano?",
-    "url": "https://cecilycarver.substack.com/p/why-play-the-piano",
-    "date": "2026-02-23T04:36:25.000Z",
-    "source": "The Amateur"
-  },
-  {
-    "title": ".plan-26-08: At AI summit, Shriram's PL opinions, Zarr hacking",
-    "url": "https://anil.recoil.org/notes/2026w8",
-    "date": "2026-02-22T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
-  },
-  {
-    "title": "At the AI Impact Summit in Delhi: people, planet, progress",
-    "url": "https://anil.recoil.org/notes/india-ai-summit",
-    "date": "2026-02-21T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
   }
 ]
