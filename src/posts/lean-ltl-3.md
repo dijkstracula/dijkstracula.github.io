@@ -674,6 +674,19 @@ theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeL
       cases f <;> simp <;> simp at h_step <;> simp at h_valid <;> lia
 ```
 
+### How do we know `noFreeLunch_holds` isn't inductive?
+
+Notice that we didn't actually ever make use of `h_init`, because this safety property
+is really about the the relationship between two arbitrary states.  This is weaker
+than what an inductive invariant's property says: it has to hold at the initial state
+and if it holds before a step, it holds after.
+
+If you've ever gone into a proof by induction blind, and then looked back on the proof
+and said "oh, I never actually made use of the inductive hypothesis", it's a bit like
+that: more machinery is presented to us than what we actually needed.  As a result, we
+could have just underbarred `h_init` in the first line, and perhaps for the purposes
+of code clarity that would have been a good idea.
+
 ## Liveness properties can't be proven for arbitrary traces
 
 Here's something else that's worth stating:
