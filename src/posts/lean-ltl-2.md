@@ -46,7 +46,7 @@ def getOrange : TSM Flavour := do
 When we executed these actions on our initial pop machine state, we ended up
 with:
 
-```
+```lean4
 #eval getOrange.run init
 Except.ok (Flavour.LemonLime, { coins := 0, dispensed := none, numOrange := 5, numLL := 4 })
 ```

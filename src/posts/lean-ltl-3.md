@@ -1,6 +1,6 @@
 ---
 layout: post.njk
-title: "Reactive programming in Lean part 3: Linear Temporal Logic"
+title: "Reactive Programming in Lean Part 3: Linear Temporal Logic"
 date: 2026-04-02
 tags: [post, lean, reactive-programming]
 excerpt: "Specifications that move through time"

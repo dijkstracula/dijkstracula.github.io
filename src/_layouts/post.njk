@@ -46,4 +46,40 @@ layout: base.njk
   {% endif %}
 
   {{ content | safe }}
+
+  {% if series %}
+  {% set seriesItems = collections.posts | seriesPosts(series) %}
+  {% if seriesItems.length > 1 %}
+  {% set prevPost = null %}
+  {% set nextPost = null %}
+  {% set foundCurrent = false %}
+  {% for post in seriesItems %}
+    {% if post.page.url == page.url %}
+      {% set foundCurrent = true %}
+    {% elif not post.data.draft %}
+      {% if not foundCurrent %}
+        {% set prevPost = post %}
+      {% elif not nextPost %}
+        {% set nextPost = post %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+  {% if prevPost or nextPost %}
+  <div class="callout callout-tip">
+  <nav class="series-nav" aria-label="Series navigation">
+    <div class="series-nav-prev">
+      {% if prevPost %}
+      <a href="{{ prevPost.page.url }}">&larr; {{ prevPost.data.series_title or prevPost.data.title }}</a>
+      {% endif %}
+    </div>
+    <div class="series-nav-next">
+      {% if nextPost %}
+      <a href="{{ nextPost.page.url }}">{{ nextPost.data.series_title or nextPost.data.title }} &rarr;</a>
+      {% endif %}
+    </div>
+  </nav>
+  </div>
+  {% endif %}
+  {% endif %}
+  {% endif %}
 </article>

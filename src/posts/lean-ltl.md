@@ -804,7 +804,7 @@ def getOrange : TSM Flavour := do
 
 #eval getOrange.run init
 ```
-```
+```lean4
 Except.ok (Flavour.LemonLime, { coins := 0, dispensed := none, numOrange := 5, numLL := 4 })
 ```
 :::
@@ -813,7 +813,7 @@ If we removed one of the `perform (.DropCoin)`s, since we haven't paid enough,
 we'd expect to see an error, and indeed we are given back
 
 ::: warning
-```
+```lean4
 Except.error "Invalid action VMAction.Choose (Flavour.LemonLime) in state {
 coins := 1, dispensed := none, numOrange := 5, numLL := 5 }"`.
 ```

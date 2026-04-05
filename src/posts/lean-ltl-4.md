@@ -1,12 +1,12 @@
 ---
 layout: post.njk
-title: "LTL-in-Lean part 4: LTL types functional reactive programming"
-date: 2026-03-17
+title: "Reactive Programming in Lean Part 4: Functional Reactive Programming"
+date: 2026-04-17
 tags: [post, lean, reactive-programming]
 excerpt: "Get in losers, we're doing Curry-Howard"
 draft: true
 series: lean-ltl
-series_title: "Part three - OMG LTL FRP BBQ"
+series_title: "Part four - OMG WTF LTL FRP BBQ"
 ---
 
 # The Curry-Howard correspondence for LTL: FRP
