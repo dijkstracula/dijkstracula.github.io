@@ -3,7 +3,7 @@ layout: post.njk
 title: "Reactive Programming in Lean Part 4: Functional Reactive Programming"
 date: 2026-04-17
 tags: [post, lean, reactive-programming]
-excerpt: "Get in losers, we're doing Curry-Howard"
+excerpt: "So if propositions are types, and LTL are propositions, what programs are well-typed by LTL?"
 draft: true
 series: lean-ltl
 series_title: "Part four - OMG WTF LTL FRP BBQ"
@@ -57,9 +57,19 @@ your program's values change over time.  In this programming model, a _signal_
 though true FRP-heads would point out technical differences between them) is
 such a time-parameterized value.
 
+::: margin-note
+We're sticking with just natural numbers for keeping time here, but the
+original FRP formulation was pretty particular about time being "real numbers".
+FRP was originally designed for graphics programming, so having a dense time
+representation made it easy to, for instance, contract and extend time to speed
+up or slow down animation speeds.  
+
+But, by hiding the actual type behind `Time`, hopefully this buys us the
+ability to swap out a different time notion of a clock later on.
+:::
 ```lean4
 abbrev Time := Nat
-type Signal α := Time → α
+defv Signal α := Time → α
 ```
 
 Notice that this the same type as our execution traces!  We'll see that the
@@ -92,13 +102,19 @@ Here's our first `Signal`, which doesn't do more than act as a "what time is it"
 clock:
 
 ```lean4
-def now : □ Time := fun t => t --At time step t, our output is t itself
+def now : Signal Time := fun t => t --At time step t, our output is t itself
+```
+
+Just like with LTL's `drop`, we can delay the value of a signal:
+
+```lean4
+def delay (s: Signal α) (t: Time): Signal α := fun n => s (n+t)
 ```
 
 Next, let's define a way that lifts a value into the world of `Signal`s:
 
 ```lean4
-def const (v: α) : □ α := fun _ => v
+def const (v: α) : Signal α := fun _ => v
 
 #eval (const 42) 5 -- at t=5, this signal has value 42, unsurprisingly.
 ```
@@ -117,14 +133,14 @@ not `bind`).  Should perhaps `Signal`s be outright Monads?  Stay tuned for the
 tradeoffs.
 :::
 ```lean4
-def map (f: α → β) (s : □ α) : □ β := 
+def map (f: α → β) (s : Signal α) : Signal β := 
   fun t => f (s t)  
 
-def map2 (f: α → β → γ) (s1 : □ α) (s2 : □ β) : □ γ := 
+def map2 (f: α → β → γ) (s1 : Signal α) (s2 : Signal β) : □ γ := 
   fun t => f (s1 t) (s2 t)
 
 -- examples
-def evens : □ Nat := map (· * 2) now
+def evens : Signal Nat := map (· * 2) now
 def incrementing := map2 (· + ·) (const 10) evens
 #eval incrementing 42 -- at t=42, output is 94
 ```
@@ -143,8 +159,9 @@ colour changes once per time step:
 
 ```lean4
 inductive Light where | Red | Yellow | Green
+deriving Repr
 
-def cycling : □ Light := 
+def cycling : Signal Light := 
   fun n => 
     match n % 3 with 
     | 0 => .Red
@@ -178,7 +195,7 @@ explain it to Lean's typechecker, too.  And, of course, we can: `have h : n % 3
 explain away our catch-all `match` arm.
 
 ```lean4
-def cycling : □ Light := 
+def cycling : Signal Light := 
   fun n => 
     have h : n % 3 < 3 := Nat.mod_lt n (by lia)
     match n % 3, h with 
@@ -206,8 +223,8 @@ summarise a `Signal α` is as an `α` value that's always available, no matter
 what time-step we're at.
 
 Since a `Signal T` makes an value of type `T` _always_ available at all points
-in time, this is our first Curry-Howard correspondence: The type of a
-`Signal T` is `□ T`.  `□` means the same thing in both worlds.
+in time, this is our first Curry-Howard correspondence: The type of a `Signal
+T` is `□ T`.  `□` means the same thing in both worlds.
 
 ```lean4
 namespace LTL
@@ -219,25 +236,267 @@ namespace FRP
 end FRP
 ```
 
-On its own, this isn't all that interesting, because so far the
-`α` parameters we've seen for Signal (`Int`, `String`, `Light`) themselves
-aren't all that interesting as logical propositions.  If you told a
-Java programmer "`String.valueOf(i)` proves `String` given a proof of `Int`,
-isn't type theory amazing??", they probably wouldn't be impressed;
-similarly, "A `Signal Int` always makes an `Int` available" isn't super cool
-on its own either.  We need a second fundamental primitive to add reactivity to
-FRP systems.
+On its own, this isn't all that interesting, because so far the `α` parameters
+we've seen for Signal (`Int`, `String`, `Light`) themselves aren't all that
+interesting as logical propositions.  If you told a Java programmer
+"`String.valueOf(i)` proves `String` given a proof of `Int`, isn't type theory
+amazing??", they probably wouldn't be impressed; similarly, "A `Signal Int`
+always makes an `Int` available" isn't super cool on its own either.  We need a
+second fundamental primitive to add reactivity to FRP systems.
+
+So, here're the new type signatures with their LTL-inspired typings:
+
+```lean4
+-- The current time is always available
+def now : □ Time := fun t => t
+
+-- If I always have an α, I can always transform it into a β.
+def map (f: α → β) (s : □ α) : □ β := 
+  fun t => f (s t)  
+
+-- ...and if I always have both an α and a β, can do the same to get a γ
+def map2 (f: α → β → γ) (s1 : □ α) (s2 : □ β) : □ γ := 
+  fun t => f (s1 t) (s2 t)
+```
+
+## Proving a safety property about an FRP program
+
+Recall from last time that `□`-statements form _safety properties_, of the
+form "it's always the case that a bad state ie never reached."  A traffic
+light might not have a bad state, per se, but _two_ traffic lights at a
+road junction certainly do!
+
+```lean4
+def l1 : □ Light := cycling
+def l2 : □ Light := FRP.delay cycling 1
+def junction : □ (Light × Light) := FRP.map2 Prod.mk l1 l2
+
+#eval junction 5 -- (Light.Green, Light.Red)
+```
+
+Let's ensure _mutual exclusion_ on the intersection: at no point can cars from
+both streets enter the junction:
+
+```lean4
+def neverBothGreen : Prop :=
+  LTL.always (LTL.not (LTL.atom (fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)))) junction
+
+example : neverBothGreen := by
+  -- TODO
+
+1 goal
+⊢ neverBothGreen
+```
+
+Right now the goal is pretty opaque, so let's unfold the definitions of `neverBothGreen`
+and `junction` so we actually have something to work with:
+
+```lean4
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2] -- NEW: unfold domain definitions
+
+1 goal
+⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
+    (FRP.map2 Prod.mk cycling (FRP.delay cycling 1))
+```
+
+Next, let's unfold our relevant LTL primitives.  That gives us a quantified variable
+for the value of time that we can also introduce into the context.
+
+```lean4
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2]
+  simp [LTL.always, LTL.not, LTL.atom] -- NEW: unfold LTL operators
+  intro t
+
+1 goal
+t : ℕ
+⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).1 = Light.Green →
+  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).2 = Light.Green
+```
+
+So far so good; that seems like a nice primitive.  Now let's do the same with our FRP
+combinators.
+
+::: margin-note
+Don't forget that both `l1` and `l2` were defined in terms of `cycling`, hence we see
+two occurrences of it in this simplified form.
+:::
+```lean4
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2]
+  simp [LTL.always, LTL.not, LTL.atom]
+  intro t
+  simp [now, drop, FRP.map2, FRP.delay] -- NEW: unfold FRP operators
+
+1 goal
+t : ℕ
+⊢ cycling t = Light.Green → ¬cycling (t + 1) = Light.Green
+```
+
+
+After all that, we can finally unfold `cycling` and see some crunchy modular arithmetic.
+
+::: margin-note
+You might be tempted, since there's an implication here, to `intro` the antecedent as a
+`h_green_now` theorem or something.  The problem with doing that is that we'll need to
+evenutally case-split on `t % 3`.  You might find it amusing/annoying to try introing
+it and seeing where you get stuck.
+:::
+```lean4
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2]
+  simp [LTL.always, LTL.not, LTL.atom]
+  intro t
+  simp [now, drop, FRP.map2, FRP.delay]
+  simp [cycling]
+
+1 goal
+t : ℕ
+⊢ (match t % 3, ⋯ with
+    | 0, x => Light.Red
+    | 1, x => Light.Yellow
+    | 2, x => Light.Green) = Light.Green →
+  ¬(match (t + 1) % 3, ⋯ with
+      | 0, x => Light.Red
+      | 1, x => Light.Yellow
+      | 2, x => Light.Green) = Light.Green
+```
+
+So now let's `split` on the antecedent `match`, leaving us with three
+cases depending on the value of `t % 3`, noting that `h_1` and `h_2`
+could immediately be discharged away:
+
+```lean4
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2]
+  simp [LTL.always, LTL.not, LTL.atom]
+  intro t
+  simp [now, drop, FRP.map2, FRP.delay]
+  simp [cycling]
+  split -- NEW
+
+3 goals
+case h_1
+...
+heq✝¹ : t % 3 = 0
+⊢ Light.Red = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
+case h_2
+...
+heq✝¹ : t % 3 = 1
+⊢ Light.Yellow = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
+case h_3
+...
+heq✝¹ : t % 3 = 2
+⊢ Light.Green = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
+```
+
+For each of these three cases, we have three more possibilities, so let's
+`split` on _those_, too:
+
+```lean4
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2]
+  simp [LTL.always, LTL.not, LTL.atom]
+  intro t
+  simp [now, drop, FRP.map2, FRP.delay]
+  simp [cycling]
+  split <;> split
+
+9 goals
+case h_1
+...
+heq✝³ : t % 3 = 0
+heq✝¹ : (t + 1) % 3 = 0
+⊢ Light.Red = Light.Green → ¬Light.Red = Light.Green
+case h_2
+...
+heq✝³ : t % 3 = 0
+heq✝¹ : (t + 1) % 3 = 1
+⊢ Light.Red = Light.Green → ¬Light.Yellow = Light.Green
+case h_3
+...
+heq✝³ : t % 3 = 0
+heq✝¹ : (t + 1) % 3 = 2
+⊢ Light.Red = Light.Green → ¬Light.Green = Light.Green
+case h_4
+...
+heq✝³ : t % 3 = 1
+heq✝¹ : (t + 1) % 3 = 0
+⊢ Light.Yellow = Light.Green → ¬Light.Red = Light.Green
+... and so on until ...
+case h_9
+heq✝³ : t % 3 = 2
+heq✝¹ : (t + 1) % 3 = 2
+⊢ Light.Green = Light.Green → ¬Light.Green = Light.Green
+```
+
+`simp` will discharge away all the contradictory cases (where the antecedent is
+`False`) or trivial cases (where the implication is `True -> True`), leaving
+just one:
+
+```lean4
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2]
+  simp [LTL.always, LTL.not, LTL.atom]
+  intro t
+  simp [now, drop, FRP.map2, FRP.delay]
+  simp [cycling]
+  split <;> split <;> simp
+
+1 goal
+case h_9
+...
+heq✝³ : t % 3 = 2
+heq✝¹ : (t + 1) % 3 = 2
+⊢ False
+```
+
+From the values in our context, we can see that the one case that `simp`
+could not discharge was when both lights are green.  This is the only case
+that matters because it's what our safety property is actually _about_:
+every other case is vacuously true because at least one light isn't green.
+This is actually kind of nice - the proof naturally focuses our efforts on
+exactly the scenario we are trying to guard against.
+
+Since the lynchpin of the proof here involves a contradiction in our context:
+`t % 3 = 2` and `(t + 1) % 3 = 2` are impossible, and `lia` can find it.
+That closes the final goal and proves safety of our first functional reactive
+program!
+
+```lean4
+def l1 : □ Light := cycling
+def l2 : □ Light := FRP.delay cycling 1
+def junction : □ (Light × Light) := FRP.map2 Prod.mk l1 l2
+
+#eval junction 5
+
+def neverBothGreen : Prop :=
+  LTL.always (LTL.not (LTL.atom (fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)))) junction
+
+example : neverBothGreen := by
+  simp [neverBothGreen, junction, l1, l2]
+  simp [LTL.always, LTL.not, LTL.atom]
+  intro t
+  simp [now, drop, FRP.map2, FRP.delay]
+  simp [cycling]
+  split <;> split <;> simp
+  lia
+```
 
 # An `Event` occurs at some point in time
 
+::: margin-note
+Might be worth trying to guess if there's an LTL proposition that might be a
+good type for `Event`s!
+:::
 The dual of a `Signal` is an `Event`, which you can think of a stream of values
-to be consumed by the system at a particular moment in time.  For an
-interactive webapp, you might, "right at this moment", send a "click" `Event`
-to a form button, which perhaps triggers other events to fire.  Or, maybe, you
-enqueue an event to fire some point in the future, like registering a timeout
-on a network call or something.  (If you come from an OO background, an `Event`
-is very much like an
-[Observable](https://reactivex.io/documentation/observable.html).)
+to be consumed by the system at particular moments in time.  For an interactive
+webapp, you might, "right at this moment", send a "click" `Event` to a form
+button, which perhaps triggers other events to fire.  Or, maybe, you enqueue an
+event to fire some point in the future, like registering a timeout on a network
+call or something.  (If you come from an OO background, an `Event` is very much
+like an [Observable](https://reactivex.io/documentation/observable.html).)
 
 ## Designing an `Event` type
 
