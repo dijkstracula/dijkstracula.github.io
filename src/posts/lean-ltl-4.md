@@ -11,39 +11,44 @@ series_title: "Part four - OMG WTF LTL FRP BBQ"
 
 # The Curry-Howard correspondence for LTL: FRP
 
-So far, what we've been doing is playing with LTL in the way that someone
-using a model checker like TLA+ might.  We build a reactive system, built
-some traces over that system, wrote formulas about that system, and asked
-"does this trace satisfy this formula?"
+So far, what we've been doing is playing with LTL in the way that someone using
+a model checker like TLA+ might.  We implemented a reactive system, executed
+some traces over that system, and wrote formulas to answer "does this trace
+satisfy this formula?"  Later on, we saw how some formulas can be answered no
+matter which (valid!) trace is under consideration.  That's a pretty powerful
+set of tools to reason about software.
 
 All the dependently-typed programming we've done in this and other series has
-been the _Curry-Howard correspondence_ in action.  When we say "a `Prop` is a
-type" and "we prove a proposition by writing a program that typechecks to that
-`Prop`-type", that's Curry-Howard in action.
+shown the _Curry-Howard correspondence_ in action.  When we say "a `Prop` is a
+type" and "we prove a proposition by writing a program that typechecks to it",
+that's Curry-Howard in action.
 
-We've extended the notion of a `Prop` to temporal logic.  By Curry-Howard, that
-must mean that there are some program types (and therefore program
-compuatations) that align with those propositions.  The *LTL Types FRP* paper
-shows exactly what that connection is: it's to a programming model called
-_functional reactive programming_.
+Last time, we extended the notion of a `Prop` to temporal logic in order to
+reason about temporal programs.  By Curry-Howard, that must mean that there are
+some program types (and therefore program compuatations) that align with those
+propositions.  The *LTL Types FRP* paper shows exactly what that connection is:
+it's to a programming model called _functional reactive programming_.
 
 In FRP, your core program values (which we'll see soon are called _signals_)
 are _time-varying_, and you build your program by composing these signals using
 pure functions.  Instead of thinking about our reactive systems imperatively,
 where we're mutating a state structure action by action, FRP is about building
-relationships between different values.
+relationships between different values in a way that should feel natural to you
+if you've programmed functionally before.
 
-The `LTL types FRP` paper builds up a formulation that shows that under
+The *LTL types FRP* paper builds up a formulation that shows that under
 Curry-Howard, the LTL logic maps to types of value in an FRP program.  Building
-this connection up will be the ultimate goal of this post; by the end of it,
-we should end up with two Lean namespaces that look pretty similar in structure
+this connection up will be the ultimate goal of this post; by the end of it, we
+should end up with two Lean namespaces that look pretty similar in structure
 and function.
 
 ```lean4
+-- From Part 3 (last time)
 namespace LTL
     ...
 end LTL
 
+-- From Part 4 (this part!)
 namespace FRP
     ...
 end FRP
@@ -52,10 +57,8 @@ end FRP
 ## A `Signal` is a time-varying value
 
 We just said that FRP is all about modeling your problem domain in terms of how
-your program's values change over time.  In this programming model, a _signal_
-(sometimes called a _behaviour; I may use these terms interchangably even
-though true FRP-heads would point out technical differences between them) is
-such a time-parameterized value.
+your program's values change over time.  So, we better have a means to model
+time itself.
 
 ::: margin-note
 We're sticking with just natural numbers for keeping time here, but the
@@ -69,15 +72,21 @@ ability to swap out a different time notion of a clock later on.
 :::
 ```lean4
 abbrev Time := Nat
-defv Signal α := Time → α
 ```
 
-Notice that this the same type as our execution traces!  We'll see that the
-intended meaning of a signal is different, though.  Earlier, a `Trace` was an
-artifact of running some computation; it was in some sense an "output".  You
-can poke at it by writing theorems about the trace, but it just sits there;
-running the system through our monadic API produced the trace, and then we
-use Lean's theorem proving capabilities to inspect it.
+In this programming model, a _signal_ (sometimes called a _behaviour_) is such
+a time-parameterized value.
+
+```lean4
+abbrev Signal α := Time → α
+```
+
+Notice that this the same type as our execution traces!  That's not entirely a
+coincidence.  The _interpretation_ of a signal is different, though.  Earlier,
+a `Trace` was an artifact of running some computation; it was in some sense an
+"output".  You can poke at the trace by writing theorems about it, but it
+otherwise just sits there; running the system through our monadic API produced
+it, and then we use Lean's theorem proving capabilities to inspect it.
 
 ::: margin-note
 We said just now that a `Signal` is a time-varying value. Technically, FRP
@@ -96,19 +105,23 @@ that will come soon enough, but you can imagine that it might involve the
 "functional" part of "FRP".)
 
 
-## Some `Signal`s and a few basic combinators
+## Some `Signal`s
 
 Here's our first `Signal`, which doesn't do more than act as a "what time is it"
 clock:
 
 ```lean4
-def now : Signal Time := fun t => t --At time step t, our output is t itself
+def clock : Signal Time := 
+  fun t => t --At time step t, our output is t itself
 ```
 
-Just like with LTL's `drop`, we can delay the value of a signal:
+Just like with LTL's `drop`, we can delay the value of a signal of any time by
+shifting it forward in time:
 
 ```lean4
 def delay (s: Signal α) (t: Time): Signal α := fun n => s (n+t)
+
+#eval (delay clock 3) 5 -- At t=5, a clock delayed by 3 is 8
 ```
 
 Next, let's define a way that lifts a value into the world of `Signal`s:
@@ -136,20 +149,43 @@ tradeoffs.
 def map (f: α → β) (s : Signal α) : Signal β := 
   fun t => f (s t)  
 
-def map2 (f: α → β → γ) (s1 : Signal α) (s2 : Signal β) : □ γ := 
+def map2 (f: α → β → γ) (s1 : Signal α) (s2 : Signal β) : Signal γ := 
   fun t => f (s1 t) (s2 t)
-
--- examples
-def evens : Signal Nat := map (· * 2) now
-def incrementing := map2 (· + ·) (const 10) evens
-#eval incrementing 42 -- at t=42, output is 94
 ```
-
 These map functions are called _pointwise_ because they only operate on a
 signal at the "present moment" (that is, whatever the value of `t` is). You
-could imagine a _time-dependent tranformation_ that somehow involves other
+could imagine a _time-dependent transformation_ that somehow involves other
 values of `t` (say, computing the finite difference of `t` and `t-1`)
 but we can't do that with `map`.
+
+OK, here's our first reactive program that converts a signal of British
+Columbia timestamps into a well-formatted triple of the current UTC time:
+
+::: margin-warn
+Here's a hazard of `Signal α` being a type alias rather than a genuine new
+type: Lean can't distinguish a Signal from a function, since from the type
+system's perspective they're genuinely interchangable. So, unfortunately, `map
+clock (· / 3600)` and `map (· / 3600) clock` both typecheck, but the former
+treats the signal as the function and vice versa.
+:::
+```lean4
+-- Some signal combinators: these have type Signal Time -> Signal Time;
+-- from a given timestamp, produce hours/mins/secs
+def to_h := map (· / 3600)
+def to_m := map (· / 60 % 60)
+def to_s := map (· % 60)
+
+-- OK, here's our reactive program: values flow from `clock` into `pst_secs`,
+-- fork off into `to_h`/`to_m`/`to_s`, and ultimately rejoin in `hms`.
+-- (exercise for you: implement map3!)
+
+def pst_secs := clock
+def utc_secs := delay utc_secs (7 * 3600)
+def hms : Signal String := map3 (s!"{·}:{·}:{·}") 
+                                (to_h utc_secs) (to_m utc_secs) (to_s utc_secs)
+
+#eval hms 34234 -- "16:30:34"
+```
 
 ## A more interesting signal
 
@@ -222,10 +258,23 @@ Before proceeding, you should convince yourself of the fact that one way to
 summarise a `Signal α` is as an `α` value that's always available, no matter
 what time-step we're at.
 
-Since a `Signal T` makes an value of type `T` _always_ available at all points
+Since a `Signal T` makes a value of type `T` _always_ available at all points
 in time, this is our first Curry-Howard correspondence: The type of a `Signal
 T` is `□ T`.  `□` means the same thing in both worlds.
 
+::: margin-warn
+In Lean, we have to be a bit careful: in a previous article we discussed that
+`Prop`s and `Type`s differ: one lives in "the logical world" and the other "the
+computational world".  The LTL-types-FRP paper is implemented in Agda, another
+dependently-typed language but one that doesn't have this division.  
+
+So, in Agda, we could simply define `□` once and use it in both contexts:
+"write a well-typed FRP program" is _literally_ "prove an LTL property".  In
+Lean, a `Signal α` is a function `Time → α` that produces a value at every time
+step, and a proof of `□ p` is a function `Time → proof` that produces evidence
+at every time step.  (This design choice buys some ergonomic simplicity in Lean
+at the expense of expressiveness.)
+:::
 ```lean4
 namespace LTL
     ...
