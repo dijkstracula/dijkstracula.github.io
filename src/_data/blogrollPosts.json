@@ -1,9 +1,21 @@
 [
   {
-    "title": "A Proposal for Voluntary AI Disclosure in OCaml Code",
-    "url": "https://anil.recoil.org/notes/opam-ai-disclosure",
-    "date": "2026-04-03T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
+    "title": "Spec Driven Development isn't Waterfall",
+    "url": "http://brooker.co.za/blog/2026/04/09/waterfall-vs-spec.html",
+    "date": "2026-04-09T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "S3 Files and the changing face of S3",
+    "url": "https://www.allthingsdistributed.com/2026/04/s3-files-and-the-changing-face-of-s3.html?utm_campaign=inbound&utm_source=rss",
+    "date": "2026-04-07T14:00:00.000Z",
+    "source": "All Things Distributed (Werner Vogels' blog)"
+  },
+  {
+    "title": "Matrix-matrix multiplication, from less conventional points of view:",
+    "url": "https://okmij.org/ftp/Algorithms/matmul.html",
+    "date": "2026-04-07T00:01:00.000Z",
+    "source": "okmij"
   },
   {
     "title": "Book Review: What We Can Know",
@@ -16,18 +28,6 @@
     "url": "https://cecilycarver.substack.com/p/how-to-go-to-the-opera",
     "date": "2026-03-29T20:58:47.000Z",
     "source": "The Amateur"
-  },
-  {
-    "title": ".plan-26-13: Oxidised, standardised, and syndicated",
-    "url": "https://anil.recoil.org/notes/2026w13",
-    "date": "2026-03-29T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
-  },
-  {
-    "title": "TESSERA now supports the Zarr geo-embeddings convention proposal",
-    "url": "https://anil.recoil.org/notes/tessera-embeddings-convention",
-    "date": "2026-03-27T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
   },
   {
     "title": "What about juniors?",
@@ -60,22 +60,10 @@
     "source": "Marc Brooker's blog"
   },
   {
-    "title": ".plan-26-11: Bins, bollards, bots and biodiversity boffins",
-    "url": "https://anil.recoil.org/notes/2026w11",
-    "date": "2026-03-15T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
-  },
-  {
     "title": "LLM time",
     "url": "https://graydon2.dreamwidth.org/322732.html",
     "date": "2026-03-14T20:59:55.000Z",
     "source": "Graydon's blog"
-  },
-  {
-    "title": "Streaming millions of TESSERA tiles over HTTP with Zarr v3",
-    "url": "https://anil.recoil.org/notes/tessera-zarr-v3-layout",
-    "date": "2026-03-14T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
   },
   {
     "title": "Chatting about Napoleon with Solomon & Smith",
@@ -90,22 +78,16 @@
     "source": "Stephen Diehl's blog"
   },
   {
-    "title": ".plan-26-10: Streaming TESSERA working, biodiversity action papers, and FPL takes off",
-    "url": "https://anil.recoil.org/notes/2026w10",
-    "date": "2026-03-08T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
-  },
-  {
-    "title": "Connecting the dots for biodiversity action from the NAS/Royal Society Forum",
-    "url": "https://anil.recoil.org/notes/nas-rs-biodiversity-papers",
-    "date": "2026-03-07T00:00:00.000Z",
-    "source": "Anil Madhavapeddy's .plan"
-  },
-  {
     "title": "People should read more French novels",
     "url": "https://cecilycarver.substack.com/p/people-should-read-more-french-novels",
     "date": "2026-03-02T05:03:11.000Z",
     "source": "The Amateur"
+  },
+  {
+    "title": "The last problem of Higher-Order Abstract Syntax:",
+    "url": "https://okmij.org/ftp/meta-programming/calculi.html#HOAS",
+    "date": "2026-03-02T00:01:00.000Z",
+    "source": "okmij"
   },
   {
     "title": "Dear Time Lords: Freeze Computers In 1993",
@@ -118,5 +100,23 @@
     "url": "http://brooker.co.za/blog/2026/02/25/sfq.html",
     "date": "2026-02-25T00:00:00.000Z",
     "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "The Picture They Paint of You",
+    "url": "https://ferd.ca/the-picture-they-paint-of-you.html",
+    "date": "2026-02-23T17:00:00.000Z",
+    "source": "ferd.ca"
+  },
+  {
+    "title": "Why Play the Piano?",
+    "url": "https://cecilycarver.substack.com/p/why-play-the-piano",
+    "date": "2026-02-23T04:36:25.000Z",
+    "source": "The Amateur"
+  },
+  {
+    "title": "Optimal Caverna Gameplay via Formal Methods",
+    "url": "https://www.stephendiehl.com/posts/caverna/",
+    "date": "2026-02-21T00:00:00.000Z",
+    "source": "Stephen Diehl's blog"
   }
 ]
