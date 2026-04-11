@@ -20,60 +20,9 @@ the system needs to move through time feels like we'll need additional mechanism
 
 Today, we'll define temporal logic and _linear temporal logic_, which is a
 common logical system used by model checkers like TLA+ and SPIN, and embed it
-into Lean's existing logical system. We'll then see how to specify how our
+into Lean's existing logical system.  We'll then see how to specify how our
 vending machine should behave over time, with an eye to writing "real reactive
 programs" in Lean and specifying them with LTL.
-
-
-## The limits of `Prop`
-
-Remember our "drop a coin, drop another coin, choose a pop flavour, take
-the can" example from last time:
-
-```lean4
-def getOrange : TSM Flavour := do
-  perform (.DropCoin)
-  perform (.DropCoin)
-  perform (.Choose .LemonLime)
-  take
-```
-
-When we executed these actions on our initial pop machine state, we ended up
-with the returned `Flavour` (the result of the computation), all the states
-we stepped through, and the final state:
-
-```lean4
-#eval getOrange.run init 
-
-Except.ok (
-   -- The `Flavour` returned by the computation
-  (LemonLime,
-
-   -- The execution trace observed by running the computation
-  [{ coins := 0, dispensed := none,           numOrange := 5, numLL := 5 },
-   { coins := 1, dispensed := none,           numOrange := 5, numLL := 5 },
-   { coins := 2, dispensed := none,           numOrange := 5, numLL := 5 },
-   { coins := 0, dispensed := some LemonLime, numOrange := 5, numLL := 4 }]),
-
-   -- The final state following the computation
- { coins := 0, dispensed := none, numOrange := 5, numLL := 4 })
-```
-
-There are all sorts of propositions we could write about the final state:
-maybe we want to be assured that the machine successfully ate all the coins
-in the hopper, or that we didn't accidentally decrement `numOrange` versus
-`numLL`.  We could also write and prove the statement `validStep <final state>
-.DropCoin`, or write and _refute_ `validStep <final state> .TakeItem`.
-
-We could also write a proposition related to the output `Flavour` or previous
-steps in the trace: for instance, if we're handed back a `LemonLime` at the end
-of the computation, we could ensure that at time step `t=3` we had dispensed a
-`LemonLime`.
-
-These kind of aren't terribly _interesting_ propositions, though, and this
-makes sense becaue what makes reactive programs interesting is that they change
-over time, so our logical propositions also need to be able to talk about
-change over time.
 
 # LTL is linear temporal logic
 
@@ -373,9 +322,9 @@ kind of invariant called an _inductive invariant_; if you're into model
 checking then you're always on the hunt for inductive invariants, or ways to
 turn a non-inductive invariant into an inductive one).
 
-Extending `validStep` to traces, an entire trace is valid if we start from a
-valid trace (a property called _initialization_), and we only step from a valid
-state to another one (_consecution_).
+Recall `validTrace` from last time, which captures _initialization_ (the trace
+starts in `init`) and _consecution_ (every consecutive pair of states is
+connected by a valid action):
 
 ::: margin-note
 It might be worth pondering about the relationship between a valid trace and an

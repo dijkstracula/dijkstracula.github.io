@@ -213,12 +213,6 @@ In fact, while we're doing so, why don't we turn that fragment into a proper
 trace:
 
 ::: margin-note
-Here, we make the trace well-defined by saying it's just hanging for all points
-in time after the final transition.  You might think another way to do this
-would be to just loop back to the first action and repeat the sequence over
-and over again, but this wouldn't work for this trace; we'd eventually run out
-of pop cans to dispense so we'd get stuck.
-
 You may disagree with my choice of return value of `.error`: since we will only
 use this for a few examples, feel free to change it to a `panic!`, after you
 solve the type error that it creates for you >:)
@@ -230,23 +224,29 @@ def getFragment (init : VMState) (tsm : TSM σ) : Trace VMState :=
     (fun n => if h : n < frag.length then frag.get ⟨n, h⟩ else final)
   | .error e => (fun _ => init)
 
+def orangeTrace : Trace VMState := getFragment init getOrange
 ```
+
+Here, we make the trace well-defined by saying it's just staying in the same
+state for all points in time after the final transition.  You might think
+another way to do this would be to just loop back to the first action and
+repeat the sequence over and over again, but this wouldn't work for this trace;
+we'd eventually run out of pop cans to dispense so we'd get stuck.  
 
 To ask about the state after the first coin drop, we could evaluate
 `orangeTrace 1`; to produce a _new_ trace that begins after the first coin
 drop, we could evaluate `drop 1 orangeTrace`.  Constructing new traces out of
 old ones will become super important in future posts.
 
-:::tip
 ```lean4
-#eval (drop 1 orangeTrace) 1
+#eval orangeTrace 0   -- { coins := 0, dispensed := none, numOrange := 5, numLL := 5 }
+#eval orangeTrace 3   -- { coins := 0, dispensed := some (VM.Flavour.LemonLime), numOrange := 5, numLL := 4 }
+#eval orangeTrace 42  -- { coins := 0, dispensed := none, numOrange := 5, numLL := 4 }
 ```
-This evaluates to the state of `orangeTrace` after we've dropped the second
-coin in the hopper.
-```lean4
-{ coins := 2, dispensed := none, numOrange := 5, numLL := 5 }
-```
-:::
+
+While we're on the topic, though, you should pause and ponder about whether
+"just staying in the same state" is something that the pop state machine would
+actually permit...
 
 ## Proofs over finite traces
 
@@ -267,6 +267,11 @@ we might want to assert that what action takes us from `orangeTrace 2` to
 ::: margin-note
 Technically, this is saying "there's a valid proof that this step is valid, and
 stepping produces the next step".
+:::
+```lean4
+example : ∃ h, orangeTrace 3 = vmStep (orangeTrace 2) (.Choose .LemonLime) h := by
+  exact ⟨by decide, by rfl⟩
+```
 
 `⟨_, _⟩` introduces the existential witness; it's `Exists.intro` in anonymous
 constructor syntax. `by decide` fills the first slot: it evaluates `validAction
@@ -274,23 +279,95 @@ constructor syntax. `by decide` fills the first slot: it evaluates `validAction
 instance) and confirms it's true. `by rfl` fills the second slot: it evaluates
 both sides of the equality — `orangeTrace 3` and `vmStep (orangeTrace 2)
 (.Choose .LemonLime) h` — and confirms they reduce to the same value.
-:::
+
+We can generalise proofs about `orangeTrace`, too.  The previous example picked
+a specific action (`Choose .LemonLime`) and a specific state and showed
+stepping was valid.  But we could also weaken the claim and just ask "there
+exists _some_ valid action connecting these two states":
+
 ```lean4
-example : ∃ h, orangeTrace 3 = vmStep (orangeTrace 2) (.Choose .LemonLime) h := by
-  exact ⟨by decide, by rfl⟩
+example : ∃ a, ∃ h : validAction (orangeTrace 2) a, 
+    orangeTrace 3 = vmStep (orangeTrace 2) a h := by
+  exact ⟨.Choose .LemonLime, by decide, by rfl⟩
 ```
 
-What we _can't_ do so easily, though, is express more general properties over a
-trace: We can say "`orangeTrace 4` took a can of LemonLime, and we can even say
-"there exists some time step during which we took a can of LemonLime" by
-quantifying over the argument to `orangeTrace`.  What's a lot harder is to make
-such statements about arbitrary traces, where the only thing we know is that at
-every step it satisfies `validTrace`.
+The shape of the statement "there exists an action, a proof that the action is
+valid, and a proof that the step matches the action taken" is exactly what we
+need to say about every consecutive pair of states in a trace.
 
-Consider a statement like "a can was dispensed and it hasn't been taken" - we'd
+## Valid traces
+
+We'll call an entire trace _valid_ if two conditions hold:
+
+1. **Initialization**: the trace starts in a known initial state.
+2. **Consecution**: every consecutive pair of states is connected by some valid action.
+
+::: margin-note
+It might be worth pondering about the relationship between a valid trace and an
+inductive invariant, and what sorts of invariants might not be inductive.
+:::
+```lean4
+def validTrace (t : Trace VMState) : Prop :=
+  t 0 = init ∧
+  ∀ i, 
+    ∃ a, 
+      ∃ h : validAction (t i) a, 
+        t (1 + i) = vmStep (t i) a h
+```
+
+The initialization condition is easy to check for `orangeTrace`:
+
+```lean4
+example : (orangeTrace 0) = init := by rfl
+```
+
+And we've essentially been proving consecution for individual steps already.
+We just showed that step 2 leads to step 3 via `Choose .LemonLime`; verifying
+the other transitions is the same pattern:
+
+```lean4
+example : ∃ a h, orangeTrace 1 = vmStep (orangeTrace 0) a h :=
+  ⟨.DropCoin, by decide, by rfl⟩
+
+example : ∃ a h, orangeTrace 2 = vmStep (orangeTrace 1) a h :=
+  ⟨.DropCoin, by decide, by rfl⟩
+```
+
+### Our concrete trace isn't an infinite valid trace
+
+You might be tempted to prove `validTrace orangeTrace` outright, but there's a
+snag.  
+
+Remember that `getFragment` extends the finite trace by repeating the
+final state forever: `orangeTrace 4 = orangeTrace 5 = orangeTrace 6 = ...`.
+For that to satisfy consecution, we'd need some action that is both valid _and_
+leaves the state unchanged.  But there isn't one: `DropCoin` increments
+`coins`, `Restock` resets to `init`, `Choose` dispenses a can, and `TakeItem`
+isn't valid when nothing's been dispensed.  (If we'd instead had the machine
+restock itself indefinitely, then the trace would be a valid one.)
+
+So our `getFragment` helper produced a well-defined _function_ `Nat → VMState`,
+but the infinite extension is not a valid _trace_ in our formal sense.  That's
+fine.  We can still verify the finite prefix step-by-step, which is useful for
+testing concrete executions.
+
+In general: if you consider all the possible states the vending machine can
+find itself in, only some of those will be valid (insofar as the system's
+invariants don't forbid them), and only some of _those_ will actually ever be
+reachable (insofar as the transition function of the system doesn't preclude
+stepping to them).
+
+## The limits of what we can express
+
+For our concrete `orangeTrace`, we can point at specific time steps and verify
+whatever we like.  What's a lot harder is to make such statements about
+_arbitrary_ traces, where the only thing we know is that at every step they
+satisfy `validTrace`.
+
+Consider a statement like "a can was dispensed and it hasn't been taken".  We'd
 need to be able to say something like "at some point `t` a can was dispensed,
-and for all times between then and now, it wasn't taken.  This is about
-quantifying over part of a trace itself and we don't have the vocabulary to
+and for all times between then and now, it wasn't taken."  This is about
+quantifying over _part of a trace itself_, and we don't have the vocabulary to
 make that statement yet.
 
 ## Next time: temporal propositions

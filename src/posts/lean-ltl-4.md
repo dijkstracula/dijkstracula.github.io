@@ -215,6 +215,10 @@ Not the most realistic definition of a traffic light, but whatever.
 A quick diversion into how dependent types can help us write simple programs
 more easily:
 
+::: margin-note 
+Maybe in a future blog series, we'll look at how typecheckers implement their
+exhaustiveness checker...
+:::
 In Lean and other functional languages that have _exhaustiveness checking_, we,
 ro make the pattern matching well-formed for all possible values of `n`, have a
 fourth catch-all case that we know we'll never hit.  Without this final case,
@@ -271,9 +275,12 @@ dependently-typed language but one that doesn't have this division.
 So, in Agda, we could simply define `□` once and use it in both contexts:
 "write a well-typed FRP program" is _literally_ "prove an LTL property".  In
 Lean, a `Signal α` is a function `Time → α` that produces a value at every time
-step, and a proof of `□ p` is a function `Time → proof` that produces evidence
-at every time step.  (This design choice buys some ergonomic simplicity in Lean
-at the expense of expressiveness.)
+step, and a proof of `□ p` is a function `forall t: Time, proof` that produces
+evidence at every time step.  Here we are tacetly leaning on the Curry-Howard
+correspondence between function types and universal quantifiers.  (This
+language design choice on the part of Lean buys some ergonomic simplicity but
+at the expense of expressiveness, which we can see when comparing our
+implementation to how it's done in Agda.)
 :::
 ```lean4
 namespace LTL
@@ -285,15 +292,16 @@ namespace FRP
 end FRP
 ```
 
-On its own, this isn't all that interesting, because so far the `α` parameters
+On its own, this isn't all that interesting, because so far the `α` type parameters
 we've seen for Signal (`Int`, `String`, `Light`) themselves aren't all that
 interesting as logical propositions.  If you told a Java programmer
 "`String.valueOf(i)` proves `String` given a proof of `Int`, isn't type theory
 amazing??", they probably wouldn't be impressed; similarly, "A `Signal Int`
-always makes an `Int` available" isn't super cool on its own either.  We need a
-second fundamental primitive to add reactivity to FRP systems.
+always makes an `Int` available" isn't super profound on its own either.  We
+need a second fundamental FRP primitive to add reactivity to FRP systems, which
+we'll introduce soon enough.
 
-So, here're the new type signatures with their LTL-inspired typings:
+But anyway, here're the new type signatures with their LTL-inspired typings:
 
 ```lean4
 -- The current time is always available
@@ -303,7 +311,7 @@ def now : □ Time := fun t => t
 def map (f: α → β) (s : □ α) : □ β := 
   fun t => f (s t)  
 
--- ...and if I always have both an α and a β, can do the same to get a γ
+-- ...and if I always have both an α and a β, can do the same to always have a γ
 def map2 (f: α → β → γ) (s1 : □ α) (s2 : □ β) : □ γ := 
   fun t => f (s1 t) (s2 t)
 ```
@@ -330,8 +338,7 @@ both streets enter the junction:
 def neverBothGreen : Prop :=
   LTL.always (LTL.not (LTL.atom (fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)))) junction
 
-example : neverBothGreen := by
-  -- TODO
+example : neverBothGreen := by -- TODO
 
 1 goal
 ⊢ neverBothGreen
@@ -349,14 +356,15 @@ example : neverBothGreen := by
     (FRP.map2 Prod.mk cycling (FRP.delay cycling 1))
 ```
 
-Next, let's unfold our relevant LTL primitives.  That gives us a quantified variable
-for the value of time that we can also introduce into the context.
+Great, that gives us something to actually work with now.  Next, let's unfold
+our relevant LTL primitives.  That will give us a quantifier over `Time` that
+we can also introduce into the context.
 
 ```lean4
 example : neverBothGreen := by
   simp [neverBothGreen, junction, l1, l2]
   simp [LTL.always, LTL.not, LTL.atom] -- NEW: unfold LTL operators
-  intro t
+  intro t -- NEW: "let `t` be some timestep..."
 
 1 goal
 t : ℕ
@@ -364,12 +372,14 @@ t : ℕ
   ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).2 = Light.Green
 ```
 
-So far so good; that seems like a nice primitive.  Now let's do the same with our FRP
-combinators.
+So far so good; that seems like a nice theorem to prove.  Now let's unfold our
+FRP operators like we did the LTL ones.
 
 ::: margin-note
-Don't forget that both `l1` and `l2` were defined in terms of `cycling`, hence we see
-two occurrences of it in this simplified form.
+Don't forget that both `l1` and `l2` were defined in terms of `cycling`, hence
+we see two occurrences of it in this simplified form.  You might find it
+interesting to reimplement `l1` and `l2` with distinct implementation to see
+how the form of the proof might change.
 :::
 ```lean4
 example : neverBothGreen := by
@@ -383,8 +393,8 @@ t : ℕ
 ⊢ cycling t = Light.Green → ¬cycling (t + 1) = Light.Green
 ```
 
-
-After all that, we can finally unfold `cycling` and see some crunchy modular arithmetic.
+After all that, we can finally unfold `cycling` and get down to the crunchy
+modular arithmetic that makes up the lights' behaviour.
 
 ::: margin-note
 You might be tempted, since there's an implication here, to `intro` the antecedent as a
@@ -532,6 +542,13 @@ example : neverBothGreen := by
   split <;> split <;> simp
   lia
 ```
+
+Even though this is a silly program, proving mutual exclusion is super
+important for all sorts of programs, ranging from a simple spinlock, through to
+a database's concurrency controller, up to distributed systems like
+[Chubby](https://static.googleusercontent.com/media/research.google.com/en//archive/chubby-osdi06.pdf).
+Knowing that you've got a provable safety property is critical for each of
+these pieces of code!
 
 # An `Event` occurs at some point in time
 
