@@ -35,6 +35,11 @@
         "feed": "https://okmij.org/ftp/rss.xml"
     },
     {
+        "name": "Pranoy Dutta's blog",
+        "url": "prydt.xyz",
+        "feed": "https://prydt.xyz/atom.xml"
+    },
+    {
         "name": "Programming is terrible",
         "url": "https://programmingisterrible.com",
         "feed": "https://programmingisterrible.com/rss"

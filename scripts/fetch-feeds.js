@@ -55,7 +55,7 @@ async function fetchFeeds() {
   }
 
   posts.sort((a, b) => new Date(b.date) - new Date(a.date));
-  const top = posts.slice(0, 20);
+  const top = posts.slice(0, 40);
 
   fs.writeFileSync(OUTPUT, JSON.stringify(top, null, 2) + "\n");
   console.log(`[blogroll] Wrote ${top.length} posts to ${OUTPUT}`);
