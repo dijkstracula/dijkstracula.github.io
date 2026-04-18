@@ -1,5 +1,17 @@
 [
   {
+    "title": "Post-Mythos Blue Teams",
+    "url": "https://graham.posthaven.com/post-mythos-blue-teams",
+    "date": "2026-04-18T14:23:10.000Z",
+    "source": "graham's blog"
+  },
+  {
+    "title": "AI Fear and Uncertainty",
+    "url": "https://prydt.xyz/blog/ai-fear-and-uncertainty/",
+    "date": "2026-04-12T00:00:00.000Z",
+    "source": "Pranoy Dutta's blog"
+  },
+  {
     "title": "Spec Driven Development isn't Waterfall",
     "url": "http://brooker.co.za/blog/2026/04/09/waterfall-vs-spec.html",
     "date": "2026-04-09T00:00:00.000Z",
@@ -224,18 +236,6 @@
   {
     "title": "Generating parallel  map-reduce for nested grouping-aggregation.",
     "url": "https://okmij.org/ftp/Algorithms/map-monoid-reduce.html#nga.gen",
-    "date": "2026-01-01T00:01:00.000Z",
-    "source": "okmij"
-  },
-  {
-    "title": "Handling Scope Checks: A Comparative Framework for Dynamic Scope Extrusion Checks.",
-    "url": "https://okmij.org/ftp/meta-programming/calculi.html#scope-check",
-    "date": "2026-01-01T00:01:00.000Z",
-    "source": "okmij"
-  },
-  {
-    "title": "Generating Code along with Annotations,",
-    "url": "https://okmij.org/ftp/meta-programming/calculi.html#tricks",
     "date": "2026-01-01T00:01:00.000Z",
     "source": "okmij"
   }

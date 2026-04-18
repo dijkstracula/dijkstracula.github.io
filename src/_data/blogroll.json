@@ -25,6 +25,11 @@
         "feed": "https://ferd.ca/feed.rss"
     },
     {
+        "name": "graham's blog",
+        "url": "https://graham.posthaven.com/",
+        "feed": "https://graham.posthaven.com/posts.atom"
+    },
+    {
         "name": "Graydon's blog",
         "url": "https://graydon2.dreamwidth.org/",
         "feed": "https://graydon2.dreamwidth.org/data/atom"
