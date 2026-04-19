@@ -63,7 +63,9 @@ def scan: (step : β → β) (init : β) : Signal β =
 ```
 
 `scan` produces a function that takes a time value and steps the `β -> β`
-function that many times from an initial state.
+function that many times from an initial state.  It does it with the recursor
+for the natural numbers, which produces `init` when `t=0` and applies the given
+function `Nat -> β -> β` when `t=(n+1)`.
 
 ::: margin-note
 Evaluating `scan step init` at time `t` recomputes from init every time — O(t)
@@ -94,27 +96,99 @@ The idea of `accumulate` is this: we're going to start with an `Event` of
 some type and produce a `Signal` of some type.
 
 ```lean4
-def accumulate: ... (step? : β → β) (init : β) (ev: Event a) -> Signal β := 
-  -- TODO
+def accumulate ... (step? : β → β) (init : β) (ev: Event a) : Signal β := 
+  sorry -- TODO
 ```
+
+### Intuiting the function type for `accumulate`...
 
 The goal of this section is to build up from intuition what the remaining
 arguments of `accumulate` must be.  Given that `accumulate` also involves a
 catamorphism over `Time`, we probably want both a `β` and `β -> β`, but their
 meaning will probably change, and so their argument names likely will as well.
 
-### When the event is not firing
+Before we go any further, you should spend a moment trying to figure out what
+the catamorphism for `Option a` is.  (When you're ready: did you choose `β`
+(for the `none` case) and `α → β` (for the `some a` case)?)
+
+### ...when the event is not firing...
 
 One thing to notice is that so long as the given `Event` isn't triggering (that
 is, when `ev t = none`, this is doing exactly the same thing as our `scan`
 combinator.  So, `step?` might as well be called `onNone`, since that's how
-to just produce a new `β` given the current one.
+to just produce a new `β` given the previous one.
 
-### ...and when it is firing
+Notice that this `onNone` is _not_ the same as the `β` we guessed a moment ago.
+The reason is that we're not producing `β`s from scratch, but rather one that
+involves the previous `β` state.  So, that value has to be threaded through that
+function.  Generally, we say we've _lifted_ `β` into the pure catamorphism.
+
+### ...and when it _is_ firing
 
 This also means we want a `onSome` function, of some type!
 
 ```lean4
-def accumulate: (onSome: ? -> β) (onNone: β → β) (init : β) (ev: Event a) -> Signal β := 
-  -- TODO
+def accumulate (onSome: ? -> β) (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
+  sorry -- TODO
+```
+
+Using the definition of catamorphisms for `Option a`, as well as our observation
+about lifting the current `β`, we can figure out the type for `onSome`.  It's
+got to consume an `a`, because that falls out straight from the catamorphism;
+we have to do _something_ with `some a`, after all!  And, just like with
+`onNone`, we will want to also lift a `β` in, too.  
+
+So, ultimately, our function will have type `a -> β -> β`.  Which, makes sense
+for the situation in which we're calling it: `ev` has fired, producing an `a`,
+and so we want to combine that with the current signal value in some way.  And
+so, our final function will look thus:
+
+```lean4
+def accumulate (onSome: a → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
+  sorry -- TODO
+```
+
+### Implementing `accumulate` with the recursor for Time, again
+
+OK, how do we actually write this thing?  Since we said earlier that
+`accumulate` generalises `scan`, using the recursor for `Nat` seems
+like a good idea.  Here's the overal shape we'll be working with:
+
+```lean4
+def accumulate (onSome: a → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
+  fun n => Nat.rec 
+    sorry            -- TODO: what to do at t=0?
+    (fun s => sorry) -- TODO: what to do at t=(n+1)?
+    n
+```
+
+One helper that might be worth writing: both branches in `Nat.rec` need to either
+call `onSome` or `onNone`: let's factor out dispatching on whether the event has fired
+into a helper function, called, I donno, `switch`:
+
+```lean4
+def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β :=
+  let switch (t: Time) : β → β := match ev t with
+  | none => onNone
+  | some a => onSome a
+
+  fun n => sorry -- TODO
+```
+
+When `n=0`, we'll want to dispatch on `ev 0` with our initial state `init`.
+For the `n=(n'+1)` case, we'll pass in the next time value, and the previous
+state, which the recursor will automatically supply for us.
+
+So in conclusion, our final `accumulate` is:
+
+```lean4
+def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β :=
+  let switch (t: Time) : β → β := match ev t with
+  | none => onNone
+  | some a => onSome a
+
+  fun n => Nat.rec 
+    (switch 0 init)               -- n=0
+    (fun n' s => switch (n'+1) s) -- n=(n'+1)
+    n
 ```
