@@ -4,9 +4,8 @@ title: "Reactive Programming in Lean Part 4: Functional Reactive Programming"
 date: 2026-04-17
 tags: [post, lean, reactive-programming]
 excerpt: "So if propositions are types, and LTL are propositions, what programs are well-typed by LTL?"
-draft: true
 series: lean-ltl
-series_title: "Part four - OMG WTF LTL FRP BBQ"
+series_title: "Part four - OMG WTF LTL FRP BBQ!!!"
 ---
 
 # The Curry-Howard correspondence for LTL: FRP
@@ -80,13 +79,12 @@ a time-parameterized value.
 ```lean4
 abbrev Signal α := Time → α
 ```
-
-Notice that this the same type as our execution traces!  That's not entirely a
-coincidence.  The _interpretation_ of a signal is different, though.  Earlier,
-a `Trace` was an artifact of running some computation; it was in some sense an
-"output".  You can poke at the trace by writing theorems about it, but it
-otherwise just sits there; running the system through our monadic API produced
-it, and then we use Lean's theorem proving capabilities to inspect it.
+Notice that this is the same type as our execution traces!  That's not entirely
+a coincidence.  The _interpretation_ of a signal is different, though.
+Earlier, a `Trace` was an artifact of running some computation; it was in some
+sense an "output".  You can poke at the trace by writing theorems about it, but
+it otherwise just sits there; running the system through our monadic API
+produced it, and then we use Lean's theorem proving capabilities to inspect it.
 
 ::: margin-note
 We said just now that a `Signal` is a time-varying value. Technically, FRP
@@ -118,6 +116,10 @@ def clock : Signal Time :=
 Just like with LTL's `drop`, we can delay the value of a signal of any time by
 shifting it forward in time:
 
+::: margin-note
+`delay` is the usual term for this, but it's really more of an `advance`, if you
+think about it.
+:::
 ```lean4
 def delay (s: Signal α) (t: Time): Signal α := fun n => s (n+t)
 
@@ -180,7 +182,7 @@ def to_s := map (· % 60)
 -- (exercise for you: implement map3!)
 
 def pst_secs := clock
-def utc_secs := delay utc_secs (7 * 3600)
+def utc_secs := delay pst_secs (7 * 3600)
 def hms : Signal String := map3 (s!"{·}:{·}:{·}") 
                                 (to_h utc_secs) (to_m utc_secs) (to_s utc_secs)
 
@@ -193,6 +195,10 @@ Here's a silly data definition for a traffic light type.  Let's write a signal
 that defines how a value of this type could change over time, say, where the
 colour changes once per time step:
 
+::: margin-warning
+Technically the `panic!` won't typecheck here, but, we're going to improve
+this immediately, anyway.
+:::
 ```lean4
 inductive Light where | Red | Yellow | Green
 deriving Repr
@@ -203,7 +209,7 @@ def cycling : Signal Light :=
     | 0 => .Red
     | 1 => .Yellow
     | 2 => .Green
-    | _ => panic "impossible: forall n, 0 <= n % 3 < 3"
+    | _ => panic! "impossible: forall n, 0 <= n % 3 < 3"
 
 #eval cycling 42 -- Light.red
 ```
@@ -220,7 +226,7 @@ Maybe in a future blog series, we'll look at how typecheckers implement their
 exhaustiveness checker...
 :::
 In Lean and other functional languages that have _exhaustiveness checking_, we,
-ro make the pattern matching well-formed for all possible values of `n`, have a
+to make the pattern matching well-formed for all possible values of `n`, have a
 fourth catch-all case that we know we'll never hit.  Without this final case,
 we'll get an error that looks like `Missing cases: (3 + _)`.
 
@@ -246,7 +252,7 @@ def cycling : Signal Light :=
 
 Notice we are threading through a value and _evidence about that value_.  Lean
 will check each match arm and ask, "could this proof exist for the given
-value?". The pair in the firt match arm would be `0 : Nat, 0 < 3 : Prop` (the
+value?". The pair in the first match arm would be `0 : Nat, 0 < 3 : Prop` (the
 latter of which is a true), for example, so that's a valid case arm.  Since any
 fourth case arm we would write -- a `_` wildcard, or explicitly `3` or `42` or
 whatever -- would ask Lean to prove `3 < 3` or `42 < 3`, which is false, the
@@ -276,7 +282,7 @@ So, in Agda, we could simply define `□` once and use it in both contexts:
 "write a well-typed FRP program" is _literally_ "prove an LTL property".  In
 Lean, a `Signal α` is a function `Time → α` that produces a value at every time
 step, and a proof of `□ p` is a function `forall t: Time, proof` that produces
-evidence at every time step.  Here we are tacetly leaning on the Curry-Howard
+evidence at every time step.  Here we are tacitly leaning on the Curry-Howard
 correspondence between function types and universal quantifiers.  (This
 language design choice on the part of Lean buys some ergonomic simplicity but
 at the expense of expressiveness, which we can see when comparing our
@@ -604,7 +610,7 @@ def Event α := Time → (Option α)
 -- A pedestrian presses the button at t=2 and t=10
 def pedestrianButton : Event Unit := fun t =>
   match t with
-  | 2 | 10 => some ()
+  | 2 | 7 => some ()
   | _ => none
 ```
 
@@ -681,7 +687,7 @@ us from writing:
 def never : FRP.Event α := fun _ => none
 
 -- ...but the corresponding ◇ proposition is false:
-def neverFires : ¬ (∃ t : Time, (never (α := α) t).isSome) := by
+theorem neverFires : ¬ (∃ t : Time, (never (α := α) t).isSome) := by
   intro ⟨t, hSome⟩ -- "<" and ">" destructures the existential
   simp [never] at hSome
 
@@ -796,7 +802,7 @@ theorem walkSafe (button : FRP.Event Unit) : walkOnlyWhenRed button := by
   simp [LTL.always, LTL.atom, now, drop, FRP.map2]
   simp [carLight, walkSignal]
   intro t --NEW 
-  split <;> --NEW
+  split <;> --NEW: TODO
 
 2 goals
 case h_1
@@ -814,7 +820,16 @@ heq✝ : button t = none
 ```
 
 `simp` is enough to discharge both these goals, so `split <;> simp` completes
-the safety proof.
+the safety proof.  Our final proof:
+
+```lean4
+theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by
+  simp [walkOnlyWhenRed, pedCrossing]
+  simp [LTL.always, LTL.atom, now, drop, FRP.map2]
+  simp [carLight, walkSignal]
+  intro t
+  split <;> simp
+```
 
 You might be tempted to say, "ah, we've proven a safety property, but liveness
 is also trivial: a pedestrian can _always_ press the button and cross, so
@@ -825,7 +840,7 @@ light will ultimately go green, allowing vehicle traffic to move again?
 Not if we press the button _every clock tick_!
 
 ```lean4
-def spammer : ◇ Unit := fun _ => some ()
+def spammer : ◇ Unit := ⟨fun _ => some (), ⟨0, by simp⟩⟩
 
 #eval (List.range 5 : List Time).map (pedCrossing spammer)
 -- output:
@@ -836,8 +851,8 @@ def spammer : ◇ Unit := fun _ => some ()
  (Light.Red, WalkSign.Walk)]
 ```
 
-Indeed, we can prove that our safety property does _not_ hold here: pedestrians
-will starve out motorists.
+Indeed, we can prove that our liveness property does _not_ hold here:
+pedestrians will starve out motorists.
 
 ```lean4
 def carsEventuallyGreen (button : ◇ Unit) : Prop :=
@@ -857,7 +872,9 @@ From The Tyranny of the Automobile](https://www.lifeaftercars.com/)?
 Maybe a more sympathetic starvation example might be [my neighbourhood
 drawbridge](https://en.wikipedia.org/wiki/Fremont_Bridge_(Seattle)) that
 periodically needs to raise itself, preventing the flow of pedestrians,
-cyclists, AND motorists, whenever a ship needs to sail through the canal.
+cyclists, AND motorists, whenever a ship needs to sail through the canal. Since
+marine traffic has legal priority, without a cooldown protocol, the bridge
+could be left perpetually raised.
 :::
 This is not a problem if, like me, you hate how cars have ruined cities and
 have no moral objection to ceding this intersection entirely to pedestrians
@@ -866,12 +883,12 @@ we might want a _fair OS scheduler_ to always, eventually, schedule a
 ready-to-run job, or a _fair mutex_ to always, eventually, cede the critical
 section to a waiter.
 
-## A fair light ensures vehicular progress
+## Fairness ensures (eventual) progress
 
-Let's solve two problems in one here: first, the pedestrian button should light
-the walk sign for more than just one timestep; and, we should have a cooldown
-period where pressing the button doesn't actually trigger a light change, to
-let vehicles, ugh, progress for a bit.
+Let's consider two problems in one here: first, the pedestrian button should
+light the walk sign for more than just one timestep; and, we should have a
+cooldown period where pressing the button doesn't actually trigger a light
+change, to let vehicles, ugh, progress for a bit.
 
 ```lean4
 structure CrossingState where
@@ -880,15 +897,19 @@ structure CrossingState where
 deriving Repr
 ```
 
-Our goal is to move towards a policy where, in order for a button Event to
-actually affect the light cycle, `cooldown` must be zero.
+So, for instance, if some `Signal CrossingState` had a cooldown of `4` at some
+time `t`, we'd expect the value at `t+1` to be `3`, and so on.
 
-Clearly we need to transform an `Event ()` into a `Signal CrossingState`.
+More broadly: our goal is to move towards a traffic light policy where, in
+order for a pedestrian button `Event` to actually affect the light cycle,
+`cooldown` must be zero; and, the Walk sign must be lit up until `countdown`
+goes to zero.
+
+Clearly we need to transform an `Event Unit` into a `Signal CrossingState`.
 However, we've only seen _pointwise `Signal` transformations_ like `map`, and
 that isn't expressive enough for us.  In order to implement a `Signal
 CrossingState` that correctly counts down, we need to be able to look backwards
 into previous states (otherwise, how would we know the previous countdown
 values to subtract from?)
 
-## Non-pointwise `Signal` combinators: `hold`
-
+Next time, we'll look into extending our FRP API to accomplish just that.
