@@ -1,37 +1,33 @@
 ---
-layout: base.njk
+layout: columns.njk
 title: Blogroll
 permalink: /blogroll/
 ---
 
-<h2>Blogs and sites I enjoy reading</h2>
+<aside class="columns-rail">
+  <h2>Sources</h2>
+  <ul>
+    {%- for entry in blogroll %}
+    <li><a href="{{ entry.url }}">{{ entry.name }}</a></li>
+    {%- endfor %}
+  </ul>
+</aside>
 
-Curating and getting into the habit of checking a blogroll has been a really
-useful substitute for high-frutose corn syrup social media consumption.
+<div class="columns-main">
+  <h1>Blogs and sites I enjoy reading</h1>
 
-<hr/>
+  <p>Curating and getting into the habit of checking a blogroll has been a really
+  useful substitute for high-fructose corn syrup social media consumption.</p>
 
-<div class="blog-layout">
-    {% if blogrollPosts.length %}
-  <div class="blog-main">
-    <p>Recent posts</p>
-    <ul class="blogroll-posts">
-      {%- for post in blogrollPosts %}
-      <li>
-        <a href="{{ post.url }}">{{ post.title }}</a>
-        <span class="blogroll-meta">— {{ post.source }}, {{ post.date | readableDate }}</span>
-      </li>
-      {%- endfor %}
-    </ul>
-  </div>
-
-    <aside class="blog-sidebar">
-        <p>Sources</p>
-          {%- for entry in blogroll %}
-          <li>
-            <a href="{{ entry.url }}">{{ entry.name }}</a>
-          </li>
-          {%- endfor %}
-    </aside>
-    {% endif %}
+  {% if blogrollPosts.length %}
+  <h2>Recent posts</h2>
+  <ul class="blogroll-posts">
+    {%- for post in blogrollPosts %}
+    <li>
+      <a href="{{ post.url }}">{{ post.title }}</a>
+      <span class="blogroll-meta">— {{ post.source }}, {{ post.date | readableDate }}</span>
+    </li>
+    {%- endfor %}
+  </ul>
+  {% endif %}
 </div>

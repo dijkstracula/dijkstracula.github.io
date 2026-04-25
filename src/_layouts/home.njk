@@ -1,0 +1,78 @@
+---
+layout: base.njk
+---
+
+<script src="/js/dither.js" defer></script>
+<noscript>
+  <style>
+    /* When JS is disabled, dither.js never runs, so the original image
+       would stay at opacity 0 from the loading rule. Reveal it. */
+    .card .photo img.dither { opacity: 1 !important; }
+  </style>
+</noscript>
+
+<main class="home">
+  <div class="slab">
+    <h2>About</h2>
+    <div class="bio">
+      <figure class="card">
+        <div class="photo"><img src="/assets/me.jpg" alt="Nathan Taylor" class="dither" data-dither-scale="2" data-dither-interactive></div>
+      </figure>
+      <div class="prose">
+        {{ content | safe }}
+        <a class="more" href="/about/">More about me →</a>
+      </div>
+    </div>
+  </div>
+
+  <aside class="now">
+    <h2>
+      <span>Now</span>
+      {% if nowUpdated %}<span class="updated">updated {{ nowUpdated | readableDate }}</span>{% endif %}
+    </h2>
+
+    {% set latestDraft = collections.draftPosts | first %}
+    {% set latestPublished = collections.publishedPosts | first %}
+    {% set writing = latestDraft or latestPublished %}
+    {% if writing %}
+    <div class="now-item">
+      <span class="label">Writing</span>
+      {% if writing.data.draft %}{{ writing.data.title }} <span class="draft-tag">draft</span>{% else %}<a href="{{ writing.url }}">{{ writing.data.title }}</a>{% endif %}
+    </div>
+    {% endif %}
+
+    {% for item in now.items %}
+    <div class="now-item">
+      <span class="label">{{ item.label }}</span>
+      {% if item.body is string %}
+        {{ item.body | safe }}
+      {% else %}
+        <ul class="now-list">
+          {% for b in item.body %}<li>{{ b | safe }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </aside>
+</main>
+
+<section class="log">
+  <header><h2>Recent posts</h2></header>
+  <ol class="entries">
+    {% for post in collections.publishedPosts | limit(5) %}
+    <li>
+      <span class="date">{{ post.date | isoDate }}</span>
+      <span class="tag">{{ post.data.tags | postTagLabel }}</span>
+      <span class="title">
+        <a href="{{ post.url }}">{{ post.data.title }}</a>
+        {% if post.data.excerpt %}<span class="sub">{{ post.data.excerpt }}</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+  <div class="log-foot">
+    <a href="/blog/">All posts →</a>
+    <a href="/tags/">By tag →</a>
+    <a href="/feed.xml">RSS →</a>
+  </div>
+</section>

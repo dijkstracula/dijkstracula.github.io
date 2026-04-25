@@ -1,51 +1,47 @@
 ---
-layout: base.njk
+layout: columns.njk
 title: Blog
 permalink: /blog/
 ---
 
-<h1>Recent Posts</h1>
-
-Here I write about formal methods, low-level and concurrent systems, and
-anything else I might find interesting.
-<p/>
-
-<div class="blog-layout">
-  <div class="blog-main">
-    <h2>All Posts</h2>
-
-    {% if collections.posts.length > 0 %}
-    <ul class="post-list">
-      {% for post in collections.posts %}
-      {% if not post.data.draft %}
-      <li>
-        <a href="{{ post.url }}">{{ post.data.title }}</a>
-        <time class="post-date" datetime="{{ post.date | isoDate }}">({{ post.date | readableDate }})</time>
-        {% if post.data.excerpt %}<span class="post-subtitle">{{ post.data.excerpt }}</span>{% endif %}
-      </li>
-      {% endif %}
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p>No posts yet. Start writing!</p>
-    {% endif %}
-  </div>
-
+<aside class="columns-rail">
   {% if collections.seriesList.length > 0 %}
-  <aside class="blog-sidebar">
-    <h2>Series</h2>
-    <ul class="series-list">
-      {% for s in collections.seriesList %}
-      <li>
-        <strong>{% if seriesMeta[s.id].title %}{{ seriesMeta[s.id].title }}{% else %}{{ s.id }}{% endif %}</strong>
-        <ul>
-        {% for post in s.posts %}
-          <li><a href="{{ post.url }}">{{ post.data.series_title or post.data.title }}</a></li>
-        {% endfor %}
-        </ul>
-      </li>
+  <h2>Series</h2>
+  <ul class="series-list">
+    {% for s in collections.seriesList %}
+    <li>
+      <strong>{% if seriesMeta[s.id].title %}{{ seriesMeta[s.id].title }}{% else %}{{ s.id }}{% endif %}</strong>
+      <ul>
+      {% for post in s.posts %}
+        <li><a href="{{ post.url }}">{{ post.data.series_title or post.data.title }}</a></li>
       {% endfor %}
-    </ul>
-  </aside>
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</aside>
+
+<div class="columns-main">
+  <h1>Recent Posts</h1>
+  <p>Here I write about formal methods, low-level and concurrent systems, and
+  anything else I might find interesting.</p>
+
+  <h2>All Posts</h2>
+
+  {% if collections.posts.length > 0 %}
+  <ul class="post-list">
+    {% for post in collections.posts %}
+    {% if not post.data.draft %}
+    <li>
+      <a href="{{ post.url }}">{{ post.data.title }}</a>
+      <time class="post-date" datetime="{{ post.date | isoDate }}">({{ post.date | readableDate }})</time>
+      {% if post.data.excerpt %}<span class="post-subtitle">{{ post.data.excerpt }}</span>{% endif %}
+    </li>
+    {% endif %}
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No posts yet. Start writing!</p>
   {% endif %}
 </div>

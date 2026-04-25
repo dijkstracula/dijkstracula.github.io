@@ -2,84 +2,102 @@
 layout: base.njk
 ---
 
-<article>
-  <header>
-    <h1>{{ title }}</h1>
-    <div class="post-meta">
-      <time class="post-date" datetime="{{ date | isoDate }}">
-        {{ date | readableDate }}
-      </time>
-      {% if tags %}
-      <span> &middot; </span>
-      {% for tag in tags %}
-        {% if tag != "post" %}
-          <a href="/tags/{{ tag | slugify }}/" class="tag">#{{ tag }}</a>
-        {% endif %}
-      {% endfor %}
-      {% endif %}
-    </div>
-  </header>
+<article class="post">
 
-  {% if series %}
-  {% set seriesItems = collections.posts | seriesPosts(series) %}
-  {% if seriesItems.length > 1 %}
-  <div class="callout callout-tip">
-    {% if seriesMeta[series] %}
-    <p><em>This is part of {{ seriesMeta[series].description }}</em>:</p>
+  <aside class="post-rail">
+    {% if series %}
+    {% set seriesItems = collections.posts | seriesPosts(series) %}
+    {% if seriesItems.length > 1 %}
+    <nav class="series" aria-label="Series contents">
+      <h3>
+        {%- set currentIdx = 0 -%}
+        {%- set total = 0 -%}
+        {%- for p in seriesItems -%}
+          {%- if not p.data.draft or p.page.url == page.url -%}
+            {%- set total = total + 1 -%}
+            {%- if p.page.url == page.url -%}{%- set currentIdx = total -%}{%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+        <strong>Part {{ currentIdx }} of {{ total }}</strong>
+        {% if seriesMeta[series] and seriesMeta[series].title %}<span>{{ seriesMeta[series].title }}</span>{% endif %}
+      </h3>
+      <ol>
+        {% for p in seriesItems %}
+          {% if not p.data.draft or p.page.url == page.url %}
+          <li{% if p.page.url == page.url %} class="current"{% endif %}>
+            {% if p.page.url == page.url %}
+              {{ p.data.series_title or p.data.title }}
+            {% else %}
+              <a href="{{ p.page.url }}">{{ p.data.series_title or p.data.title }}</a>
+            {% endif %}
+          </li>
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
     {% endif %}
-    <ul>
+    {% endif %}
+  </aside>
+
+  <div class="post-main">
+
+    <header>
+      <div class="post-meta">
+        <time datetime="{{ date | isoDate }}">{{ date | isoDate }}</time>
+        {% for tag in tags %}{% if tag != "post" %}<span class="sep">·</span><a href="/tags/{{ tag | slugify }}/">#{{ tag }}</a>{% endif %}{% endfor %}
+      </div>
+      <h1 class="post-title">{{ title }}</h1>
+      {% if excerpt %}<p class="post-subtitle">{{ excerpt | safe }}</p>{% endif %}
+    </header>
+
+    <div class="prose">
+      {{ content | safe }}
+    </div>
+
+    {% if series %}
+    {% set seriesItems = collections.posts | seriesPosts(series) %}
+    {% if seriesItems.length > 1 %}
+    {% set prevPost = null %}
+    {% set nextPost = null %}
+    {% set foundCurrent = false %}
     {% for post in seriesItems %}
-      {% if not post.data.draft or post.page.url == page.url %}
       {% if post.page.url == page.url %}
-        <li>&rarr; {{ post.data.series_title or post.data.title }}</li>
-      {% else %}
-        <li><a href="{{ post.page.url }}">{{ post.data.series_title or post.data.title }}</a></li>
-      {% endif %}
+        {% set foundCurrent = true %}
+      {% elif not post.data.draft %}
+        {% if not foundCurrent %}
+          {% set prevPost = post %}
+        {% elif not nextPost %}
+          {% set nextPost = post %}
+        {% endif %}
       {% endif %}
     {% endfor %}
-    </ul>
-    {% if seriesMeta[series].tagPage %}
-    <p>All previous posts in this series can be found <a href="{{ seriesMeta[series].tagPage }}">here</a>.</p>
-    {% endif %}
-  </div>
-  {% endif %}
-  {% endif %}
-
-  {{ content | safe }}
-
-  {% if series %}
-  {% set seriesItems = collections.posts | seriesPosts(series) %}
-  {% if seriesItems.length > 1 %}
-  {% set prevPost = null %}
-  {% set nextPost = null %}
-  {% set foundCurrent = false %}
-  {% for post in seriesItems %}
-    {% if post.page.url == page.url %}
-      {% set foundCurrent = true %}
-    {% elif not post.data.draft %}
-      {% if not foundCurrent %}
-        {% set prevPost = post %}
-      {% elif not nextPost %}
-        {% set nextPost = post %}
-      {% endif %}
-    {% endif %}
-  {% endfor %}
-  {% if prevPost or nextPost %}
-  <div class="callout callout-tip">
-  <nav class="series-nav" aria-label="Series navigation">
-    <div class="series-nav-prev">
+    {% if prevPost or nextPost %}
+    <nav class="series-nav" aria-label="Series navigation">
       {% if prevPost %}
-      <a href="{{ prevPost.page.url }}">&larr; {{ prevPost.data.series_title or prevPost.data.title }}</a>
+      <a href="{{ prevPost.page.url }}" class="prev">
+        <span class="label">← Previous</span>
+        {{ prevPost.data.series_title or prevPost.data.title }}
+      </a>
       {% endif %}
-    </div>
-    <div class="series-nav-next">
       {% if nextPost %}
-      <a href="{{ nextPost.page.url }}">{{ nextPost.data.series_title or nextPost.data.title }} &rarr;</a>
+      <a href="{{ nextPost.page.url }}" class="next">
+        <span class="label">Next →</span>
+        {{ nextPost.data.series_title or nextPost.data.title }}
+      </a>
       {% endif %}
-    </div>
-  </nav>
-  </div>
-  {% endif %}
-  {% endif %}
-  {% endif %}
+    </nav>
+    {% endif %}
+    {% endif %}
+    {% endif %}
+
+    <footer class="post-foot">
+      <span>Published {{ date | isoDate }}</span>
+      <span>
+        <a href="/feed.xml">RSS</a> ·
+        <a href="mailto:nathan@dijkstracula.net">Reply by email</a>
+      </span>
+    </footer>
+
+  </div><!-- /.post-main -->
+
 </article>

@@ -1,0 +1,880 @@
+/* ============================================================
+   Palette (light)
+   ============================================================ */
+:root {
+  --paper: #F1ECDE;
+  --paper-2: #E7E0CC;
+  --ink: #0A0A0A;
+  --ink-2: #2B2B2B;
+  --mute: #6E6658;
+  --rule: #0A0A0A;
+  --accent: #D62300;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --serif: "Computer Modern Serif", "Latin Modern Roman", Georgia, serif;
+
+  /* Pico is no longer loaded — these tokens exist purely so syntax.css
+     and any inline ::-webkit-scrollbar / proof-state rules that still
+     reference --pico-* keep resolving. They map onto the brutalist palette. */
+  --pico-background-color: var(--paper);
+  --pico-color: var(--ink);
+  --pico-muted-color: var(--mute);
+  --pico-muted-border-color: var(--rule);
+  --pico-card-background-color: var(--paper-2);
+  --pico-code-background-color: var(--paper-2);
+  --pico-form-element-background-color: var(--paper-2);
+  --pico-primary: var(--accent);
+  --pico-primary-hover: var(--accent);
+  --pico-secondary: var(--ink-2);
+  --pico-contrast: var(--ink);
+  --pico-font-family: var(--serif);
+  --pico-font-family-monospace: var(--mono);
+  --pico-font-size: 16px;
+  --pico-border-radius: 0;
+
+  /* Semantic accent colors for callout types (used by .callout-{type}). */
+  --tone-note:    var(--rule);
+  --tone-info:    #1B3A8C;
+  --tone-tip:     #2D7A5F;
+  --tone-warning: #C77600;
+  --tone-danger:  #D62300;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tone-note:    var(--mute);
+    --tone-info:    #6FA8DC;
+    --tone-tip:     #6BCB7A;
+    --tone-warning: #FFB347;
+    --tone-danger:  #FF6B4A;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #131210;
+    --paper-2: #1F1C17;
+    --ink: #E8E3D2;
+    --ink-2: #C4BEAD;
+    --mute: #807A6A;
+    --rule: #4D483D;
+    --accent: #FF6B4A;
+  }
+}
+
+/* ============================================================
+   Baseline (Pico-replacement)
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Default monospace for inline <code>, <kbd>, <samp>, <pre> */
+code, kbd, samp, pre {
+  font-family: var(--mono);
+  font-size: 0.95em;
+}
+
+/* Headings get a sensible default; per-context overrides below. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--serif);
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 1.4em 0 0.5em;
+}
+
+p { margin: 0 0 1em; }
+
+ul, ol { padding-left: 1.5rem; }
+
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover { color: var(--accent); }
+
+hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 2rem 0;
+}
+
+img { max-width: 100%; height: auto; }
+
+/* ============================================================
+   Masthead + primary nav
+   ============================================================ */
+.masthead {
+  border-bottom: 2px solid var(--rule);
+  padding: 1.75rem 1.5rem 1rem;
+}
+.wordmark {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.wordmark a { text-decoration: none; color: var(--ink); }
+.wordmark a:hover { color: var(--ink); }
+.wordmark .dot { color: var(--accent); }
+
+nav.primary {
+  border-bottom: 2px solid var(--rule);
+  display: flex;
+  gap: 2rem;
+  padding: 0.9rem 1.5rem;
+  font-family: var(--mono);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+nav.primary a { text-decoration: none; color: var(--ink); }
+nav.primary a:hover { color: var(--accent); }
+nav.primary a.current { color: var(--accent); }
+
+/* ============================================================
+   Colophon footer
+   ============================================================ */
+footer.colophon {
+  padding: 1.25rem 1.5rem;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--mute);
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+  border-top: 2px solid var(--rule);
+  margin-top: 2rem;
+}
+footer.colophon a { color: var(--mute); }
+footer.colophon a:hover { color: var(--accent); }
+
+/* ============================================================
+   HOMEPAGE — slab + now + log
+   ============================================================ */
+main.home {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  border-bottom: 2px solid var(--rule);
+}
+
+.slab {
+  padding: 2.5rem 2rem 3rem 1.5rem;
+  border-right: 2px solid var(--rule);
+}
+.slab h2 {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 1.25rem;
+  color: var(--mute);
+}
+.bio {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+.card {
+  border: 1.5px solid var(--rule);
+}
+.card .photo {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  background: var(--paper-2);
+}
+.card .photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: grayscale(1) contrast(1.02);
+}
+/* Hide the original image until dither.js has processed it. The interactive
+   variant replaces <img> with a <canvas> outright, so this rule stops
+   applying once the swap happens. The static variant stays as an <img>
+   and gets data-dithered="true" set when ready. */
+.card .photo img.dither {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.card .photo img.dither[data-dithered="true"] {
+  opacity: 1;
+}
+@media (prefers-color-scheme: dark) {
+  .card .photo img { filter: grayscale(1) contrast(0.92) brightness(0.9); }
+}
+.bio .prose {
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  line-height: 1.55;
+  hyphens: auto;
+}
+.bio .prose p { margin: 0 0 1rem; }
+.bio .prose em { font-style: italic; color: var(--ink-2); }
+.bio .prose a.more { display: inline-block; margin-top: 0.5rem; }
+
+/* Now sidebar */
+aside.now {
+  padding: 2.5rem 1.5rem 3rem;
+  background: var(--paper-2);
+  font-family: var(--serif);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+aside.now h2 {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 1.25rem;
+  color: var(--mute);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+aside.now .updated { color: var(--mute); font-weight: 400; letter-spacing: 0.05em; text-transform: none; }
+.now-item { padding: 0.5rem 0; }
+.now-item .label {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--mute);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.15rem;
+}
+.now-item .draft-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 1px 4px;
+  border: 1px solid var(--accent);
+  margin-left: 0.4rem;
+  vertical-align: 1px;
+}
+.now-item .now-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.now-item .now-list li {
+  margin: 0.1rem 0;
+}
+.now-item .now-list li + li {
+  border-top: 1px dashed var(--rule);
+  padding-top: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* Recent posts / changelog table */
+section.log {
+  padding: 2.5rem 1.5rem 3rem;
+  border-bottom: 2px solid var(--rule);
+}
+section.log > header { margin-bottom: 1.25rem; }
+section.log > header h2 {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0;
+  color: var(--mute);
+}
+.entries {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.entries li {
+  display: grid;
+  grid-template-columns: 110px 130px 1fr;
+  gap: 1.5rem;
+  align-items: baseline;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.entries li:first-child { border-top: 1px solid var(--rule); }
+.entries .date { font-family: var(--mono); font-size: 12px; color: var(--mute); }
+.entries .tag  { font-family: var(--mono); font-size: 11px; color: var(--mute); justify-self: start; }
+.entries .title { font-family: var(--serif); font-size: 1.2rem; line-height: 1.3; }
+.entries .title a { text-decoration: none; }
+.entries .title a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.entries .title .sub {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--mute);
+  font-style: italic;
+  margin-top: 2px;
+}
+.log-foot {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  font-family: var(--mono);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.log-foot a { text-decoration: none; }
+.log-foot a:hover { color: var(--accent); }
+
+/* ============================================================
+   POST / ARTICLE PAGE
+   ============================================================ */
+/* Float-rail layout — the rail sits at the top-right of the document and
+   subsequent content flows around it; below the rail the main column
+   reclaims the full width. display: flow-root contains the float so the
+   article's height follows the content.
+
+   Width is 80% of viewport, centered; the 20% gutter is breathing room
+   (and somewhere for margin callouts to live). The Pico-card styling
+   that <article> picks up by default is explicitly overridden so the
+   surface matches the homepage's body paper. */
+article.post {
+  width: 80%;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 2rem;
+  display: flow-root;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+article.post .post-rail {
+  float: right;
+  width: 320px;
+  margin: 0 0 2rem 2rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--paper-2);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+article.post .post-main {
+  /* Main column — wider than before now that the rail isn't alongside the
+     whole post. 85ch is a slightly looser but still readable measure.
+     display: flow-root makes this a BFC so it sits next to the rail when
+     there's room, and drops cleanly below it on narrow viewports. */
+  display: flow-root;
+  max-width: 85ch;
+  min-width: 0;
+}
+
+article.post > header,
+article.post .post-main > header {
+  border-bottom: 2px solid var(--rule);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+.post-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.post-meta .sep { color: var(--accent); }
+.post-meta a { color: var(--mute); text-decoration: none; }
+.post-meta a:hover { color: var(--accent); }
+.post-title {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.5rem;
+}
+.post-subtitle {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--mute);
+  font-size: 1.1rem;
+  line-height: 1.4;
+  margin: 0;
+  max-width: 48ch;
+}
+
+/* Series sidebar on post pages */
+.post-rail .series {
+  font-family: var(--mono);
+  font-size: 12px;
+  /* Lives on the paper-2 rail — no border needed, the rail provides the surface */
+}
+.post-rail .series h3 {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 400;
+  margin: 0 0 0.6rem;
+  color: var(--mute);
+}
+.post-rail .series h3 strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 700;
+}
+.post-rail .series h3 span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+.post-rail .series ol { list-style: none; padding: 0; margin: 0; }
+.post-rail .series li {
+  padding: 0.25rem 0 0.25rem 0.9rem;
+  border-left: 2px solid transparent;
+  line-height: 1.35;
+}
+.post-rail .series li.current {
+  border-left-color: var(--accent);
+  font-weight: 700;
+  color: var(--ink);
+}
+.post-rail .series li a { text-decoration: none; color: var(--ink-2); }
+.post-rail .series li a:hover { color: var(--accent); }
+
+/* Body prose */
+article.post .prose {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  line-height: 1.6;
+  color: var(--ink);
+  grid-column: 1;
+}
+article.post .prose > * { max-width: 100%; }
+article.post .prose p { margin: 0 0 1rem; }
+article.post .prose h1,
+article.post .prose h2,
+article.post .prose h3,
+article.post .prose h4 {
+  font-family: var(--serif);
+  font-weight: 700;
+  line-height: 1.25;
+}
+article.post .prose h1 { font-size: 1.8rem; margin: 2.5rem 0 0.75rem; }
+article.post .prose h2 { font-size: 1.55rem; margin: 2.2rem 0 0.75rem; }
+article.post .prose h3 { font-size: 1.25rem; margin: 1.6rem 0 0.5rem; }
+article.post .prose h4 { font-size: 1.1rem; margin: 1.4rem 0 0.4rem; }
+article.post .prose em { font-style: italic; }
+article.post .prose code:not(pre code) {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--paper-2);
+  padding: 1px 5px;
+  border-radius: 0;
+}
+article.post .prose blockquote {
+  margin: 1.5rem 0;
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  border-left: 3px solid var(--accent);
+  color: var(--ink-2);
+  font-style: italic;
+}
+article.post .prose pre {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 1.25rem 0;
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1.5px solid var(--rule);
+  background: var(--paper-2);
+  border-radius: 0;
+}
+article.post .prose pre code { background: transparent; padding: 0; font-size: inherit; }
+
+/* Lean proof block — unify the two halves (proof code + proof state) into a
+   single bordered container so their right/left edges align. Override the
+   patchwork of borders + paddings syntax.css applies. */
+article.post .prose .lean-proof-block {
+  border: 1.5px solid var(--rule);
+  margin: 1.25rem 0;
+  background: var(--paper-2);
+  overflow: hidden;
+}
+article.post .prose .lean-proof-block > pre.proof-code {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  background: transparent;
+  padding: 1rem;
+}
+article.post .prose .lean-proof-block .proof-state {
+  border: none;
+  border-top: 1px dashed var(--rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+/* Align all internal horizontal padding to match .proof-code's 1rem so the
+   lean4 code in the top half ends at the same x as text in the proof-state
+   below it. */
+article.post .prose .lean-proof-block .proof-state-header,
+article.post .prose .lean-proof-block .proof-hypotheses,
+article.post .prose .lean-proof-block .proof-case-header,
+article.post .prose .lean-proof-block .proof-goal {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+article.post .prose .lean-proof-block .proof-state-header { border-top: none; }
+article.post .prose .lean-proof-block .proof-hyp:nth-child(even) {
+  margin: 0 -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+/* Inline-code chip styling (`<code>` in paragraphs) was leaking into the
+   <code class="language-lean4"> elements inside .proof-state, which made each
+   wrapped fragment of a goal render as its own paper-2 island instead of
+   sitting on the proof-state's surface. Override at higher specificity. */
+article.post .prose .lean-proof-block .proof-state code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Series prev/next */
+.series-nav {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1.5px solid var(--rule);
+  margin: 3rem 0 1.5rem;
+}
+.series-nav a {
+  padding: 1rem 1.25rem;
+  text-decoration: none;
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  line-height: 1.25;
+  color: var(--ink);
+}
+.series-nav a:first-child { border-right: 1.5px solid var(--rule); }
+.series-nav a.next { text-align: right; }
+.series-nav a:only-child.next { grid-column: 2; border-right: none; }
+.series-nav a:only-child.prev { grid-column: 1; border-right: 1.5px solid var(--rule); }
+.series-nav a:hover { background: var(--paper-2); }
+.series-nav .label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 4px;
+}
+.series-nav a:hover .label { color: var(--accent); }
+
+/* Footnotes (markdown-it-footnote emits .footnotes + ol.footnotes-list) */
+article.post .footnotes {
+  grid-column: 1 / -1;
+  border-top: 2px solid var(--rule);
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 68ch;
+}
+article.post .footnotes hr { display: none; }
+article.post .footnotes::before {
+  content: "Notes";
+  display: block;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 0.75rem;
+}
+article.post .footnotes ol { padding-left: 1.25rem; }
+article.post sup.footnote-ref a {
+  font-family: var(--mono);
+  font-size: 0.78em;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Post footer */
+footer.post-foot {
+  grid-column: 1 / -1;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--mute);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  letter-spacing: 0.05em;
+}
+footer.post-foot a { color: var(--mute); }
+footer.post-foot a:hover { color: var(--accent); }
+
+/* ============================================================
+   PLAIN PAGES (About, Tags, Tag-list) — centered reading pages
+   ============================================================ */
+main.plain {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+}
+main.plain h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+main.plain h2 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 1.4rem;
+  margin: 1.8rem 0 0.75rem;
+}
+main.plain p, main.plain li {
+  font-size: 1.1rem;
+  line-height: 1.55;
+}
+
+/* ============================================================
+   COLUMNS PAGES (Blog index, Blogroll) — two-zone fill,
+   mirrors main.home and article.post.
+   ============================================================ */
+main.columns {
+  padding: 2.5rem 1.5rem 3rem;
+  display: flow-root;
+}
+main.columns .columns-main {
+  display: flow-root;
+  max-width: 85ch;
+  min-width: 0;
+}
+main.columns .columns-main h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+main.columns .columns-main h2 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 1.4rem;
+  margin: 1.8rem 0 0.75rem;
+}
+main.columns .columns-main p { font-size: 1.1rem; line-height: 1.55; }
+
+main.columns .columns-rail {
+  float: right;
+  width: 300px;
+  margin: 0 0 2rem 2rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--paper-2);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+main.columns .columns-rail h2 {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 0 0 0.75rem;
+}
+main.columns .columns-rail ul,
+main.columns .columns-rail .series-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+main.columns .columns-rail .series-list > li { margin-bottom: 1rem; }
+main.columns .columns-rail .series-list > li > strong {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+main.columns .columns-rail .series-list ul {
+  padding-left: 0.75rem;
+  margin-top: 0.1rem;
+  font-family: var(--serif);
+  font-size: 0.95rem;
+}
+main.columns .columns-rail .series-list ul li { margin: 0.15rem 0; }
+main.columns .columns-rail a { text-decoration: none; color: var(--ink); }
+main.columns .columns-rail a:hover { color: var(--accent); }
+.post-list,
+.blogroll-posts {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+.post-list li,
+.blogroll-posts li {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+  line-height: 1.35;
+}
+.post-list li:first-child,
+.blogroll-posts li:first-child { border-top: 1px solid var(--rule); }
+.post-list a,
+.blogroll-posts a {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  text-decoration: none;
+}
+.post-list a:hover,
+.blogroll-posts a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.post-date, .blogroll-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--mute);
+  letter-spacing: 0.05em;
+  margin-left: 0.5rem;
+}
+.post-subtitle {
+  display: block;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.98rem;
+  color: var(--mute);
+  margin-top: 2px;
+}
+
+.tag-list ul { list-style: none; padding: 0; }
+.tag-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.tag-list li:first-child { border-top: 1px solid var(--rule); }
+.tag-list a { text-decoration: none; font-family: var(--serif); font-size: 1.1rem; }
+.tag-list a:hover { color: var(--accent); }
+.tag-list .count { font-family: var(--mono); font-size: 11px; color: var(--mute); margin-left: 0.5rem; }
+
+/* ============================================================
+   CALLOUTS — flatten Pico rounding, keep color coding
+   ============================================================ */
+.callout {
+  border-radius: 0;
+  padding: 0.9rem 1.1rem;
+}
+.callout > p:first-child { margin-top: 0; }
+.callout > p:last-child  { margin-bottom: 0; }
+
+/* Kill the absolute positioning syntax.css applies to .callout-margin —
+   that assumed the old single-column positioned article layout. In the new
+   grid layout margin callouts should flow inline by default, then optionally
+   float into the gutter on wide screens (see below). */
+.callout-margin {
+  position: static !important;
+  right: auto !important;
+  width: auto;
+  margin: 1.25rem 0;
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 3px solid var(--tone-note);
+  border-top: none;
+  background: transparent;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  font-style: italic;
+}
+/* Inline (narrow viewport) variants — colored left rule by type */
+.callout-margin.callout-note    { border-left-color: var(--tone-note); }
+.callout-margin.callout-info    { border-left-color: var(--tone-info); }
+.callout-margin.callout-tip     { border-left-color: var(--tone-tip); }
+.callout-margin.callout-warning { border-left-color: var(--tone-warning); }
+.callout-margin.callout-danger  { border-left-color: var(--tone-danger); }
+
+/* On wide screens, float margin callouts into the post's right gutter.
+   Breakpoint matches margin-callouts.js (1200) so the JS reflow and CSS agree. */
+@media (min-width: 1200px) {
+  article.post .callout-margin {
+    float: right;
+    clear: right;
+    width: 260px;
+    margin: 0.3rem -308px 0.75rem 1rem;
+    padding: 0.4rem 0 0.4rem 0;
+    border-left: none;
+    border-top: 2px solid var(--tone-note);
+    background: transparent !important;
+    font-style: normal;
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+  /* Floated (top-rule) variants — colored top rule by type */
+  article.post .callout-margin.callout-note    { border-top-color: var(--tone-note); }
+  article.post .callout-margin.callout-info    { border-top-color: var(--tone-info); }
+  article.post .callout-margin.callout-tip     { border-top-color: var(--tone-tip); }
+  article.post .callout-margin.callout-warning { border-top-color: var(--tone-warning); }
+  article.post .callout-margin.callout-danger  { border-top-color: var(--tone-danger); }
+
+  /* Stagger consecutive margin notes so they don't collide */
+  article.post .callout-margin + * + .callout-margin { margin-top: 2.5rem; }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 960px) {
+  main.home { grid-template-columns: 1fr; }
+  .slab { border-right: none; border-bottom: 2px solid var(--rule); }
+  .bio { grid-template-columns: 1fr; }
+  .bio .card { max-width: 220px; }
+
+  /* Reclaim more horizontal space on narrow viewports */
+  article.post { width: 100%; }
+
+  /* Rails de-float into full-width blocks above the main column */
+  article.post .post-rail,
+  main.columns .columns-rail {
+    float: none;
+    width: auto;
+    margin: 0 0 2rem;
+  }
+
+  .entries li { grid-template-columns: auto 1fr; gap: 0.5rem 1rem; }
+  .entries .date { grid-column: 1; }
+  .entries .tag  { grid-column: 2; justify-self: end; }
+  .entries .title { grid-column: 1 / -1; }
+}
+
+@media (max-width: 600px) {
+  nav.primary { gap: 1rem 1.25rem; }
+  .series-nav { grid-template-columns: 1fr; }
+  .series-nav a:first-child { border-right: none; border-bottom: 1.5px solid var(--rule); }
+}

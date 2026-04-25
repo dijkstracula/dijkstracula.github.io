@@ -3,6 +3,7 @@ const rssPlugin = require("@11ty/eleventy-plugin-rss");
 const markdownIt = require("markdown-it");
 const markdownItFootnote = require("markdown-it-footnote");
 const markdownItContainer = require("markdown-it-container");
+const { execSync } = require("child_process");
 
 module.exports = function(eleventyConfig) {
   // Configure markdown-it with footnote support and callouts
@@ -225,6 +226,31 @@ module.exports = function(eleventyConfig) {
     return array.slice(0, limit);
   });
 
+  // Reading time (approx, 220 wpm) from rendered HTML
+  eleventyConfig.addFilter("readingTime", (html) => {
+    if (!html) return 1;
+    const text = String(html).replace(/<[^>]*>/g, " ");
+    const words = text.split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.round(words / 220));
+  });
+
+  // Compact tag label for the homepage changelog — up to two real tags joined with " · "
+  eleventyConfig.addFilter("postTagLabel", (tags) => {
+    if (!Array.isArray(tags)) return "";
+    return tags.filter(t => t && t !== "post").slice(0, 2).join(" · ");
+  });
+
+  // When was src/_data/now.json last committed? (falls back to now if not in a repo)
+  eleventyConfig.addGlobalData("nowUpdated", () => {
+    try {
+      const iso = execSync("git log -1 --format=%cI -- src/_data/now.json", { stdio: ["ignore", "pipe", "ignore"] })
+        .toString().trim();
+      return iso || null;
+    } catch (_) {
+      return null;
+    }
+  });
+
   // Filter posts belonging to a series, sorted by date (oldest first)
   eleventyConfig.addFilter("seriesPosts", (posts, seriesId) => {
     return posts
@@ -247,6 +273,13 @@ module.exports = function(eleventyConfig) {
       .sort((a, b) => {
         return b.date - a.date;
       });
+  });
+
+  // Drafts only — used by the "Writing" row of the homepage Now panel
+  eleventyConfig.addCollection("draftPosts", function(collectionApi) {
+    return collectionApi.getFilteredByGlob("src/posts/*.md")
+      .filter(post => post.data.draft)
+      .sort((a, b) => b.date - a.date);
   });
 
   // Series list for the blog index

@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "label": "Reading",
+      "body": [
+        "Programming Massively Parallel Processors"
+      ]
+    },
+    {
+      "label": "Listening to",
+      "body": [
+        "<a href=https://erikhall.bandcamp.com/album/canto-ostinato-2>Erik Hall - Canto Ostinato</a>"
+      ]
+    },
+    {
+      "label": "Elsewhere",
+      "body": [
+        "<a href=https://nathan.dijkstracula.net>nathan.dijkstracula.net</a>", 
+        "<a href=https://github.com/dijkstracula>gh/dijkstracula</a>"
+        ]
+    }
+  ]
+}

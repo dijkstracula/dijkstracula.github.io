@@ -167,12 +167,10 @@ call `onSome` or `onNone`: let's factor out dispatching on whether the event has
 into a helper function, called, I donno, `switch`:
 
 ```lean4
-def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β :=
-  let switch (t: Time) : β → β := match ev t with
-  | none => onNone
-  | some a => onSome a
-
-  fun n => sorry -- TODO
+(* Helper: at each time step, decide which β → β to use. *)
+let switch (t: Time) : β → β := match ev t with
+| none => onNone
+| some a => onSome a
 ```
 
 When `n=0`, we'll want to dispatch on `ev 0` with our initial state `init`.

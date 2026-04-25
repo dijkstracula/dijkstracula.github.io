@@ -7,11 +7,12 @@ pagination:
     - all
     - posts
     - publishedPosts
+    - draftPosts
     - tagList
     - seriesList
   addAllPagesToCollections: true
 permalink: /tags/{{ tag | slugify }}/
-layout: base.njk
+layout: plain.njk
 eleventyComputed:
   title: "Tag: {{ tag }}"
 ---
