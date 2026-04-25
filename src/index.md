@@ -19,7 +19,7 @@ You can watch my talks about
 [dynamic analysis](https://github.com/dijkstracula/QConNYC2016/), 
 [operating system scalability](https://www.youtube.com/watch?v=kaig7CL4-KU), 
 [lock-free programming](https://github.com/dijkstracula/Surge2015), and 
-[library operating systems](http://www.meetup.com/papers-we-love-too/events/212148242/).  
+[library operating systems](https://www.youtube.com/watch?v=A22wSN9WEpg).
 
 You can also read my papers about 
 [verified filesystems](https://dl.acm.org/doi/full/10.1145/3769109), 
