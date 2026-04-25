@@ -30,4 +30,4 @@ You can watch my talks about [fancy type systems](https://www.youtube.com/watch?
 
 You can read my papers about [verified filesystems](https://dl.acm.org/doi/full/10.1145/3769109), [hypervisor-level binary translation](https://www.mihirnanavati.com/papers/plastic-eurosys.pdf), [full-system time-traveling debugging](http://www.dcs.gla.ac.uk/conferences/resolve12/papers/session4_paper1.pdf), and [text deanonymization](https://www.usenix.org/legacy/event/hotsec11/tech/final_files/Nanavati.pdf).
 
-My [resume](http://nathan.dijkstracula.net/resume) is available if you would like to know more.
+My [resume](https://github.com/dijkstracula/resume/blob/master/resume.pdf) is available if you would like to know more.

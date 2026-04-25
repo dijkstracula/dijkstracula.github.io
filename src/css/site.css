@@ -376,7 +376,7 @@ article.post .post-main {
      display: flow-root makes this a BFC so it sits next to the rail when
      there's room, and drops cleanly below it on narrow viewports. */
   display: flow-root;
-  max-width: 85ch;
+  max-width: 120ch;
   min-width: 0;
 }
 
