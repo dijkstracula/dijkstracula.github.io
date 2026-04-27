@@ -24,42 +24,85 @@ the list down into a single result.  For a long time, I thought folds were
 somehow intrinsic to `List`s because I'd never seen folds in any other context,
 but you can write a fold-like operation over any algebraic datatype.
 
-::: margin-note
-In reality, the catamorphic operation for `Nat`, called `Nat.rec`, is a [bit
-more
-complicated](https://github.com/leanprover/lean4/blob/80cbab16420b90104647a795a18f9890fd8150e8/src/Init/Data/Nat/Basic.lean#L38)
-owing to `β` being a dependent type, but the idea is exactly the same - it lets
-us "tear down" a value to call a function on its enclosing elements.
-:::
-That operation is called a _catamorphism_ in category theory, and a _recursor_
-in type theory.  A catamorphism for some type replaces each constructor of that
-type with a function that consumes _the arguments of the constructor_ and
-_produces a value of some new type_.
+That operation is called a
+[catamorphism](https://ncatlab.org/nlab/show/catamorphism) in category theory,
+and relates to _recursors_ in type theory (which we'll see an example of in a
+moment).  A catamorphism for some type replaces each constructor with a
+corresponding computation (an “algebra component”) that produces the result
+type `β`. 
 
-Why does `List.foldr` have the arguments it does?  It stems from the datatype's
+That function consumes:
+- the constructor’s **non-recursive** arguments unchanged, and
+- the constructor’s **recursive** arguments *after they’ve already been folded*.
+
+Let's invent the catamorphism for `List`s from first principles.  Why does
+`List.foldr` have the arguments it does?  It stems from the datatype's
 constructors. There are two ways to construct a List, as we all know: `Nil :
 Unit -> List a` produces the empty list, and `Cons : a -> List a -> List a`
 prepends an element onto a list.  This means the function that replaces `Nil :
-Unit -> List a` will be typed `Unit -> β` (or, just a constant `β` value), and
-the function that replaces `Cons : a -> List a -> List a` will be typed `a -> β
--> β`.
+Unit -> List a` will be typed `Unit -> β` (or, just a constant `β` value, but
+if we're enlightened and lazy Haskell programmers this is one and the same
+thing), and the function that replaces `Cons : a -> List a -> List a` will be
+typed `a -> β -> β`.
 
-In other words, `List.foldr` is the catamorphic operation for `List`!
+In other words, `List.foldr` is the catamorphic operation for `List`!  It shows
+us how to collapse one constructor layer into a `β`.
 
+### Recursors generalise catamorphisms
 
-## Our first non-pointwise combinator: `scan` folds over time
+If we want more generality than just "given the recursive results of the
+subdata in each constructor, produce a value", we'll need a different kind of
+algebraic transformation on our datatype.  For example, it isn't clear how we
+could write a `Nat.predecessor` or `List.drop_last` function with catamorphisms.
+A generalisation that _does_ let us do this is a _recursor_.
 
-Here's one more: A catamorphism for `Nat` (with constructors `Zero` and `Succ
-Nat`) would take a `β` and a `β -> β`.  Since `Time` is definitionally a `Nat`,
-a catamorphism on `Time` would take a `β` and a `β -> β`, similarly.  But what
-do those two arguments actually _mean_?
+We could also write a catamorphism for `Nat`s: `Nat` has two constructors,
+`Zero : Unit -> Nat` and `Succ : Nat -> Nat`.  Because the `Zero` constructor
+morally takes no arguments, we provide a constant `β` value for that case, and
+for `Succ`, a `β -> β`.
+
+We said before that recursors occupy a similar purpose to catamorphisms but
+have been vague about what that actually means.  Let's look at a simplified
+version of Lean's recursor for `Nat`:
+
+::: margin-note
+In reality, the recursor, is a [bit more
+complicated](https://github.com/leanprover/lean4/blob/80cbab16420b90104647a795a18f9890fd8150e8/src/Init/Data/Nat/Basic.lean#L38)
+owing to `β` being a dependent type called the "motive", but the idea is
+exactly the same - it lets us "tear down" a value to call a function on its
+enclosing elements, while still giving us access to the original, non-folded
+over values.
+:::
+```lean4
+def Nat.rec (zero : β) (succ : (n : Nat) → β → β) : (t : Nat) → β
+  | .zero => ...
+  | .succ n => ...
+```
+
+This isn't the catamorphism for `Nat`s: `succ` also consumes the predecessor
+argument (that is, the _recursive argument before being folded_).  This is more
+general than a catamorphism; it's called a
+[paramorphism](https://blog.sumtypeofway.com/posts/recursion-schemes-part-3.html),
+and it's built up from a different kind of algebraic structure than
+catamorphisms.
+
+## Our first non-pointwise combinator: Signaling on the catamorphism for time
+
+Ok, so a catamorphism for `Nat` (with constructors `Zero` and `Succ Nat`) would
+take a `β` and a `β -> β`.  Since `Time` is definitionally a `Nat`, a
+catamorphism on `Time` would take a `β` and a `β -> β`, similarly.  But what do
+those two arguments actually _mean_?
 
 What it means is stepping through time from an initial state.  And, that's what
 `scan`, our first non-pointwise combinator, does.
 
+::: margin-note
+Should this have been a _paramorphism_ instead?  After all, we call `Nat`'s
+recursor internally here.  Maybe I'll come to regret this design choice!
+:::
 ```lean4
 def scan: (step : β → β) (init : β) : Signal β =
-  fun n => Nat.rec init (fun _ s => step s) n 
+  fun n => Nat.rec init (fun _t s => step s) n 
 ```
 
 `scan` produces a function that takes a time value and steps the `β -> β`
@@ -70,9 +113,8 @@ function `Nat -> β -> β` when `t=(n+1)`.
 ::: margin-note
 Evaluating `scan step init` at time `t` recomputes from init every time — O(t)
 per evaluation, O(n²) to evaluate the whole signal. A real FRP runtime would
-cache previous state(s). 
+do something smarter like cache previous state(s). 
 :::
-
 ```
 def screaming : Signal String := scan (· ++ "a") ""
 #eval (List.range 5).map screaming -- ["", "a", "aa", "aaa", "aaaa"]
