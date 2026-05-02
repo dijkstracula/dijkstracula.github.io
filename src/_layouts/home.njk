@@ -3,20 +3,17 @@ layout: base.njk
 ---
 
 <script src="/js/dither.js" defer></script>
-<noscript>
-  <style>
-    /* When JS is disabled, dither.js never runs, so the original image
-       would stay at opacity 0 from the loading rule. Reveal it. */
-    .card .photo img.dither { opacity: 1 !important; }
-  </style>
-</noscript>
 
 <main class="home">
   <div class="slab">
     <h2>About</h2>
     <div class="bio">
       <figure class="card">
-        <div class="photo"><img src="/assets/me.jpg" alt="Nathan Taylor" class="dither" data-dither-scale="2" data-dither-interactive></div>
+        <div class="photo">
+          <img src="/assets/me-dithered.png" alt="Nathan Taylor"
+               class="dither" data-dither-scale="2"
+               data-dither-interactive data-dither-source="/assets/me.jpg">
+        </div>
       </figure>
       <div class="prose">
         {{ content | safe }}

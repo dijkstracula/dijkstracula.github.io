@@ -3,7 +3,11 @@ const rssPlugin = require("@11ty/eleventy-plugin-rss");
 const markdownIt = require("markdown-it");
 const markdownItFootnote = require("markdown-it-footnote");
 const markdownItContainer = require("markdown-it-container");
+const Prism = require("prismjs");
 const { execSync } = require("child_process");
+
+global.Prism = Prism;
+require('./src/js/prism-lean.js');
 
 module.exports = function(eleventyConfig) {
   // Configure markdown-it with footnote support and callouts
@@ -48,18 +52,21 @@ module.exports = function(eleventyConfig) {
     });
   });
 
+  // Inline code highlighting: opt in via `inlineCodeLang` frontmatter
+  md.renderer.rules.code_inline = function(tokens, idx, options, env) {
+    const lang = env && env.inlineCodeLang;
+    const code = tokens[idx].content;
+    if (!lang || !Prism.languages[lang]) {
+      return `<code>${md.utils.escapeHtml(code)}</code>`;
+    }
+    const html = Prism.highlight(code, Prism.languages[lang], lang);
+    return `<code class="language-${lang}">${html}</code>`;
+  };
+
   eleventyConfig.setLibrary("md", md);
 
-  // Add syntax highlighting with custom Lean 4 support
-  eleventyConfig.addPlugin(syntaxHighlight, {
-    init: function({ Prism }) {
-      // Load custom Lean 4 language definition
-      const leanDef = require('./src/js/prism-lean.js');
-      if (typeof leanDef === 'function') {
-        leanDef(Prism);
-      }
-    }
-  });
+  // Add syntax highlighting (Lean 4 language is registered above via global Prism)
+  eleventyConfig.addPlugin(syntaxHighlight);
 
   // Post-process lean4 code blocks to visually separate proof code from proof state
   eleventyConfig.addTransform("lean-proof-state", function(content) {

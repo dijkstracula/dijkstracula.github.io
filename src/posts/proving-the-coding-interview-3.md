@@ -6,6 +6,7 @@ tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "A faster, but just as correct, nat -> string converter"
 series: proving-the-coding-interview-dafny
 series_title: "Part 3"
+inlineCodeLang: python
 ---
 
 Welcome back to the final installment of Proving The Coding Interview!  In the

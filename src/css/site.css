@@ -184,12 +184,13 @@ main.home {
   color: var(--mute);
 }
 .bio {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 2rem;
-  align-items: start;
+  /* flow-root contains the floated card so .bio's height grows with it */
+  display: flow-root;
 }
 .card {
+  float: left;
+  width: 200px;
+  margin: 0.25rem 1.5rem 1rem 0;
   border: 1.5px solid var(--rule);
 }
 .card .photo {
@@ -204,11 +205,10 @@ main.home {
   display: block;
   filter: grayscale(1) contrast(1.02);
 }
-/* Hide the original image until dither.js has processed it. The interactive
-   variant replaces <img> with a <canvas> outright, so this rule stops
-   applying once the swap happens. The static variant stays as an <img>
-   and gets data-dithered="true" set when ready. */
-.card .photo img.dither {
+/* Static-mode (no data-dither-source, no pre-computed PNG): hide the
+   original image until dither.js has processed it. With data-dither-source
+   the visible img is already pre-dithered, so this rule does not apply. */
+.card .photo img.dither:not([data-dither-source]) {
   opacity: 0;
   transition: opacity 200ms ease-out;
 }
@@ -853,8 +853,12 @@ main.columns .columns-rail a:hover { color: var(--accent); }
 @media (max-width: 960px) {
   main.home { grid-template-columns: 1fr; }
   .slab { border-right: none; border-bottom: 2px solid var(--rule); }
-  .bio { grid-template-columns: 1fr; }
-  .bio .card { max-width: 220px; }
+  .bio .card {
+    float: none;
+    width: auto;
+    max-width: 220px;
+    margin: 0 0 1rem;
+  }
 
   /* Reclaim more horizontal space on narrow viewports */
   article.post { width: 100%; }

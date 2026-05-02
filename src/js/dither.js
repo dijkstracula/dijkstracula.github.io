@@ -86,21 +86,56 @@
     // Tunables — exposed as data-dither-* attributes so they can be tweaked
     // from markup without touching JS.
     const scale  = Math.max(1, parseInt(img.dataset.ditherScale || "2", 10));
-    const decay  = parseFloat(img.dataset.ditherDecay  || "0.86");
-    const force  = parseFloat(img.dataset.ditherForce  || "0.45");
-    const radius = parseFloat(img.dataset.ditherRadius || "26");
+    const decay  = parseFloat(img.dataset.ditherDecay  || "0.90");
+    const force  = parseFloat(img.dataset.ditherForce  || "0.65");
+    const radius = parseFloat(img.dataset.ditherRadius || "35");
 
-    // Build an offscreen canvas at the dither resolution. We replace the <img>
-    // with a <canvas> sized to the original so CSS layout is unchanged.
-    const w = Math.max(1, Math.round(img.naturalWidth / scale));
-    const h = Math.max(1, Math.round(img.naturalHeight / scale));
+    // Build an offscreen canvas at the dither resolution. When the visible
+    // <img> is a pre-dithered PNG (data-dither-source points elsewhere),
+    // its naturalWidth IS already the dither resolution — don't divide
+    // again. Otherwise scale the source down by data-dither-scale.
+    const preDithered = !!img.dataset.ditherSource;
+    const w = preDithered
+      ? img.naturalWidth
+      : Math.max(1, Math.round(img.naturalWidth / scale));
+    const h = preDithered
+      ? img.naturalHeight
+      : Math.max(1, Math.round(img.naturalHeight / scale));
 
-    const src = document.createElement("canvas");
-    src.width = w; src.height = h;
-    const sctx = src.getContext("2d", { willReadFrequently: true });
-    sctx.imageSmoothingEnabled = false;
-    sctx.drawImage(img, 0, 0, w, h);
-    const grayBase = readGrayscale(sctx, w, h);
+    // The warp loop needs the *grayscale photograph* as its source — even when
+    // the visible <img> is a pre-dithered (1-bit) PNG. data-dither-source lets
+    // the page point at the original asset; if not provided, we fall back to
+    // the visible img itself (the legacy in-browser-dither behavior).
+    const sourceUrl = img.dataset.ditherSource || img.currentSrc || img.src;
+
+    function buildContext() {
+      const src = document.createElement("canvas");
+      src.width = w; src.height = h;
+      const sctx = src.getContext("2d", { willReadFrequently: true });
+      sctx.imageSmoothingEnabled = false;
+      return { src, sctx };
+    }
+
+    let grayBase;
+    let { src, sctx } = buildContext();
+    if (sourceUrl === (img.currentSrc || img.src)) {
+      // No separate source — use the (possibly already-dithered) visible img.
+      sctx.drawImage(img, 0, 0, w, h);
+      grayBase = readGrayscale(sctx, w, h);
+    } else {
+      // Seed with the visible img so the canvas doesn't flash blank, then
+      // swap in the photographic source as soon as it loads.
+      sctx.drawImage(img, 0, 0, w, h);
+      grayBase = readGrayscale(sctx, w, h);
+      const sourceImg = new Image();
+      sourceImg.crossOrigin = "anonymous";
+      sourceImg.onload = () => {
+        sctx.clearRect(0, 0, w, h);
+        sctx.drawImage(sourceImg, 0, 0, w, h);
+        grayBase = readGrayscale(sctx, w, h);
+      };
+      sourceImg.src = sourceUrl;
+    }
 
     // Display canvas — the one users see and that receives mouse events.
     const view = document.createElement("canvas");

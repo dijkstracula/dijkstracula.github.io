@@ -6,6 +6,7 @@ tags: [post, lean, reactive-programming]
 excerpt: "Recording and reasoning about the states our programs pass through"
 series: lean-ltl
 series_title: "Part two - execution traces"
+inlineCodeLang: lean4
 ---
 
 ## Welcome back!
@@ -299,13 +300,9 @@ need to say about every consecutive pair of states in a trace.
 
 We'll call an entire trace _valid_ if two conditions hold:
 
-1. **Initialization**: the trace starts in a known initial state.
+1. **Initiation**: the trace starts in a known initial state.
 2. **Consecution**: every consecutive pair of states is connected by some valid action.
 
-::: margin-note
-It might be worth pondering about the relationship between a valid trace and an
-inductive invariant, and what sorts of invariants might not be inductive.
-:::
 ```lean4
 def validTrace (t : Trace VMState) : Prop :=
   t 0 = init ∧

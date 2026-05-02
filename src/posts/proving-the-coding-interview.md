@@ -6,6 +6,7 @@ tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "Applying interesting research to uninteresting interview problems"
 series: proving-the-coding-interview-dafny
 series_title: "Part 1"
+inlineCodeLang: python
 ---
 
 Enjoying programming interview questions is one of those things that nobody

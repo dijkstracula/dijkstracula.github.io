@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Reactive Programming in Lean Part 4: Functional Reactive Programming"
 date: 2026-04-17
-tags: [post, lean, reactive-programming]
+tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "So if propositions are types, and LTL are propositions, what programs are well-typed by LTL?"
 series: lean-ltl
 series_title: "Part four - OMG WTF LTL FRP BBQ!!!"

@@ -2,7 +2,7 @@
 layout: post.njk
 title: "Reactive Programming in Lean Part 3: Linear Temporal Logic"
 date: 2026-04-02
-tags: [post, lean, reactive-programming]
+tags: [post, lean, reactive-programming, ltl]
 excerpt: "Specifications that move through time"
 series: lean-ltl
 series_title: "Part three - LTL"
@@ -141,6 +141,12 @@ def isCurrentlyEmpty := LTL.atom hopperEmpty
 
 theorem startsEmpty : isCurrentlyEmpty (getFragment init getOrange) := by rfl
 ```
+
+(In "real-world" software, we might want to add an implicit coersion between
+our `StateProp` and `LTL.atom`, so we don't have to keep writing `LTL.atom`
+everywhere.  After all, the point of the atom is just a container that holds
+the proposition anyway.  I'll leave it explicit here but you might be
+interested in exploring the `Coe` typeclass to try that yourself.)
 
 ### `eventually` and `always` make claims over entire traces
 
@@ -320,7 +326,9 @@ taking a step.  They could be a property on the step itself, or on the initial
 state of the system.  They could even be a property over all three (a special
 kind of invariant called an _inductive invariant_; if you're into model
 checking then you're always on the hunt for inductive invariants, or ways to
-turn a non-inductive invariant into an inductive one).
+turn a non-inductive invariant into an inductive one).  In a later post,
+we'll build a primitive whose type signature depends on being supplied an
+inductive invariant.
 
 Recall `validTrace` from last time, which captures _initialization_ (the trace
 starts in `init`) and _consecution_ (every consecutive pair of states is

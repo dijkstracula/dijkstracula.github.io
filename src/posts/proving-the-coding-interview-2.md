@@ -6,6 +6,7 @@ tags: [post, dafny, verification, provingthecodinginterview]
 excerpt: "Integer.toString() 2 furious"
 series: proving-the-coding-interview-dafny
 series_title: "Part 2"
+inlineCodeLang: python
 ---
 
 Welcome back to Proving the Coding Interview!  In the [previous

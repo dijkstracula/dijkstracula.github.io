@@ -1,5 +1,17 @@
 [
   {
+    "title": "The invisible engineering behind Lambda’s network",
+    "url": "https://www.allthingsdistributed.com/2026/04/the-invisible-engineering-behind-lambdas-network.html?utm_campaign=inbound&utm_source=rss",
+    "date": "2026-04-22T14:00:00.000Z",
+    "source": "All Things Distributed (Werner Vogels' blog)"
+  },
+  {
+    "title": "A Field Guide to Bugs",
+    "url": "https://www.stephendiehl.com/posts/field_guide_to_bugs/",
+    "date": "2026-04-19T01:00:00.000Z",
+    "source": "Stephen Diehl's blog"
+  },
+  {
     "title": "Post-Mythos Blue Teams",
     "url": "https://graham.posthaven.com/post-mythos-blue-teams",
     "date": "2026-04-18T14:23:10.000Z",
@@ -224,18 +236,6 @@
   {
     "title": "MetaOCaml: Ten Years Later.",
     "url": "https://okmij.org/ftp/ML/MetaOCaml.html#design-10",
-    "date": "2026-01-01T00:01:00.000Z",
-    "source": "okmij"
-  },
-  {
-    "title": "Nested grouping-aggregation: Vertical monoid composition",
-    "url": "https://okmij.org/ftp/Algorithms/map-monoid-reduce.html#nga.warm-up",
-    "date": "2026-01-01T00:01:00.000Z",
-    "source": "okmij"
-  },
-  {
-    "title": "Generating parallel  map-reduce for nested grouping-aggregation.",
-    "url": "https://okmij.org/ftp/Algorithms/map-monoid-reduce.html#nga.gen",
     "date": "2026-01-01T00:01:00.000Z",
     "source": "okmij"
   }
