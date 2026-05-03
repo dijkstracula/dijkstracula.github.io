@@ -723,7 +723,7 @@ is also simple change - just gotta follow the types:
     (switch 0 init)
     (fun n s => switch (n + 1) s) n
 ```
- ac:::
+:::
 
 ## Lifting `step_at`'s proofs into a safety property
 
