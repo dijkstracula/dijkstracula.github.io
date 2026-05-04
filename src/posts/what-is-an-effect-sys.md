@@ -3,6 +3,7 @@ layout: post.njk
 title: "But what is an effect system, really?"
 date: 2026-02-05T00:00:00-05:00
 tags: [post, ocaml, effects]
+draft: true
 excerpt: "I'm not smart enough to read a POPL paper, but I might be smart enough to read some C"
 ---
 
