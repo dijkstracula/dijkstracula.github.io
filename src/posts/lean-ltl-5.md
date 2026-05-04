@@ -1,9 +1,8 @@
 ---
 layout: post.njk
-title: "Reactive Programming in Lean Part 5: Non-pointwise combinators and safety proofs"
+title: "Reactive Programming in Lean Part 5: Stateful combinators and safety proofs"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
-draft: true
 series: lean-ltl
 series_title: "Part five - non-pointwise combinators"
 inlineCodeLang: lean4
@@ -11,7 +10,7 @@ inlineCodeLang: lean4
 
 # Non-pointwise combinators have knowledge of previous timesteps
 
-Up to now, every `Signal` we've seen has been pointwise.  `FRP.map` and
+Up to now, every `Signal` we've seen has been stateless.  `FRP.map` and
 `FRP.map2` from last time apply pure functions to the value at each timestep,
 with no memory of what came before.  Real reactive systems have evolving state:
 the value at time `t+1` depends on the value at time `t`. 
@@ -29,7 +28,7 @@ it's been awhile since you've read the previous piece, let's warm up with a litt
 lemma that will fault in a bunch of the material from before, and that'll become
 useful shortly.
 
-Suppose I have some `Signal β` - that is, a type-varying value of type `β`.
+Suppose I have some `Signal β` - that is, a time-varying value of type `β`.
 And, suppose I have some statement `inv` about `β` values, such that at every
 time step in the signal, `inv` holds.  Then, `inv` is an _invariant_ over that
 `Signal`.  A bit more formally:
@@ -212,7 +211,7 @@ action at each step (and a proof it was valid, of course).  `scan` `Signal`s
 don't, by contrast; it's an autonomous state machine that just evolves on its
 own.  We'll need a richer combinator to start folding in `Event`s into the
 mix.
-s
+
 ::: tip
 Pause and ponder: a generalisation of `scan` could let the step function vary
 as a function of time: this means it'd consume a `Signal (β -> β)` instead of
@@ -284,7 +283,7 @@ def CrossingState.tick : CrossingState → CrossingState :=
   fold
     (idle := CrossingState.Idle)
     (countdown := fun
-      | 0   => CrossingState.Cooldown 5
+      | 0   => CrossingState.Cooldown 3
       | n+1 => CrossingState.Countdown n)
     (cooldown := fun
       | 0   => .Idle
@@ -372,11 +371,18 @@ def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Ev
   sorry -- TODO
 ```
 
+Before proceeding, you should spend a moment convincing yourself that the wrong
+thing to do here would have been to have `accumulate` consume an input,
+"background" `Signal` for when the event's not firing, instead of the `init`
+and `onNone` values.  Had we done that, we'd be back to the piecewise
+combinator where consequences of the `Event` firing can't ripple through
+subsequent timesteps.
+
 ### Implementing `accumulate` with the recursor for Time
 
 OK, how do we actually write this thing?  Since we said earlier that
 `accumulate` generalises `scan`, using the recursor for `Nat` seems
-like a good idea.  Here's the overal shape we'll be working with:
+like a good idea.  Here's the overall shape we'll be working with:
 
 ```lean4
 def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
@@ -397,9 +403,9 @@ let switch (t: Time) : β → β := match ev t with
 | some a => onSome a
 ```
 
-When `n=0`, we'll want to dispatch on `ev 0` with our initial state `init`.
-For the `n=(n'+1)` case, we'll pass in the next time value, and the previous
-state, which the recursor will automatically supply for us.
+When `n=0`, we'll want to dispatch on our initial state `init`. For the
+`n=(n'+1)` case, we'll pass in the next time value, and the previous state,
+which the recursor will automatically supply for us.
 
 So in conclusion, our final `accumulate` is:
 
@@ -413,14 +419,13 @@ def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Ev
   | some a => onSome a
 
   fun n => Nat.rec 
-    (switch 0 init)               -- n=0
+    init                          -- n=0
     (fun n' s => switch (n'+1) s) -- n=(n'+1)
     n
 ```
 
-Notice that, even though `switch` seems to collapse  because we actually _do_
-use `n'` in the recursor, in contrast to `scan`, `accumulate` is genuinely
-paramorphic!
+Notice that, because we actually _do_ use `n'` in the recursor, in contrast to
+`scan`, `accumulate` is genuinely paramorphic!
 
 ::: tip
 Pause and ponder: If you wrote the time-varying generalization of `scan` in the
@@ -455,7 +460,7 @@ we'll ignore the event unless we're in the `Idle` state:
 def onNone := tick
 
 def onSome (_ev : Unit)
-  | CrossingState.Idle => CrossingState.Countdown 3
+  | .Idle => .Countdown 3
   | s => tick s
 ```
 
@@ -464,9 +469,9 @@ and some starting state:
 
 ```lean4
 def crosswalk ev := FRP.accumulate'
-  (.Cooldown 3) -- init
-  CrossingState.onNone
   CrossingState.onSome
+  CrossingState.onNone
+  (.Cooldown 2) -- init
   ev
 
 #eval List.range 10 |>.map (fun n => (n, (crosswalk presses) n))
@@ -480,41 +485,12 @@ def crosswalk ev := FRP.accumulate'
  (6, CrossingState.Countdown 2),
  (7, CrossingState.Countdown 1),
  (8, CrossingState.Countdown 0),
- (9, CrossingState.Cooldown 5)]
+ (9, CrossingState.Cooldown 3)]
 ```
 
 We see precisely what we wanted to: at `t=2`, we're still in the midst of a
 cooldown, so that button press is ignored.  However, by the time we reach
 `t=5`, we're in the `Idle` state, so the press _is_ accepted.
-
-Just for fun, let's go back to our `spammer` `Event` and see what the trace
-looks like:
-
-```lean4
-def spammer : ◇ Unit :=
-  let f := fun | _ => some ()
-  ⟨ f, by exists 0 ⟩
-
-#eval List.range 10 |>.map (fun n => (n, (crosswalk spammer) n))
-
-[(0, CrossingState.Cooldown 2),  -- t=0: Button press - ignored
- (1, CrossingState.Cooldown 1),  -- t=1: Button press - ignored
- (2, CrossingState.Cooldown 0),  -- t=2: Button press - ignored
- (3, CrossingState.Idle),        -- t=3: Button press - went through!
- (4, CrossingState.Countdown 3), -- t=4: Button press - ignored
- (5, CrossingState.Countdown 2), -- ... and so on, forever...
- (6, CrossingState.Countdown 1),
- (7, CrossingState.Countdown 0),
- (8, CrossingState.Cooldown 5),
- (9, CrossingState.Cooldown 4)]
-```
-
-No matter how hard we hammer the button, we'll at lease once in awhile
-eventually get an `Idle` state for crosswise traffic to flow again.
-
-This is the fairness property from last time.  It might be nice to be able
-to prove this formally; in order to do so, though, we'll have to build some
-more mechanism on top of `accumulate`.
 
 ## An inductive invariant-aware `accumulate`
 
@@ -553,11 +529,13 @@ concecution.
 ### Assume-guarantee reasoning with refinement types
 
 Let's start writing this invariant-aware `accumulate`.  It'll begin with
-consuming one additional argument, the invariant itself.
+consuming one additional implicit argument, the invariant itself.  (Making the
+argument implicit means the typechecker just infers it from the other
+arguments.)
 
 ```lean4
 def accumulate
-  {inv : β → Prop} -- NEW: our inductive invariant.
+  {inv : β → Prop} -- NEW: our inductive invariant, an implicit argument.
   (init : ...)
   (onNone : ...)
   (onSome : ...)
@@ -615,7 +593,7 @@ The standard convention is to name the before state `s` and the after state
 :::
 ```lean4
 def accumulate
-  (inv: β → Prop)
+  {inv: β → Prop}
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
@@ -636,7 +614,7 @@ So, our final function signature for `accumulate` is:
 
 ```lean4
 def accumulate
-  (inv: β → Prop)
+  {inv: β → Prop}
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
@@ -652,6 +630,23 @@ implement our refined `accumulate` correctly, it'll guarantee the safety
 property.  Such "assume-guarantee" reasoning is critical for composing verified
 code together: the guarantee out of one function can become an assumption into
 the next.
+
+### Coercing a subtype back into a `Signal`
+
+`accumulate` returns a refinement type-pair of a `Signal` plus the safety
+witness, but in actual uses of `accumulate` we only want the `Signal` itself.
+Let's add a quick coercion, just like we did for `Event`s last time, to treat
+the refinement type as callable, itself:
+
+```lean4
+instance {P : Signal β → Prop} :
+    CoeFun { sig : Signal β // P sig } (fun _ => Signal β) where
+  coe s := s.val
+```
+
+In general, when you have a function bundled with a proof obligation, `CoeFun`
+lets the function be used without manual unwrapping.  The safety theorem is
+still tagging along, but not in the way when we just want the function.
 
 ## Implementing the dependent `accumulate`
 
@@ -745,7 +740,7 @@ theorem always_atom {inv : β → Prop} (sig : Signal β) (h : ∀ t, inv (sig t
 /- ... -/
 
 def accumulate
-  (inv: β → Prop)
+  {inv: β → Prop}
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
@@ -758,7 +753,7 @@ def accumulate
     | some a => onSome a
 
   let step_at : Signal {s: β // inv s} := fun n => Nat.rec
-    (switch 0 init)
+    init
     (fun n s => switch (n + 1) s) n
 
   let vals : Signal β := fun t => (step_at t).1
@@ -766,3 +761,211 @@ def accumulate
 
   ⟨ vals, always_atom vals prfs ⟩
 ```
+
+## A safe intersection
+
+OK, let's tie this post off by showing how to prove a traffic light safety
+property with `accumulate`.  
+
+::: margin-note
+This might sound trivial but an integer overflow was why the Ariane 5 blew
+up shortly after launch.
+:::
+Suppose that the microcontroller inside the traffic light uses a three-bit
+counter.  For safety-certified hardware, each gate is audited, and city council
+won't pay for re-certifying a wider register. So, a safety property that
+prevents ever overflowing our counter registers would be:
+
+::: margin-note
+We've seen before that `abbrev`s are "transparent" to the typechecker;
+this'll make writing proofs about `bounded` a bit easier.
+:::
+```lean4
+abbrev bounded : CrossingState → Prop
+  | .Idle        => True
+  | .Countdown n => 0 <= n ∧ n < 8
+  | .Cooldown n  => 0 <= n ∧ n < 8
+```
+
+(Technically, Lean's `Nat` datatype prevents us underflowing here, but I'll
+state the lower bound in the safety property, anyway.)
+
+The design constraints for this particular intersection are well within this
+bound, but perhaps, say, for crossing a wider road with more car traffic, city
+planners would want both a larger countdown and cooldown value.  Or, perhaps,
+those values could be dynamically-scaled up depending on live traffic data that
+doesn't know anything about the underlying hardware.  Our goal is to statically
+prevent anyone from, in the future, trying to set a value that would overflow
+that register.
+
+OK, let's lift our `tick` function into its refinement type version.  Once we
+replace all the `sorry`s with a valid proof of `bounded`, we'll be able to wire
+it all up to an `accumulate` call and produce a verified FRP program.
+
+Here's the skeleton with our modified `tick` function: since we now consume and
+produce the refinement type value, we consume and produce tuples of the
+`CrossingState` and proof of `bounded s`.
+
+```lean4
+def tick : { s: CrossingState // bounded s } → { s': CrossingState // bounded s' }
+  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by sorry ⟩
+  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by sorry ⟩
+  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by sorry ⟩
+  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by sorry ⟩
+  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by sorry ⟩
+```
+
+### Proving validity of `tick`'s possible arguments
+
+All transitions to `.Idle` are trivial to prove, literally, since `bounded
+.Idle = True`.  First two cases sorted without any difficulty.
+
+```lean4
+ ...
+  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by trivial ⟩  -- NEW
+  | ⟨.Cooldown 0, _ ⟩ => ⟨ .Idle, by trivial ⟩  -- NEW
+ ...
+```
+
+The nonzero `Countdown` and `Cooldown` steps are pretty easy, too. unfolding
+the definition of `bounded` means our goal is to prove `0 <= n` and `n < 8`,
+given a hypothesis `h` stating the same about `n+1`.  As expected, `lia` will deal with
+that inequality without any difficulties.
+
+::: margin-note
+If we'd used `def` rather than `abbrev` when defining `bounded`, we would have
+needed to first show that our goal was to prove `0 <= n ∧ n < 8`, and then
+discharge it with `lia`; as it stands now the tactic can see through the
+`abbrev` to its definition`.
+:::
+```lean4
+  ...
+  | ⟨.Cooldown (n+1), _   ⟩ => ⟨ .Cooldown n, by lia ⟩
+  | ⟨.Countdown 0, _ ⟩      => ⟨ .Cooldown 3, by lia ⟩
+  | ⟨.Countdown (n+1), _ ⟩  => ⟨ .Cooldown n, by lia ⟩
+  ...
+```
+
+::: tip
+```lean4
+def tick : { s: CrossingState // bounded s } → { s': CrossingState // bounded s' }
+  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by trivial ⟩
+  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by trivial ⟩
+  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by lia⟩
+  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by lia ⟩
+  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by lia ⟩
+```
+:::
+
+### Implementing our step functions in terms of `tick`
+
+Here's how our `onNone` and `onSome` functions looked before.  
+
+```lean4
+def onNone := tick
+
+def onSome (_ev : Unit)
+  | .Idle => .Countdown 3
+  | s => tick s
+```
+
+Our only change needs to be in `onSome`, when we transition from `Idle` to
+`Countdown 3`. `lia` works like magic.
+
+::: tip
+```lean4
+def onNone := tick
+
+def onSome (_ev : Unit)
+  | ⟨.Idle, h⟩ => ⟨ .Countdown 3, by lia ⟩ 
+  | s => tick s
+```
+:::
+
+### Tying it all together
+
+With one final definition using `accumulate`, our job here is done:
+
+```lean4
+def crosswalk (ev : ◇ Unit) : { sig // □ (LTL.atom bounded) sig } := 
+  FRP.accumulate
+    ⟨CrossingState.CrossingState.Idle, by trivial⟩
+    CrossingState.onNone
+    CrossingState.onSome
+    ev
+```
+
+Let's look at the type signature of `crosswalk`: we can give it _any_ sequence
+of button presses - a polite button presser, an eager spammer, or some other
+sequence you or I haven't thought of yet - and out comes a `Signal` of states
+bundled with a safety proof that the hardware never overflows its counter
+register.
+
+Last time, we proved the `walkOnlyWhenRed` safety property, manually, for
+a given specific reactive program.  Here, the safety property is encapsulated
+in its return type.  This means that any FRP program that makes use of `crosswalk`,
+like, say:
+
+```lean4
+#eval List.range 10 |>.map (fun n => (n, (crosswalk presses) n))
+[(0,  CrossingState.Idle),
+ (1,  CrossingState.Idle),
+ (2,  CrossingState.Idle),        -- t=2: button pressed!
+ (3,  CrossingState.Countdown 3),
+ (4,  CrossingState.Countdown 2),
+ (5,  CrossingState.Countdown 1), -- t=5: button pressed (ignored...)
+ (6,  CrossingState.Countdown 0), 
+ (7,  CrossingState.Cooldown 3),
+ (8,  CrossingState.Cooldown 2),
+ (9,  CrossingState.Cooldown 1),
+ (10  CrossingState.Cooldown 0),
+ (11, CrossingState.Idle)]
+```
+
+... or, a larger reactive program that composes `crosswalk` with other
+`Signal`s, or possibly any number of button schedule `Event`s, will carry
+through that safety property, holding us in good stead, all held together
+by Lean's typechecker.
+
+Next time, we'll looking at composing `Signal`s with different safety
+properties: As an example, let's go back to our `spammer` `Event` and see what
+the trace looks like:
+
+```lean4
+#eval List.range 12 |>.map (fun n => (n, (crosswalk spammer) n))
+[(0,  CrossingState.Idle),        -- t=0: button pressed!
+ (1,  CrossingState.Countdown 3), -- t=1: button pressed (ignored)
+ (2,  CrossingState.Countdown 2), -- t=2: button pressed (ignored, again)
+ (3,  CrossingState.Countdown 1), -- ...and so on, forever ...
+ (4,  CrossingState.Countdown 0),
+ (5,  CrossingState.Cooldown 3),
+ (6,  CrossingState.Cooldown 2),
+ (7,  CrossingState.Cooldown 1),
+ (8,  CrossingState.Cooldown 0),
+ (9,  CrossingState.Idle),        -- t=9: button pressed!
+ (10, CrossingState.Countdown 3), -- ...and so on, forever ...
+ (11, CrossingState.Countdown 2)]
+```
+
+No matter how hard we hammer the button, we'll at least once in awhile
+eventually get an `Idle` state for crosswise traffic to flow again.
+
+Notice something interesting: in Part 4, this exact event was the
+counter-example to liveness; `spammer` could keep cars from ever proceeding.
+Under the countdown-and-then-cooldown protocol, that's no longer possible. The
+system returns to Idle every 9 ticks, no matter what — which means cars get
+their turn even under maximum harassment.  We've essentially fixed the liveness
+violation from Part 4 by introducing state!
+
+This is a liveness property: "always, eventually `Idle`." But because we have
+an explicit bound (every 9 ticks, never longer), it's actually expressible as a
+safety property, via a technique called _liveness-to-safety reduction_. The
+trick is to augment the state with a deadline counter and assert "either we're
+Idle now, or the deadline is still in the future." That conjunction is an
+inductive invariant; accumulate would give us `□` of it for free.  This post is
+already too long so I won't show you the details here, but the takeaway is that
+bounded liveness is closer to within reach than the safety/liveness distinction
+usually suggests.
+
+Next time, we'll start composing reactive components, building more interesting
+dependency graphs of `Signal`s where one's output becomes another's input. 
