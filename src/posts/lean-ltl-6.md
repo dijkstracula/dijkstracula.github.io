@@ -1,11 +1,12 @@
 ---
 layout: post.njk
-title: "Reactive Programming in Lean Part 6: Incremental computation, accumulation, and spreadsheets"
+title: "FRP in Lean: Incremental computation, accumulation, and spreadsheets"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
 series_title: "Part six: incremental spreadsheets"
 inlineCodeLang: lean4
+draft: true
 ---
 
 Last time we designed a mechanism to accumulate stateful computation on
@@ -68,10 +69,8 @@ Note that I'm using `always_atom_iff`, which I encouraged you to write in the
 previous post.  If you haven't yet, no better time than the present!  
 
 This theorem's type is `{inv : β → Prop} (sig : Signal β) : (∀ t, inv (sig t))
-↔ (□ (LTL.atom inv)) sig`, which is a _biconditional_, not just an ordinary
-implication.  The proof term has two fields, depending on which way you want
-the proof to go: when you want the left-to-right implication, extract it with
-`.mp` (for modus ponens); for the right-to-left, use `.mpr`.
+↔ (□ (LTL.atom inv)) sig`; a biconditional, which we've discussed in previous
+installments.
 
 ## Warmup: better notation for refined `Signal`s.
 

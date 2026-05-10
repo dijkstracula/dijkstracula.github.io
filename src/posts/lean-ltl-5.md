@@ -1,6 +1,6 @@
 ---
 layout: post.njk
-title: "Reactive Programming in Lean Part 5: Stateful combinators and safety proofs"
+title: "FRP in Lean: Stateful combinators and safety proofs"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl

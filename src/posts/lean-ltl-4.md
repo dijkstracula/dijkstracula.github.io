@@ -1,11 +1,11 @@
 ---
 layout: post.njk
-title: "Reactive Programming in Lean Part 4: Functional Reactive Programming"
+title: "Functional Reactive Programming in Lean: Reactive Signals and LTL.always"
 date: 2026-04-17
 tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "So if propositions are types, and LTL are propositions, what programs are well-typed by LTL?"
 series: lean-ltl
-series_title: "Part four - OMG WTF LTL FRP BBQ!!!"
+series_title: "Part 4a - FRP Signals"
 ---
 
 # The Curry-Howard correspondence for LTL: FRP
@@ -216,7 +216,7 @@ def bedroom : Signal Float := fun t => 20.0 + Float.sin t.toFloat
 def kitchen : Signal Float := fun t => 21.0 + Float.cos t.toFloat
 def lvingrm : Signal Float := fun t => 19.5 + 0.5 * Float.sin (2 * t.toFloat)
 
-#eval (bedroom 3, kitchen 5, lvingrm 8) -- (20.141120, 21.283662, 19.356048)
+#eval (bedroom 42, kitchen 42, lvingrm 42) -- (19.083478, 20.600015, 19.866595)
 ```
 
 Using `map`, we can convert these Celsius signals into Fahrenheit, by mapping
@@ -276,28 +276,60 @@ def sensors : List (Signal Float) := [bedroom, kitchen, lvingrm, hallway]
 
 The problem is that all those operations would require a `Signal (List Float)`,
 instead of the `List (Signal Float)` that we've actually got.  Good news
-though! Using `List.sequence`, which for some `Applicative m`, has type `List
-(m α) -> m (List α)`, we can do just that inversion
+though! Using
+[List.mapA](https://github.com/leanprover/lean4/blob/0eb80e34a660f54b88002b33c4d93965651c71cb/src/Init/Data/List/Control.lean#L76),
+which for some `Applicative m`, has type `List (m α) -> m (List α)`, we can do
+just that inversion.
 
+::: margin-note
+Haskellers might note that if `Signal` was a monad, we could use the more
+common `mapM` combinator in place of `mapA`.
+:::
 ```lean4
 -- At each tick, gather all readings into a list:
-def readings : Signal (List Float) := sequence sensors
+def readings : Signal (List Float) := List.mapA id sensors
 
--- Now any list aggregation just maps over the sequence:
+#eval readings 42 -- [19.083478, 20.600015, 19.866595, 19.841747]
+```
+
+Now any list aggregation just maps over the sequence`Signal:
+
+```lean4
 def avgTemp : Signal Float := (fun rs => rs.sum / rs.length) <$> readings
 def minTemp : Signal Float := List.minimum <$> readings
 
 def alertIfHot : Signal Bool := (fun rs => rs.any (· > 30.0)) <$> readings
 ```
 
-You might say that this is not the most realistic program, but I think it
-nicely shows what makes FRP cool.  Before proceeding, pause and ponder how you
-might write this program in your favourite language of choice, and I imagine
-you'll conclude that FRP has some nice design properties.
+A note about the first argument to `List.mapA`: as the name suggests, this
+function maps over a list of `Signal`s before collating them into a single
+`Signal (List β)`.  We passed in the identity function when defining
+`readings`, but we can compose surprisingly interesting things with only
+a small code change:
 
-## A more interesting signal
+::: margin-note
+Looking at the docs, `mapA` takes a function of type `a -> Signal b` in this
+context.  Neither `id` nor `ctof` are obviously shaped like this function,
+though.  If you're familiar with unification in the context of type inference,
+you might find it interesting to trace how Lean would typecheck this.
+:::
+```lean4
+def alertIfHotF : Signal Bool :=
+  (fun rs => rs.any (· > 90)) <$> List.mapA ctof signals
+```
 
-Here's a silly data definition for a traffic light type.  Let's write a signal
+You might say that this is not the most realistic program, but nonetheless I
+think it nicely shows what makes FRP cool.  Before proceeding, pause and ponder
+how you might write this program in your favourite language of choice, and I
+imagine you'll conclude that FRP has some nice design properties.
+
+## A new domain: a traffic intersection
+
+Sensor data is a nice example of continuous-valued FRP. Let's now look at a
+discrete-valued Signal, a traffic light, that'll set up our running example for
+injecting external events into the system in the next post.
+
+Here's a silly data definition for that traffic light.  Let's write a signal
 that defines how a value of this type could change over time, say, where the
 colour changes once per time step:
 
@@ -662,360 +694,9 @@ a database's concurrency controller, up to distributed systems like
 Knowing that you've got a provable safety property is critical for each of
 these pieces of code!
 
-# An `Event` occurs at some point in time
+## Next time
 
-::: margin-note
-Might be worth trying to guess if there's an LTL proposition that might be a
-good type for `Event`s!
-:::
-The dual of a `Signal` is an `Event`, which you can think of a stream of values
-to be consumed by the system at particular moments in time.  For an interactive
-webapp, you might, "right at this moment", send a "click" `Event` to a form
-button, which perhaps triggers other events to fire.  Or, maybe, you enqueue an
-event to fire some point in the future, like registering a timeout on a network
-call or something.  (If you come from an OOP background, an `Event` is very
-much like an [Observable](https://reactivex.io/documentation/observable.html).)
-
-## Designing an `Event` type
-
-The second example I gave you, where we just define "at these points in the
-future, consume these actions" feels, operationally, extremely different from
-the first example, "wait for the outside world to inject an action", though.
-One's a _closed system_ where the whole timeline exists in advance and the
-other is _open_, where we need to discover what actually happens at runtime.
-These will by necessity require fundamentally different data definitions; for
-today, I'm going to focus on the closed system definition.  This one is both
-conceptually simpler and has a nicer LTL correspondence that the equivalent one
-that has to messily interact with the real world.
-
-OK, so what's the type of a (closed) Event?  Before we can start reasoning
-about `Event`s we need to make sure our data definition is well-formed.
-
-Just like `Signal`, we'll want the type parameterised on whatever the valid
-action space is, so it'll be a polymorphic type for sure, so `def Event α :=
-... α` is not a terrible place to start.
-
-Since an action can be taken or not taken at any given moment in time, the
-rough shape will be `def Event α := Time → (Option α)`.  That this looks a
-lot like the datatype for `Signal` perhaps indicates to us that we're on the
-right track, and maybe that `Event`s are actually just a particular sort of
-`Signal`?  (This is a valid design choice -- Elm originally did just this --
-but I'm going to deliberately keep the datatypes distinct here.)
-
-OK!  So, in our traffic light example, an `Event` that corresponds to our
-might look like the following:
-
-::: margin-note
-Maybe, in a later installment, we'll revisit the open-termed version of
-`Event`, where input can come in from the outside world.  It might be worth
-meditating on what a good datatype for such an `Event` would be.
-:::
-```lean4
-def Event α := Time → (Option α)
-...
--- A pedestrian presses the button at t=2 and t=10
-def pedestrianButton : Event Unit := fun t =>
-  match t with
-  | 2 | 7 => some ()
-  | _ => none
-```
-
-What we have here is a completed history - a series of events after the fact. A
-running FRP program would, of course, incrementally receive events in real time
-from an event loop.
-
-With this `Event` in place, we can wire up the button to a walk sign - whenever
-the button is pressed, the walk sign is on; otherwise, the "no walk" sign is.
-Similarly, the traffic light can be overridden to `Red`.
-
-::: margin-note
-This is a pointwise transformation of a `Signal`; the `Signal` is only modified
-so long as the pedestrian is holding the button down.  Of course, in the real
-world, a pedestrian crossing button delays the lights long enough for them to
-cross the road!  We'll soon see the mechanism that lets us retain the value of
-an `Event` over subsequent time steps, but for now, humour me with this one
-here.
-:::
-```lean4
-inductive WalkSign where 
- | Walk 
- | DontWalk
-deriving Repr, DecidableEq
-
-def walkSignal (button : FRP.Event Unit) : □ WalkSign :=
-  fun t => match button t with
-    | some () => .Walk
-    | none    => .DontWalk
-
-def carLight (button : FRP.Event Unit) : □ Light :=
-  fun t => match button t with
-    | some () => .Red
-    | none    => cycling t
-
-def pedCrossing (button : FRP.Event Unit) : □ (Light × WalkSign) :=
-  FRP.map2 Prod.mk (carLight button) (walkSignal button)
-```
-```lean4
-#eval (List.range 5 : List Time).map (pedCrossing pedestrianButton)
-    -- output:
-    [(Light.Red,    WalkSign.DontWalk),
-     (Light.Yellow, WalkSign.DontWalk),
-     (Light.Red,    WalkSign.Walk),
-     (Light.Red,    WalkSign.DontWalk),
-     (Light.Yellow, WalkSign.DontWalk)]
-```
-
-## The Curry-Howard correspondence for Events...sort of...
-
-Given that `Signal T` guarantees a `T` at all time steps, and an `Event T` is
-really about the moments of time in which `T` holds, you might naturally
-conclude that the LTL type that corresponds to an `Event` is `eventually`:
-after all, this is clearly true of `pedestrianButton`: It's clearly eventually
-pressed twice!
-
-```lean4
-namespace LTL
-  prefix:max "◇ " => eventually  -- Prop: ∃ t, p (drop t trace)
-end LTL
-
-namespace FRP
-  notation "◇ " α => Event α -- Type: Time → Option α
-end FRP
-```
-
-The interpretation of `◇ α` very well _ought_ to be "there exists a time when α
-holds", but this correspondence doesn't _quite_ work for our formulation.  Think
-about an event that never fires!  As currently defined, there's nothing stopping
-us from writing:
-
-```lean4
--- never typechecks as an Event...
-def never : FRP.Event α := fun _ => none
-
--- ...but the corresponding ◇ proposition is false:
-theorem neverFires : ¬ (∃ t : Time, (never (α := α) t).isSome) := by
-  intro ⟨t, hSome⟩ -- "<" and ">" destructures the existential
-  simp [never] at hSome
-
-```
-
-For `◇ α` to be strictly-speaking well-typed, we would need to provide a
-_witness_ that proves it will eventually fire, no matter what the current
-timestamp is.  (If you remember the last post in this series, providing a
-witness with the `exact` tactic was precisely how we did it!).  What we really
-have here is ` □ (Option α)`; `◇` only emerges when you additionally prove `∃
-t, (e t).isSome`.
-
-Come to think of it, being able to state that proposition is broadly useful,
-so let's give it a name:
-
-```lean4
-def fires (e : Time → Option α) : Prop := ∃ t, (e t).isSome
-```
-
-The more exact version of an `Event` would bundle the event with a proof that
-it will, in fact, eventually fire.  
-
-:::margin-note
-Just like with respect to `Signal`s: in Agda, we would get this for free.
-:::
-```lean4
-namespace FRP
-  structure Event (α : Type) where
-    f : Time → Option α
-    live : fires f
-
-  notation "◇ " α => Event α
-end FRP
-
-def pedestrianButton : ◇ Unit := ⟨
- -- As before, we fire at t=2 and t=7...
- (fun t =>
-   match t with
-   | 2 | 7 => some ()
-   | _ => none),
- -- ...but unlike before, we provide a witness that we
- -- fire at least once.
- ⟨2, by simp⟩⟩ 
-```
-
-`CoeFun` is a typeclass that makes a type "callable" with function application
-syntax, like `Fn` in Rust or `operator()` in C++.  A `CoeFun (Event a)` just
-passes along the argument to the `.f` field.
-
-```lean4
-namespace FRP
-  ...
-  instance : CoeFun (Event α) (fun _ => Time → Option α) where
-    coe e := e.f
-end FRP
-
-#eval (List.range 5 : List Time).map (pedCrossing pedestrianButton)
-    -- output, just like before:
-    [(Light.Red, WalkSign.DontWalk),
-     (Light.Yellow, WalkSign.DontWalk),
-     (Light.Red, WalkSign.Walk),
-     (Light.Red, WalkSign.DontWalk),
-     (Light.Yellow, WalkSign.DontWalk)]
-```
-
-## Proving a safety property involving events
-
-There's a pretty clear safety property here: when the walk sign is on,
-the traffic light better be red!
-
-```lean4
-def walkOnlyWhenRed (button : ◇ Unit) : Prop :=
-  LTL.always
-    (LTL.atom (fun (traffic, ped) => ped = .Walk → traffic = .Red))
-    (pedCrossing button)
-
-theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by 
-  -- TODO
-
-1 goal
-button : FRP.Event Unit
-⊢ walkOnlyWhenRed button
-```
-
-We'll proceed as before: first we'll simplify the domain-specific definitions
-for the traffic light problem, and then simplify away the LTL and FRP primitives.
-
-```lean4
-theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by
-  simp [walkOnlyWhenRed, pedCrossing] -- Unfold outer definitions...
-  simp [LTL.always, LTL.atom, now, drop, FRP.map2] --Unfold primitives...
-  simp [carLight, walkSignal] -- Unfold inner definitions...
-
-1 goal
-button : FRP.Event Unit
-⊢ ∀ (i : ℕ),
-  (match button i with
-      | some PUnit.unit => WalkSign.Walk
-      | none => WalkSign.DontWalk) =
-      WalkSign.Walk →
-    (match button i with
-      | some PUnit.unit => Light.Red
-      | none => cycling i) =
-      Light.Red
-```
-
-Now we can introduce our time value and split on the possible values of `button i`:
-
-```lean4
-theorem walkSafe (button : FRP.Event Unit) : walkOnlyWhenRed button := by
-  simp [walkOnlyWhenRed, pedCrossing]
-  simp [LTL.always, LTL.atom, now, drop, FRP.map2]
-  simp [carLight, walkSignal]
-  intro t --NEW 
-  split <;> --NEW: TODO
-
-2 goals
-case h_1
-button : FRP.Event Unit
-t : ℕ
-x✝ : Option Unit
-heq✝ : button t = some PUnit.unit
-⊢ WalkSign.Walk = WalkSign.Walk → Light.Red = Light.Red
-case h_2
-button : FRP.Event Unit
-t : ℕ
-x✝ : Option Unit
-heq✝ : button t = none
-⊢ WalkSign.DontWalk = WalkSign.Walk → cycling t = Light.Red
-```
-
-`simp` is enough to discharge both these goals, so `split <;> simp` completes
-the safety proof.  Our final proof:
-
-```lean4
-theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by
-  simp [walkOnlyWhenRed, pedCrossing]
-  simp [LTL.always, LTL.atom, now, drop, FRP.map2]
-  simp [carLight, walkSignal]
-  intro t
-  split <;> simp
-```
-
-You might be tempted to say, "ah, we've proven a safety property, but liveness
-is also trivial: a pedestrian can _always_ press the button and cross, so
-"a good thing will always happen" is similarly trivial.  The more interesting
-liveness property is actually about _cars_: is it the case that the traffic
-light will ultimately go green, allowing vehicle traffic to move again?
-
-Not if we press the button _every clock tick_!
-
-```lean4
-def spammer : ◇ Unit := ⟨fun _ => some (), ⟨0, by simp⟩⟩
-
-#eval (List.range 5 : List Time).map (pedCrossing spammer)
--- output:
-[(Light.Red, WalkSign.Walk),
- (Light.Red, WalkSign.Walk),
- (Light.Red, WalkSign.Walk),
- (Light.Red, WalkSign.Walk),
- (Light.Red, WalkSign.Walk)]
-```
-
-Indeed, we can prove that our liveness property does _not_ hold here:
-pedestrians will starve out motorists.
-
-```lean4
-def carsEventuallyGreen (button : ◇ Unit) : Prop :=
-  LTL.always (LTL.eventually (LTL.atom (· = .Green)))
-    (carLight button)
-
-example : ¬ carsEventuallyGreen spammer := by
-  simp [carsEventuallyGreen, spammer]
-  simp [LTL.always, LTL.eventually, LTL.atom, now, drop]
-  unfold carLight; simp
-```
-
-::: margin-warning
-If you're not yet like me, might I suggest [Life After Cars: Freeing Ourselves
-From The Tyranny of the Automobile](https://www.lifeaftercars.com/)?
-
-Maybe a more sympathetic starvation example might be [my neighbourhood
-drawbridge](https://en.wikipedia.org/wiki/Fremont_Bridge_(Seattle)) that
-periodically needs to raise itself, preventing the flow of pedestrians,
-cyclists, AND motorists, whenever a ship needs to sail through the canal. Since
-marine traffic has legal priority, without a cooldown protocol, the bridge
-could be left perpetually raised.
-:::
-This is not a problem if, like me, you hate how cars have ruined cities and
-have no moral objection to ceding this intersection entirely to pedestrians
-and cyclists. However, proving fairness is pretty important in other contexts:
-we might want a _fair OS scheduler_ to always, eventually, schedule a
-ready-to-run job, or a _fair mutex_ to always, eventually, cede the critical
-section to a waiter.
-
-## Fairness ensures (eventual) progress
-
-Let's consider two problems in one here: first, the pedestrian button should
-light the walk sign for more than just one timestep; and, we should have a
-cooldown period where pressing the button doesn't actually trigger a light
-change, to let vehicles, ugh, progress for a bit.
-
-```lean4
-structure CrossingState where
-  countdown : Nat -- How many ticks remain for the walk light
-  cooldown  : Nat -- How many ticks until the button works again
-deriving Repr
-```
-
-So, for instance, if some `Signal CrossingState` had a cooldown of `4` at some
-time `t`, we'd expect the value at `t+1` to be `3`, and so on.
-
-More broadly: our goal is to move towards a traffic light policy where, in
-order for a pedestrian button `Event` to actually affect the light cycle,
-`cooldown` must be zero; and, the Walk sign must be lit up until `countdown`
-goes to zero.
-
-Clearly we need to transform an `Event Unit` into a `Signal CrossingState`.
-However, we've only seen _pointwise `Signal` transformations_ like `map`, and
-that isn't expressive enough for us.  In order to implement a `Signal
-CrossingState` that correctly counts down, we need to be able to look backwards
-into previous states (otherwise, how would we know the previous countdown
-values to subtract from?)
-
-Next time, we'll look into extending our FRP API to accomplish just that.
+We don't really have a way for our reactive programs to, well, _react_ to anything
+just yet.  Next time, we'll introduce the other fundamental FRP primitive, _events_,
+that can modify the behaviour of `Signals` over time.  And, of course, we'll see
+what the LTL <-> FRP correspondence is for that datatype too...
