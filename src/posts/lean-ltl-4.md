@@ -229,6 +229,16 @@ def ctof (sc : Signal Float) : Signal Int32 :=
 #eval ctof bedroom 3 -- 68 (comfy!)
 ```
 
+If we wanted to separate out the rounding and truncation into their own functions,
+we could certainly do that too: notice that we read this right-to-left: we start
+with the input `Signal`, first apply the conversion function, and _then_ apply
+the rounding and integer conversion function.
+
+```lean4
+def ctof (sc : Signal Float) : Signal Int32 :=
+  (·.round.toInt32) <$> (· * 9./5. + 32) <$> sc
+```
+
 Suppose we want to approximate the hallway temperature by taking the average of
 the bedroom and kitchen sensors.  Since `avg` is a function of two arguments,
 we can't use `map` aka `<$>` directly. `map2`, though, does let us write this:

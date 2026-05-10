@@ -1,5 +1,6 @@
 const syntaxHighlight = require("@11ty/eleventy-plugin-syntaxhighlight");
 const rssPlugin = require("@11ty/eleventy-plugin-rss");
+const minifyJsPlugin = require("./scripts/eleventy-plugin-minify-js");
 const markdownIt = require("markdown-it");
 const markdownItFootnote = require("markdown-it-footnote");
 const markdownItContainer = require("markdown-it-container");
@@ -185,6 +186,9 @@ module.exports = function(eleventyConfig) {
 
   // Add RSS plugin
   eleventyConfig.addPlugin(rssPlugin);
+
+  // Minify JS in the output dir (skipped in --serve / --watch).
+  eleventyConfig.addPlugin(minifyJsPlugin);
 
   // Add global metadata for RSS
   eleventyConfig.addGlobalData("metadata", {
