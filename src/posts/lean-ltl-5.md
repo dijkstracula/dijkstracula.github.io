@@ -44,15 +44,16 @@ the case that `inv` holds for `sig`".  Less formally, we'd say `(□ (LTL.atom
 inv)) sig`.  Let's prove it!
 
 ```lean4
-theorem always_atom {inv : β → Prop} (sig : Signal β) (h : ∀ t, inv (sig t))
-    : (□ (LTL.atom inv)) sig := by
+theorem always_atom {inv : β → Prop} (sig : Signal β) : 
+  (∀ t, inv (sig t)) → (□ (LTL.atom inv)) sig := by
+  intro h t ; -- TODO
 
-1 goal
 β : Sort u_1
 inv : β → Prop
 sig : □ β
 h : ∀ (t : Time), inv (sig t)
-⊢ □ (LTL.atom inv) sig
+t : Nat
+⊢ LTL.atom inv (drop t sig)
 ```
 
 This lets us say, starting from the goal and looking backwards to the
@@ -62,19 +63,20 @@ ahead to the goal, "I have `∀ t, p (trace t)`; I'll repackage it as `□ (atom
 p)` to use other LTL operators."
 
 This isn't too hard to prove, because `□` is just defined under the hood just
-like `h`.  With an intro, some unfolding, we have exactly the theorem we want.
+like `h`.  With some unfolding of LTL definitions, we end up precisely with
+the hypothesis `h`.
 
 ::: margin-note
 Technically, for this to be an equivalence, you need to show implication in
 both directions.  Give that a try and prove the stronger statement
-`always_atom_iff`.
+`always_atom_iff`, which we'll make use of in the next post.  To write it,
+you'll change `→` to `↔` and use the `constructor` tactic to split the goal
+into the two implications.
 :::
 ```lean4
-theorem always_atom {inv : β → Prop} (sig : Signal β) (h : ∀ t, inv (sig t))
-    : (□ (LTL.atom inv)) sig := by
-  intro t
-  simp [LTL.atom, drop, now]
-  exact h t
+theorem always_atom {inv : β → Prop} (sig : Signal β) : 
+  (∀ t, inv (sig t)) → (□ (LTL.atom inv)) sig := by
+  intro h t ; simp [LTL.atom, drop, now] ; exact h t
 
 Goals accomplished!
 ```
@@ -468,20 +470,20 @@ Now we can wire all these up!  We'll use `presses` alongside `onNone` and `onSom
 and some starting state:
 
 ```lean4
-def crosswalk ev := FRP.accumulate'
-  CrossingState.onSome
-  CrossingState.onNone
+def crosswalk ev := FRP.accumulate
   (.Cooldown 2) -- init
+  CrossingState.onNone
+  CrossingState.onSome
   ev
 
 #eval List.range 10 |>.map (fun n => (n, (crosswalk presses) n))
 
 [(0, CrossingState.Cooldown 2),
  (1, CrossingState.Cooldown 1),
- (2, CrossingState.Cooldown 0),  -- t=2: Button press
+ (2, CrossingState.Cooldown 0),  -- t=2: Button press (ignored)
  (3, CrossingState.Idle),
  (4, CrossingState.Idle),
- (5, CrossingState.Countdown 3), -- t=5: Button press
+ (5, CrossingState.Countdown 3), -- t=5: Button press (accepted)
  (6, CrossingState.Countdown 2),
  (7, CrossingState.Countdown 1),
  (8, CrossingState.Countdown 0),
@@ -602,7 +604,7 @@ def accumulate
 ```
 
 Previously, `accumulate` returned a `Signal β`.  Stands to reason that it's now
-going to be a refinement type `{ sig: Signal β // ... }`.  But what's the
+going to be a refinement type `{ sig: (Signal β) // ... }`.  But what's the
 proposition that should be true on the return type?
 
 Remember that inductive invariants encode safety properties.  So, whatever that
@@ -619,28 +621,40 @@ def accumulate
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
   (ev: Event α)
-  : { sig : Signal β // (□ (LTL.atom inv)) sig }  := ... -- TODO: implementation?
+  : { sig : (Signal β) // (□ (LTL.atom inv)) sig }  := ... -- TODO: implementation?
 ```
 
 Notice that this refines the entire `Signal`, not the `β` inside the signal.
 "`(Signal β) // ...`" is saying "here's a `Signal` and a proof of its safety
-property", whereas `Signal (β // ...)` makes a pointwise claim about every
-timestep.  This is the payoff for what we get for proving `inv init`: if we
-implement our refined `accumulate` correctly, it'll guarantee the safety
-property.  Such "assume-guarantee" reasoning is critical for composing verified
-code together: the guarantee out of one function can become an assumption into
-the next.
+property", whereas, if we'd parenthesized it differently, `Signal (β // ...)`
+would make a pointwise claim about every timestep.  
+
+`sig : (Signal β) // (□ (LTL.atom inv)) sig` is what we get for proving
+initiation and consecution: if we implement our refined `accumulate` correctly,
+it'll guarantee that `inv` holds at all time steps and therefore will guarantee
+our safety property.  
+
+A bit more concretely, a refined value has two fields: `.val` and `.property`.
+What this means for our safety proof-carrying signal is that, informally,
+`(s.val)[t] : β` - we can extract the raw signal value at any time step `t`
+like before.  But now, we can also extract the per-tick proof of the invariant
+holding; again, informally, `(s.property)[t] : inv (s.val t)`.  (This isn't
+valid Lean, but just meant to be demonstrative.)
+
+Such "assume-guarantee" reasoning is critical for composing verified code
+together: the guarantee out of one function can become an assumption into the
+next.  (In the next post, we'll see how assume-guarantee reasoning composes.)
 
 ### Coercing a subtype back into a `Signal`
 
-`accumulate` returns a refinement type-pair of a `Signal` plus the safety
+OK, `accumulate` returns a refinement type-pair of a `Signal` plus the safety
 witness, but in actual uses of `accumulate` we only want the `Signal` itself.
 Let's add a quick coercion, just like we did for `Event`s last time, to treat
 the refinement type as callable, itself:
 
 ```lean4
 instance {P : Signal β → Prop} :
-    CoeFun { sig : Signal β // P sig } (fun _ => Signal β) where
+    CoeFun { sig : (Signal β) // P sig } (fun _ => Signal β) where
   coe s := s.val
 ```
 
@@ -745,7 +759,7 @@ def accumulate
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
   (ev: Event α)
-  : { sig : Signal β // (□ (LTL.atom inv)) sig } :=
+  : { sig : (Signal β) // (□ (LTL.atom inv)) sig } :=
 
   let switch (t: Time) : {s: β // inv s} → {s': β // inv s'} :=
     match ev t with
