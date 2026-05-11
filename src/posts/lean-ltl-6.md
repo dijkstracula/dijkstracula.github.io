@@ -39,11 +39,9 @@ def accumulate
     | none => onNone
     | some a => onSome a
 
-  let step_at : Signal {s: β // inv s} := fun n => Nat.rec
-    init
-    (fun n s => switch (n + 1) s) n
+  let step_at : □ {s: β // inv s} := fun n => Nat.rec init (fun n s => switch (n + 1) s) n
 
-  let vals : Signal β := fun t => (step_at t).vals
+  let vals : □ β := fun t => (step_at t).vals
   let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
 
   ⟨ vals, (always_atom_iff vals).mp safety ⟩
@@ -117,8 +115,25 @@ notation "( " "□ "       α ")" " // " inv      => { s : Signal α // (□ (LT
 notation      "□ " " ( " α "     // " inv " )" =>       Signal { s : α // inv s }
 ```
 
-Now, `accumulate` can return a `(□ β) // inv`, and inside the function,
-the `step_at` helper can be typed as `□ (β // inv)`.
+(Notice that `(□ β) // inv` is the same as `□ β // inv`, owing to operator
+precedence, so I've written new syntax for both.  I'll endeavour to be explicit
+when it's significant or otherwise appropriate to do so.)
+
+Now, `accumulate` can return a `(□ β) // inv`, and inside the function, the
+`step_at` helper can be typed as `□ (β // inv)`.
+
+```lean4
+def accumulate
+  ...
+  : (□ β) // inv := 
+  ...
+  let step_at : □ (β // inv) := fun n => Nat.rec init (fun n s => switch n s) n
+
+  let vals : □ β := fun t => (step_at t).vals
+  let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
+
+  ⟨ vals, (always_atom_iff vals).mp safety ⟩
+```
 
 ## Splitting and collecting refined Signals
 
@@ -127,17 +142,6 @@ internally: with `step_at`, we collate together all our refined values, across
 all time steps, into a `□ (β // inv)`. Once we've got that, we turn all the
 individual local proofs of `inv` holding into a global safety property,
 producing a final refined signal of type `(□ β) // inv`.
-
-```lean4
-def accumulate
-  ...
-  let step_at : □ (β // inv) := fun n => Nat.rec init (fun n s => switch n s) n
-
-  let vals : Signal β := fun t => (step_at t).vals
-  let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
-
-  ⟨ vals, (always_atom_iff vals).mp safety ⟩
-```
 
 As I worked on an earlier draft of this post, I found myself not only repeating
 this operation, but also performing the _inverse_ operation, which takes a
@@ -166,7 +170,89 @@ def Signal.collect : □ (β // inv) -> (□ β) // inv :=
   sorry -- TODO
 ```
 
+### `Signal.split` shards out a safety property into pointwise statements
+
+The rough shape of `split` will be the following: at every time step, we
+somehow produce a `β` and a proof that that `β` satisfies the invariant, and
+then glue them together to make a refined value.
+
+```lean4
+def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+  fun t => -- TODO something like:
+    let s : β := sorry 
+    let prf : inv s := sorry
+    ⟨s, prf⟩
+```
+
+How can we construct an `s`?  It has to come out of `sig` somehow, since that's
+the only way for us to produce `β`s.  Recalling that `sig.val` is a `□ β`,
+getting a `β` just from applying `t` seems like as good an idea as any!
+
+Similarly, `sig.property` is our safety property, ensuring `inv` will always
+hold over `vals`: concretely, `(□ (LTL.atom inv)) vals`.  Remember the definition
+of `LTL.always`:
+
+```lean4
+def always (p : Trace σ → Prop) (t : Trace σ) : Prop :=
+  ∀ i, p (drop i t)
+```
+
+This is a proof that our LTL formula holds at every timestep.  The beauty of
+the LTL-FRP correspondence is that by Curry-Howard, `(□ (LTL.atom inv)) vals`
+is a _function_ we can call with some timestep `i`, to get a proof that `p`
+holds at `t=i`.  This is exactly the same "interface" as a `Signal`!
+
+```lean4
+def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+  let vals : □ β := sig.val -- NEW
+  let safety : (□ (LTL.atom inv)) vals := sig.property -- NEW
+  fun t => 
+    ...
+    ⟨sorry, sorry⟩
+```
+
+
+Hopefully it's not too hard to see that `vals t` produces the `β` that we need,
+so we know what we need to do there. `safety t` _almost_ produces the proof
+that we need: it gives us a `LTL.atom inv (drop t vals)`, the global safety
+property, but what we in fact need is the pointwise proof at time `t`.
+Luckily, that's what `always_atom_iff` gives us! `fun t => (always_atom_iff
+vals).mpr sig.property t` first converts the safety property into its pointwise
+form, and then applies `t` to it.  (If you're feeling fancy you can write this
+as a point-free function composition as I've done below).
+
+So, our final `split` is:
+
+```lean4
+def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+  let vals : □ β := sig.val
+  let safety : (∀ t, inv (vals t)) := (always_atom_iff vals).mpr $ sig.property
+  fun t => ⟨ vals t, safety t ⟩
+```
+
+### `Signal.collect` compiles a `Signal` with a safety property
+
 TODO
+
+Notice that `accumulate` can be nicely simplified with `collect`; we construct
+the pointwise `Signal` using the recursor for `Nat`, and then glue it all
+together with `collect`.
+
+```lean4
+def accumulate
+  ...
+  : (□ β) // inv :=
+  let switch (t: Time) : {s: β // inv s} → {s': β // inv s'} :=
+    match ev t with
+    | none => onNone
+    | some a => onSome a
+
+  let step_at : □ (β // inv) := fun n => Nat.rec
+    init
+    (fun n s => switch n s) n
+
+  Signal.collect step_at
+```
 
 ## `FRP.map` with assume-guarantee reasoning
 
@@ -175,8 +261,7 @@ FRP combinators, let's port `FRP.map` from the former to the latter.
 Here's the original implementation:
 
 ```lean4
-def map (f: α → β) (s : □ α) : □ β :=
-  fun t => f (s t)
+def map (f: α → β) (s : □ α) : □ β := fun t => f (s t)
 ```
 
 We'll begin by introducing two invariants over `α` and `β`:
@@ -185,7 +270,8 @@ We'll begin by introducing two invariants over `α` and `β`:
 def map
   {inv_a: StateProp α}
   {inv_b: StateProp β}
-  (f: α → β) (s : □ α) : □ β := ...
+  (f: α → β) (s : □ α) 
+  : □ β := ...
 ```
 
 Where does it make sense for `inv_a` and `inv_b` to be used?  Certainly, in the
@@ -194,22 +280,30 @@ input `Signal`, as well as a refinement on the argument to `f`; `inv_b` becomes
 the refinement on the _return value_ of `f`, and thus the safety property of
 the `Signal` that we return!
 
-OK, so our signature looks like this:
+OK, so in summary, our signature looks like this:
 
 ```lean4
 def map
   {inv_a: StateProp α}
   {inv_b: StateProp β}
-  (f: {a: α // inv_a a} → {b : β // inv_b b})
-  (s: □ α // inv_a) : □ β // inv_b := ...
+  (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
+  : (□ β) // inv_b := ...
 ```
 
-And since we're returning a refined `Signal`, the shape of the return
-expression needs to be that tuple, comprised of the `Signal β` and its
-universally-quantified safety property.  This takes the same shape as the
-returned expression in `accumulate`.
+Let's write the body of `map`.  Roughly, our goal is going to be: "decompose
+the input `Signal` into its piecewise parts, apply the function on each part,
+and recombine into a new refined `Signal`.
+
+`Signal.split s` gives us a `□ (α // inv_a)`, which `f` can be applied to at
+every timestep.  `fun t => f (Signal.split s t)` gives us a `□ (β // inv_b)`,
+and then `Signal.combine` stitches the pointwise invariants back into a
+safety property.  So, we're left with functionally a one-liner:
 
 ```lean4
-def map ... :=
-  ⟨ fun t => ... , by ... ⟩
+def map
+  {inv_a: StateProp α}
+  {inv_b: StateProp β}
+  (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
+  : (□ β) // inv_b :=
+  Signal.collect (fun t => f (Signal.split s t))
 ```
