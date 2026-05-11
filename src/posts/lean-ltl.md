@@ -5,7 +5,7 @@ date: 2026-02-23
 tags: [post, lean, reactive-programming]
 excerpt: "Extending Lean's dependent type system to reason about reactive programs"
 series: lean-ltl
-series_title: "Part one - transition systems"
+series_title: "Intro - transition systems"
 ---
 
 Over the holidays I spent a bunch of time seeing how far we could push Lean's

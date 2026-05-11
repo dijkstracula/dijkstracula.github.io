@@ -1,10 +1,10 @@
 ---
 layout: post.njk
-title: "FRP in Lean: Incremental computation, accumulation, and spreadsheets"
+title: "FRP in Lean: Proof-transforming combinators and spreadsheets"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "Part six: incremental spreadsheets"
+series_title: "FRP: proof-transforming combinators"
 inlineCodeLang: lean4
 draft: true
 ---
@@ -28,7 +28,7 @@ namespace FRP
 namespace Refining
 
 def accumulate
-  {inv: β → Prop}
+  {inv: StateProp β}
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
@@ -43,10 +43,10 @@ def accumulate
     init
     (fun n s => switch (n + 1) s) n
 
-  let vals : Signal β := fun t => (step_at t).1
-  let prfs : ∀ t, inv (vals t) := fun t => (step_at t).2
+  let vals : Signal β := fun t => (step_at t).vals
+  let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
 
-  ⟨ vals, (always_atom_iff vals).mp prfs ⟩
+  ⟨ vals, (always_atom_iff vals).mp safety ⟩
 
 end Refining
 
@@ -66,10 +66,9 @@ end FRP
 ```
 
 Note that I'm using `always_atom_iff`, which I encouraged you to write in the
-previous post.  If you haven't yet, no better time than the present!  
-
-This theorem's type is `{inv : β → Prop} (sig : Signal β) : (∀ t, inv (sig t))
-↔ (□ (LTL.atom inv)) sig`; a biconditional, which we've discussed in previous
+previous post.  If you haven't yet, no better time than the present!  This
+theorem's type is `{inv : StateProp β} (sig : Signal β) : (∀ t, inv (sig t)) ↔
+(□ (LTL.atom inv)) sig`; a biconditional, which we've discussed in previous
 installments.
 
 ## Warmup: better notation for refined `Signal`s.
@@ -78,37 +77,94 @@ In the previous post, our program was littered with gnarly-looking `Signals`.
 For instance, `accumulate`'s return type was:
 
 ```lean4
-def accuulate
+def accumulate
   ...
   : { sig : (Signal β) // (□ (LTL.atom inv)) sig }
 ```
 
-A value of this type is made up of two parts: A value of type `FRP.Signal β`
-and then the safety property that the `Signal` has been proven to maintain.
-In our `Refining` namespace, let's redefine it as such, and give a nicer
-notation for it:
+This type refines `Signal β` with a safety property. A value of this type is
+made up of two parts: A value of type `Signal β` and then the safety property
+that the `Signal` has been proven to maintain. In our `Refining` namespace,
+we could redefine it as such.
 
 ```lean4
 namespace Refining 
 ...
-abbrev Signal (α : Type) (inv : α → Prop := fun _ => True) :=
-  { s : FRP.Signal α // (□ (LTL.atom inv)) s }
-
-notation "□ " α " // " inv => Signal α inv
-
-def accumulate
-  ...
-  : □ β // inv := ...
+abbrev RefinedSignal (inv : StateProp α) :=
+  { s : Signal α // (□ (LTL.atom inv)) s }
 ```
 
-I think overloading `//` in the context of a refinement type `Signal` is kind
-of cute. Now, `accumulate` can be implemented with a cleaner type signature
-where we don't have to worry about all the refinement type boilerplate.  From
-now on, we'll read `□ β // inv` to mean "a time-varying `β`, where `inv` always
-holds", and, with the help of the `always_atom_iff` bridging theorem, we can
-interpret `inv` as being true for values at all time steps. 
+If we were free to make up notation for an `RSignal`, we might write something
+like `(□ α) // inv`.  Structurally, it's what we said before: the whole `Signal`
+is refined by the safety invariant `inv`.
+
+What would it mean if we balanced the parentheses differently, say, `□ (α //
+inv)`?  This "pushes ths invariant" inside each time step: rather than a pair
+containing a `Signal α` and a global property, it's a `Signal` that, at each
+time step, produces a pair containing a `α` and a _local_ proof of the
+invariant for that time step.
+
+Rather than writing the `RefinedSignal` abbreviation above, let's construct
+some new notation:
+
+::: margin-note
+Why am I powerless in the presence of metaprogramming?  I blame my Scheme
+upbringing.
+:::
+```lean4
+notation      "□ "       α     " // " inv      => { s : Signal α // (□ (LTL.atom inv)) s }
+notation "( " "□ "       α ")" " // " inv      => { s : Signal α // (□ (LTL.atom inv)) s }
+notation      "□ " " ( " α "     // " inv " )" =>       Signal { s : α // inv s }
+```
+
+Now, `accumulate` can return a `(□ β) // inv`, and inside the function,
+the `step_at` helper can be typed as `□ (β // inv)`.
 
 ## Splitting and collecting refined Signals
+
+With this new notation, it's easier to see what `accumulate` is doing
+internally: with `step_at`, we collate together all our refined values, across
+all time steps, into a `□ (β // inv)`. Once we've got that, we turn all the
+individual local proofs of `inv` holding into a global safety property,
+producing a final refined signal of type `(□ β) // inv`.
+
+```lean4
+def accumulate
+  ...
+  let step_at : □ (β // inv) := fun n => Nat.rec init (fun n s => switch n s) n
+
+  let vals : Signal β := fun t => (step_at t).vals
+  let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
+
+  ⟨ vals, (always_atom_iff vals).mp safety ⟩
+```
+
+As I worked on an earlier draft of this post, I found myself not only repeating
+this operation, but also performing the _inverse_ operation, which takes a
+single `(□ β) // inv` and "shards out" its safety property to produce a `□ (β
+// inv)`.  This suggested to me that there was some sort of underlying
+primitive that I'd missed in previous posts.
+
+Indeed!  If we construct a way to go between `(□ β) // inv` and `□ (β //
+inv)`s, we can simplify a lot of the FRP combinators we need.
+
+Here's the skeleton of what we're after in this section:
+
+::: margin-note
+My original plan was to call these "fork" and "join", but if we keep this
+series going long ehough, we might find a better use for those terms :-)
+:::
+```lean4
+-- forks a signal with a global safety property into one where
+-- the invariant is proved locally at each time step.
+def Signal.split   : (□ β) // inv -> □ (β // inv) :=
+  sorry -- TODO
+
+-- collates a signal's local invariant proofs into a signal that
+-- maintains the invariant as a global safety property.
+def Signal.collect : □ (β // inv) -> (□ β) // inv :=
+  sorry -- TODO
+```
 
 TODO
 
@@ -127,8 +183,8 @@ We'll begin by introducing two invariants over `α` and `β`:
 
 ```lean4
 def map
-  {inv_a: α → Prop}
-  {inv_b: β → Prop}
+  {inv_a: StateProp α}
+  {inv_b: StateProp β}
   (f: α → β) (s : □ α) : □ β := ...
 ```
 
@@ -142,8 +198,8 @@ OK, so our signature looks like this:
 
 ```lean4
 def map
-  {inv_a: α → Prop}
-  {inv_b: β → Prop}
+  {inv_a: StateProp α}
+  {inv_b: StateProp β}
   (f: {a: α // inv_a a} → {b : β // inv_b b})
   (s: □ α // inv_a) : □ β // inv_b := ...
 ```

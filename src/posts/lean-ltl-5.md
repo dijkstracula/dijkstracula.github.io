@@ -1,10 +1,10 @@
 ---
 layout: post.njk
-title: "FRP in Lean: Stateful combinators and safety proofs"
+title: "FRP in Lean: Stateful combinators, safety, and liveness"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "Part five - non-pointwise combinators"
+series_title: "FRP: non-pointwise combinators"
 inlineCodeLang: lean4
 ---
 
@@ -33,8 +33,14 @@ And, suppose I have some statement `inv` about `β` values, such that at every
 time step in the signal, `inv` holds.  Then, `inv` is an _invariant_ over that
 `Signal`.  A bit more formally:
 
+::: margin-note
+Quick reminder from previous posts: `StateProp β` is a `β -> Prop`; in other
+words, given a value of some type, produce a propositiona about that value. We
+used this back in the [intro to LTL](/posts/lean-ltl-3) - it's the type that
+an `LTL.atom` consumes.
+:::
 ```lean4
-theorem some_lemma {inv : β → Prop} (sig : Signal β) (h : ∀ t, inv (sig t))
+theorem some_lemma {inv : StateProp β} (sig : Signal β) (h : ∀ t, inv (sig t))
     : /- TODO: what can we show? -/ := by /- TODO: how do we show it? -/
 ```
 
@@ -44,12 +50,12 @@ the case that `inv` holds for `sig`".  Less formally, we'd say `(□ (LTL.atom
 inv)) sig`.  Let's prove it!
 
 ```lean4
-theorem always_atom {inv : β → Prop} (sig : Signal β) : 
+theorem always_atom {inv : StateProp β} (sig : Signal β) : 
   (∀ t, inv (sig t)) → (□ (LTL.atom inv)) sig := by
   intro h t ; -- TODO
 
 β : Sort u_1
-inv : β → Prop
+inv : StateProp β
 sig : □ β
 h : ∀ (t : Time), inv (sig t)
 t : Nat
@@ -74,7 +80,7 @@ you'll change `→` to `↔` and use the `constructor` tactic to split the goal
 into the two implications.
 :::
 ```lean4
-theorem always_atom {inv : β → Prop} (sig : Signal β) : 
+theorem always_atom {inv : StateProp β} (sig : Signal β) : 
   (∀ t, inv (sig t)) → (□ (LTL.atom inv)) sig := by
   intro h t ; simp [LTL.atom, drop, now] ; exact h t
 
@@ -537,7 +543,7 @@ arguments.)
 
 ```lean4
 def accumulate
-  {inv : β → Prop} -- NEW: our inductive invariant, an implicit argument.
+  {inv : StateProp β} -- NEW: our inductive invariant, an implicit argument.
   (init : ...)
   (onNone : ...)
   (onSome : ...)
@@ -595,7 +601,7 @@ The standard convention is to name the before state `s` and the after state
 :::
 ```lean4
 def accumulate
-  {inv: β → Prop}
+  {inv: StateProp β}
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
@@ -616,7 +622,7 @@ So, our final function signature for `accumulate` is:
 
 ```lean4
 def accumulate
-  {inv: β → Prop}
+  {inv: StateProp β}
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
@@ -653,7 +659,7 @@ Let's add a quick coercion, just like we did for `Event`s last time, to treat
 the refinement type as callable, itself:
 
 ```lean4
-instance {P : Signal β → Prop} :
+instance {P : Signal StateProp β} :
     CoeFun { sig : (Signal β) // P sig } (fun _ => Signal β) where
   coe s := s.val
 ```
@@ -747,14 +753,14 @@ presevation proofs and collate them into an LTL proposition.  This'll complete
 the implementation.
 
 ```lean4
-theorem always_atom {inv : β → Prop} (sig : Signal β) (h : ∀ t, inv (sig t))
+theorem always_atom {inv : StateProp β} (sig : Signal β) (h : ∀ t, inv (sig t))
     : (□ (LTL.atom inv)) sig := by
   intro t ; simp [LTL.atom, drop, now] ; exact h t
 
 /- ... -/
 
 def accumulate
-  {inv: β → Prop}
+  {inv: StateProp β}
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
@@ -770,10 +776,10 @@ def accumulate
     init
     (fun n s => switch (n + 1) s) n
 
-  let vals : Signal β := fun t => (step_at t).1
-  let prfs : ∀ t, inv (vals t) := fun t => (step_at t).2
+  let vals : Signal β := fun t => (step_at t).vals
+  let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
 
-  ⟨ vals, always_atom vals prfs ⟩
+  ⟨ vals, always_atom vals safety ⟩
 ```
 
 ## A safe intersection

@@ -1,11 +1,11 @@
 ---
 layout: post.njk
-title: "Functional Reactive Programming in Lean: Reactive Signals and LTL.always"
+title: "FRP in Lean: Reactive Signals and LTL.always"
 date: 2026-04-17
 tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "So if propositions are types, and LTL are propositions, what programs are well-typed by LTL?"
 series: lean-ltl
-series_title: "Part 4a - FRP Signals"
+series_title: "FRP: Signals"
 ---
 
 # The Curry-Howard correspondence for LTL: FRP

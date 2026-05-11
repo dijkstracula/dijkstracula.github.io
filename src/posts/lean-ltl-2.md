@@ -5,7 +5,7 @@ date: 2026-03-15
 tags: [post, lean, reactive-programming]
 excerpt: "Recording and reasoning about the states our programs pass through"
 series: lean-ltl
-series_title: "Part two - execution traces"
+series_title: "Intro - execution traces"
 inlineCodeLang: lean4
 ---
 
@@ -143,7 +143,7 @@ programmers I know majored in physics: I'm sure they wouldn't find "all time is
 relative" to be all that scary of a notion.
 :::
 ```lean4
-def Trace α := Time → α
+abbrev Trace α := Time → α
 
 def now (t : Trace α) : α := t 0
 def drop (k : Nat) (t : Trace α) : Trace α := fun n => t (k + n)

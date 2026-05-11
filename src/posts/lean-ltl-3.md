@@ -5,7 +5,7 @@ date: 2026-04-02
 tags: [post, lean, reactive-programming, ltl]
 excerpt: "Specifications that move through time"
 series: lean-ltl
-series_title: "Part three - LTL"
+series_title: "Linear Temporal Logic"
 ---
 
 In the previous posts, we saw how dependent types let us enforce that every
