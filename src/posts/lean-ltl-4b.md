@@ -5,7 +5,7 @@ date: 2026-04-24
 tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "If Signals type to LTL.always, what could type to LTL.eventually?"
 series: lean-ltl
-series_title: "FRP: Events"
+series_title: "Intro to FRP: Events"
 ---
 
 Last time, we introduced `Signal`s, which are time-varying datatypes: at all
@@ -356,14 +356,15 @@ instance : Functor Event where
     ⟨f', staysLive⟩
 ```
 
-## A few `Event` combinators
+## A few `Event` combinators: `merge`
 
 Let's write a few more small combinators that we might need in later posts,
-before returning to the traffic light example.  `merge` takes two `Event`s
-and "unions" them together:
+before returning to the traffic light example.  
+
+`merge` takes two `Event`s and "unions" them together:
 
 ```lean4
-def merge (e1: Event α) (e2 : Event α) : Event α := 
+def Event.merge (e1: Event α) (e2 : Event α) : Event α := 
   let f := fun t => ... -- TODO 
   let fires : fires f := by sorry -- TODO
   ⟨f, fires⟩
@@ -376,7 +377,7 @@ use `Option.orElse`, or the
 typeclass's `<|>` operator.
 
 ```lean4
-def merge (e1: Event α) (e2 : Event α) : Event α := 
+def Event.merge (e1: Event α) (e2 : Event α) : Event α := 
   let f := fun t => e1 t <|> e2 t
   let fires : fires f := by sorry -- TODO
   ⟨f, fires⟩
@@ -425,7 +426,7 @@ we just need to show one side, so let's choose `left` followed by `exact e1.live
 closing the goal and completing the combinator.
 
 ```lean4
-def merge (e1: Event α) (e2 : Event α) : Event α :=
+def Event.merge (e1: Event α) (e2 : Event α) : Event α :=
   let f := fun t => e1 t <|> e2 t
   let fires : fires f := by
     simp [fires, f]

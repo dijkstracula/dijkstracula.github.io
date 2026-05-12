@@ -5,7 +5,7 @@ date: 2026-04-17
 tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "So if propositions are types, and LTL are propositions, what programs are well-typed by LTL?"
 series: lean-ltl
-series_title: "FRP: Signals"
+series_title: "Intro to FRP: Signals"
 ---
 
 # The Curry-Howard correspondence for LTL: FRP
