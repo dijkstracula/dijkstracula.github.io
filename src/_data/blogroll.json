@@ -73,5 +73,10 @@
         "name": "transactional.blog",
         "url": "https://transactional.blog",
         "feed": "https://transactional.blog/feed.xml"
+    },
+    {
+        "name": "Yao Yue's site",
+        "url": "https://yaoyue.org",
+        "feed": "https://yaoyue.org/rss.xml"
     }
 ]

@@ -40,7 +40,7 @@ used this back in the [intro to LTL](/posts/lean-ltl-3) - it's the type that
 an `LTL.atom` consumes.
 :::
 ```lean4
-theorem some_lemma {inv : StateProp β} (sig : Signal β) (h : ∀ t, inv (sig t))
+theorem some_lemma {inv : StateProp β} (sig :  □ β) (h : ∀ t, inv (sig t))
     : /- TODO: what can we show? -/ := by /- TODO: how do we show it? -/
 ```
 
@@ -50,7 +50,7 @@ the case that `inv` holds for `sig`".  Less formally, we'd say `(□ (LTL.atom
 inv)) sig`.  Let's prove it!
 
 ```lean4
-theorem always_atom {inv : StateProp β} (sig : Signal β) : 
+theorem always_atom {inv : StateProp β} (sig :  □ β) : 
   (∀ t, inv (sig t)) → (□ (LTL.atom inv)) sig := by
   intro h t ; -- TODO
 
@@ -80,7 +80,7 @@ you'll change `→` to `↔` and use the `constructor` tactic to split the goal
 into the two implications.
 :::
 ```lean4
-theorem always_atom {inv : StateProp β} (sig : Signal β) : 
+theorem always_atom {inv : StateProp β} (sig :  □ β) : 
   (∀ t, inv (sig t)) → (□ (LTL.atom inv)) sig := by
   intro h t ; simp [LTL.atom, drop, now] ; exact h t
 
@@ -199,9 +199,11 @@ for the natural numbers, which produces `init` when `t=0` and applies the given
 function `Nat -> β -> β` when `t=(n+1)`.
 
 ::: margin-note
-Evaluating `scan step init` at time `t` recomputes from init every time — O(t)
-per evaluation, O(n²) to evaluate the whole signal. A real FRP runtime would
-do something smarter like cache previous state(s). 
+Evaluating `scan step init` at time `n` recomputes from init every time, `O(n)`
+per evaluation, and so `O(n²)` to evaluate the whole signal. This isn't
+dissimilar from the problem we had last time with `Event.latch`, and the
+solution's the same: A real FRP runtime would do something smarter like mutate
+a value over time to cache previous state(s).
 :::
 ```
 def screaming : Signal String := scan (· ++ "a") ""
@@ -241,17 +243,17 @@ inductive WalkSign where
  | DontWalk
 deriving Repr, DecidableEq
 
-def walkSignal (button : FRP.Event Unit) : □ WalkSign :=
+def walkSignal (button : ◇ Unit) : □ WalkSign :=
   fun t => match button t with
     | some () => .Walk
     | none    => .DontWalk
 
-def carLight (button : FRP.Event Unit) : □ Light :=
+def carLight (button : ◇ Unit) : □ Light :=
   fun t => match button t with
     | some () => .Red
     | none    => cycling t
 
-def pedCrossing (button : FRP.Event Unit) : □ (Light × WalkSign) :=
+def pedCrossing (button : ◇ Unit) : □ (Light × WalkSign) :=
   FRP.map2 Prod.mk (carLight button) (walkSignal button)
 ```
 
@@ -322,7 +324,7 @@ state - this at least nails down the type of the returned `Signal`.
 
 
 ```lean4
-def accumulate /- TODO: what else? -/ (init: β) (ev: Event a) : Signal β := 
+def accumulate /- TODO: what else? -/ (init: β) (ev: ◇ a) : Signal β := 
   sorry -- TODO: what to do?
 ```
 
@@ -344,9 +346,10 @@ is, when `ev t = none`, this is doing exactly the same thing as our `scan`
 combinator.  So, `scan`'s `step` might as well be called `onNone`, since that's
 how to just produce a new `β` given the previous one.
 
-```lean4
-def accumulate /- TODO: what else? -/ (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
-  sorry -- TODO
+```diff-lean4
+-def accumulate /- TODO: what else? -/ (init: β) (ev: ◇ a) : Signal β := 
++def accumulate /- TODO: what else? -/ (onNone: β → β) (init : β) (ev: ◇ a) : Signal β := 
+   sorry -- TODO
 ```
 
 Notice that this `onNone` is _not_ the same as the `β` we guessed a moment ago.
@@ -358,9 +361,10 @@ function.  Generally, we say we've _lifted_ `β` into the pure catamorphism.
 
 This also means we want a `onSome` function, of some `β`-producing type!
 
-```lean4
-def accumulate (onSome: ? -> β) (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
-  sorry -- TODO
+```diff-lean4
+-def accumulate /- TODO: what else? -/ (onNone: β → β) (init : β) (ev: ◇ a) : Signal β := 
++def accumulate (onSome: ? -> β) (onNone: β → β) (init : β) (ev: ◇ a) : Signal β := 
+   sorry -- TODO
 ```
 
 Using the definition of catamorphisms for `Option a`, as well as our observation
@@ -374,9 +378,10 @@ for the situation in which we're calling it: `ev` has fired, producing an `a`,
 and so we want to combine that with the current signal value in some way.  And
 so, our final function will look thus:
 
-```lean4
-def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
-  sorry -- TODO
+```diff-lean4
+-def accumulate (onSome: ? -> β) (onNone: β → β) (init : β) (ev: ◇ a) : Signal β := 
++def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: ◇ a) : Signal β := 
+   sorry -- TODO
 ```
 
 Before proceeding, you should spend a moment convincing yourself that the wrong
@@ -392,12 +397,13 @@ OK, how do we actually write this thing?  Since we said earlier that
 `accumulate` generalises `scan`, using the recursor for `Nat` seems
 like a good idea.  Here's the overall shape we'll be working with:
 
-```lean4
-def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β := 
-  fun n => Nat.rec 
-    sorry            -- TODO: what to do at t=0?
-    (fun s => sorry) -- TODO: what to do at t=(n+1)?
-    n
+```diff-lean4
+ def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: ◇ a) : Signal β := 
+-  sorry -- TODO
++  fun n => Nat.rec 
++    sorry            -- TODO: what to do at t=0?
++    (fun s => sorry) -- TODO: what to do at t=(n+1)?
++    n
 ```
 
 One helper that might be worth writing: both branches in `Nat.rec` need to either
@@ -411,25 +417,28 @@ let switch (t: Time) : β → β := match ev t with
 | some a => onSome a
 ```
 
-When `n=0`, we'll want to dispatch on our initial state `init`. For the
-`n=(n'+1)` case, we'll pass in the next time value, and the previous state,
-which the recursor will automatically supply for us.
+When `n=0`, we'll return `init` directly.  `init` is the value at time 0, so
+there's no event value to consult yet.  For the `n=(n'+1)` case, we'll pass in
+the next time value, and the previous state, which the recursor will
+automatically supply for us.
 
 So in conclusion, our final `accumulate` is:
 
 ::: margin-note
 Notice that our use of `Nat.rec` looks a lot like the body of `scan`.
 :::
-```lean4
-def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: Event a) : Signal β :=
-  let switch (t: Time) : β → β := match ev t with
-  | none => onNone
-  | some a => onSome a
-
-  fun n => Nat.rec 
-    init                          -- n=0
-    (fun n' s => switch (n'+1) s) -- n=(n'+1)
-    n
+```diff-lean4
+ def accumulate (onSome: a → β → β) (onNone: β → β) (init : β) (ev: ◇ a) : Signal β :=
++  let switch (t: Time) : β → β := match ev t with
++  | none => onNone
++  | some a => onSome a
++
+   fun n => Nat.rec 
+-    sorry            -- TODO: what to do at t=0?
+-    (fun s => sorry) -- TODO: what to do at t=(n+1)?
++    init                          -- n=0
++    (fun n' s => switch (n'+1) s) -- n=(n'+1)
+     n
 ```
 
 Notice that, because we actually _do_ use `n'` in the recursor, in contrast to
@@ -438,7 +447,8 @@ Notice that, because we actually _do_ use `n'` in the recursor, in contrast to
 ::: tip
 Pause and ponder: If you wrote the time-varying generalization of `scan` in the
 previous section, and are _still_ feeling ambitious, implement `accumulate` in
-terms of that general combinator, `FRP.map`, and `switch`.
+terms of that general combinator, `FRP.map`, and `switch`.  Similarly, can you
+write `Event.latch` in terms of `accumulate`?
 :::
 
 ## Weaving in button presses
@@ -599,14 +609,19 @@ That leaves us with all our arguments to `accumulate` looking like this:
 The standard convention is to name the before state `s` and the after state
 `s'`.
 :::
-```lean4
-def accumulate
-  {inv: StateProp β}
-  (init : { s: β // inv s})
-  (onNone: { s: β // inv s } → { s': β // inv s' })
-  (onSome: α → { s: β // inv s} → {s': β // inv s'})
-  (ev: Event α)
-  : /- TODO: return type? -/ := ... -- TODO: implementation?
+```diff-lean4
+ def accumulate
+   {inv: StateProp β}
+-  (init : ...)
+-  (onNone : ...)
+-  (onSome : ...)
+-  (ev : ...)
+-  : ... := -- TODO
++  (init : { s: β // inv s})
++  (onNone: { s: β // inv s } → { s': β // inv s' })
++  (onSome: α → { s: β // inv s} → {s': β // inv s'})
++  (ev: ◇ α)
++  : /- TODO: return type? -/ := ... -- TODO: implementation?
 ```
 
 Previously, `accumulate` returned a `Signal β`.  Stands to reason that it's now
@@ -620,14 +635,15 @@ an proposition in LTL!  In particular, `(□ (LTL.atom inv))` applied to the
 
 So, our final function signature for `accumulate` is:
 
-```lean4
-def accumulate
-  {inv: StateProp β}
-  (init : { s: β // inv s})
-  (onNone: { s: β // inv s } → { s': β // inv s' })
-  (onSome: α → { s: β // inv s} → {s': β // inv s'})
-  (ev: Event α)
-  : { sig : (Signal β) // (□ (LTL.atom inv)) sig }  := ... -- TODO: implementation?
+```diff-lean4
+ def accumulate
+   {inv: StateProp β}
+   (init : { s: β // inv s})
+   (onNone: { s: β // inv s } → { s': β // inv s' })
+   (onSome: α → { s: β // inv s} → {s': β // inv s'})
+   (ev: ◇ α)
+-  : /- TODO: return type? -/ := ... -- TODO: implementation?
++  : { sig : (Signal β) // (□ (LTL.atom inv)) sig }  := ... -- TODO: implementation?
 ```
 
 Notice that this refines the entire `Signal`, not the `β` inside the signal.
@@ -701,12 +717,15 @@ calling them.  So, it's enough to just change the type signature to ensure
 applying those functions is consistent with their types:
 
 ::: tip
-```lean4
-...
-  let switch (t: Time) : {s: β // inv s} → {s': β // inv s'} :=
-    match ev t with
-    | none => onNone
-    | some a => onSome a
+```diff-lean4
+ ...
+-  let switch (t: Time) : β → β := match ev t with
+-  | none => onNone
+-  | some a => onSome a
++  let switch (t: Time) : {s: β // inv s} → {s': β // inv s'} :=
++    match ev t with
++    | none => onNone
++    | some a => onSome a
 ```
 :::
 
@@ -733,10 +752,11 @@ weird dependent types like motive types.  Luckily, writing down our intent here
 is also simple change - just gotta follow the types:
 
 ::: tip
-```lean4
-  let step_at : Signal {s: β // inv s} := fun n => Nat.rec
-    (switch 0 init)
-    (fun n s => switch (n + 1) s) n
+```diff-lean4
+-  let step_at := fun n => Nat.rec
++  let step_at : Signal {s: β // inv s} := fun n => Nat.rec
+     (switch 0 init)
+     (fun n s => switch (n + 1) s) n
 ```
 :::
 
@@ -764,7 +784,7 @@ def accumulate
   (init : { s: β // inv s})
   (onNone: { s: β // inv s } → { s': β // inv s' })
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
-  (ev: Event α)
+  (ev: ◇ α)
   : { sig : (Signal β) // (□ (LTL.atom inv)) sig } :=
 
   let switch (t: Time) : {s: β // inv s} → {s': β // inv s'} :=
@@ -867,13 +887,18 @@ discharge it with `lia`; as it stands now the tactic can see through the
 ```
 
 ::: tip
-```lean4
-def tick : { s: CrossingState // bounded s } → { s': CrossingState // bounded s' }
-  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by trivial ⟩
-  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by trivial ⟩
-  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by lia⟩
-  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by lia ⟩
-  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by lia ⟩
+```diff-lean4
+ def tick : { s: CrossingState // bounded s } → { s': CrossingState // bounded s' }
+-  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by sorry ⟩
+-  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by sorry ⟩
+-  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by sorry ⟩
+-  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by sorry ⟩
+-  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by sorry ⟩
++  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by trivial ⟩
++  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by trivial ⟩
++  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by lia⟩
++  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by lia ⟩
++  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by lia ⟩
 ```
 :::
 
@@ -893,12 +918,13 @@ Our only change needs to be in `onSome`, when we transition from `Idle` to
 `Countdown 3`. `lia` works like magic.
 
 ::: tip
-```lean4
-def onNone := tick
+```diff-lean4
+ def onNone := tick
 
-def onSome (_ev : Unit)
-  | ⟨.Idle, h⟩ => ⟨ .Countdown 3, by lia ⟩ 
-  | s => tick s
+ def onSome (_ev : Unit)
+-  | .Idle => .Countdown 3
++  | ⟨.Idle, h⟩ => ⟨ .Countdown 3, by lia ⟩ 
+   | s => tick s
 ```
 :::
 

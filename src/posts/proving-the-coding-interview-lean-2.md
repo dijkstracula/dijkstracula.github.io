@@ -240,16 +240,17 @@ proposition stating something about _other propositions_.
 OK, since the left-hand side of this `<->` is shaped exactly like our goal,
 let's use `rw` to transform it into the right-hand side.
 
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
-  intro i n H_i_lt_n
-  rw [@List.getElem?_eq_some_iff] --NEW
+```diff-lean4
+ theorem fb_one_to_fizzbuzz :
+     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+   intro i n H_i_lt_n
++  rw [@List.getElem?_eq_some_iff]
 
-1 goal
-i n : ℕ
-H_i_lt_n : i < n
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
+ 1 goal
+ i n : ℕ
+ H_i_lt_n : i < n
+-⊢ (fizzbuzz n)[i]? = some (fb_one (1 + i))
++⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 ::: margin-note
@@ -323,23 +324,24 @@ We'll do this with the `have` tactic: `have` defines a new hypothesis in our
 context, that we'll have to prove before we can proceed with the rest of our
 `fb_one_to_fizzbuzz` proof:
 
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
-  intro i n H_i_lt_n
-  rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fizzbuzz n) = n) := by -- NEW
+```diff-lean4
+ theorem fb_one_to_fizzbuzz :
+     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+   intro i n H_i_lt_n
+   rw [@List.getElem?_eq_some_iff]  
++  have H_n_is_len : (List.length (fizzbuzz n) = n) := by
 
-1 goal
-i n : ℕ
-H_i_lt_n : i < n
-⊢ (fizzbuzz n).length = n
-
-unsolved goals
-i n : ℕ
-H_i_lt_n : i < n
-H_n_is_len : (fizzbuzz n).length = n
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
+-1 goal
++2 goals
+ i n : ℕ
+ H_i_lt_n : i < n
++⊢ (fizzbuzz n).length = n
++
++unsolved goals
++i n : ℕ
++H_i_lt_n : i < n
++H_n_is_len : (fizzbuzz n).length = n
+ ⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 Notice that our new goal is to prove the local proposition we just defined,
@@ -354,57 +356,61 @@ simply have applied `fb_length_n` to the _existing_ entry with `apply fb_length
 at H_i_lt_n`, saving us a few steps.  Lean, though, doesn't seme to let us
 apply a theorem to a hypothesis, though.  I'm not sure why!
 :::
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
-  intro i n H_i_lt_n
-  rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n --NEW
+```diff-lean4
+ theorem fb_one_to_fizzbuzz :
+     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+   intro i n H_i_lt_n
+   rw [@List.getElem?_eq_some_iff]  
+-  have H_n_is_len : (List.length (fizzbuzz n) = n) := by
++  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
 
-1 goal
-i n : ℕ
-H_i_lt_n : i < n
-H_n_is_len : (fizzbuzz n).length = n --NEW
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
+ 1 goal
+ i n : ℕ
+ H_i_lt_n : i < n
+-H_n_is_len : (fizzbuzz n).length = n
++H_n_is_len : (fizzbuzz n).length = n
+ ⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 Now we're back to the original goal to prove, but now we have our new equality
 ready to use.  If we rewrite the `n` in `H_i_lt_n`, then we've got precisely
 the bounds-check proof we need!
 
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
-  intro i n H_i_lt_n
-  rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
-  rw [<- H_n_is_len] at H_i_lt_n -- NEW
+```diff-lean4
+ theorem fb_one_to_fizzbuzz :
+     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+   intro i n H_i_lt_n
+   rw [@List.getElem?_eq_some_iff]  
+   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
++  rw [<- H_n_is_len] at H_i_lt_n
 
-1 goal
-i n : ℕ
-H_i_lt_n : i < (fizzbuzz n).length --NEW
-H_n_is_len : (fizzbuzz n).length = n
-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
+ 1 goal
+ i n : ℕ
+-H_i_lt_n : i < n
++H_i_lt_n : i < (fizzbuzz n).length
+ H_n_is_len : (fizzbuzz n).length = n
+ ⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 Now that we have precisely the hypothesis that the type checker complained
 that we didn't have before, we can use `exists` as before, and we'll see the 
 "there exists an `h`, such that..." part of the goal disappear!
 
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
-  intro i n H_i_lt_n
-  rw [@List.getElem?_eq_some_iff]  
-  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
-  rw [<- H_n_is_len] at H_i_lt_n
-  exists H_i_lt_n
+```diff-lean4
+ theorem fb_one_to_fizzbuzz :
+     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+   intro i n H_i_lt_n
+   rw [@List.getElem?_eq_some_iff]  
+   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
+   rw [<- H_n_is_len] at H_i_lt_n
++  exists H_i_lt_n
 
-1 goal
-i n : ℕ
-H_i_lt_n : i < (fizzbuzz n).length
-H_n_is_len : (fizzbuzz n).length = n
-⊢ (fizzbuzz n)[i] = fb_one (1 + i)
+ 1 goal
+ i n : ℕ
+ H_i_lt_n : i < (fizzbuzz n).length
+ H_n_is_len : (fizzbuzz n).length = n
+-⊢ ∃ h, (fizzbuzz n)[i] = fb_one (1 + i)
++⊢ (fizzbuzz n)[i] = fb_one (1 + i)
 ```
 
 It's worth pointing what all this did: we started with a statement of
@@ -421,25 +427,26 @@ _just that insightful_?  You be the judge...
 OK, we're kind of out of other things to do, so _now_ let's unfold the
 definition of `fizzbuzz`.
 
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
-  intro i n H_i_lt_n
+```diff-lean4
+ theorem fb_one_to_fizzbuzz :
+     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+   intro i n H_i_lt_n
 
-  -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
-  rw [@List.getElem?_eq_some_iff]
-  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
-  rw [<- H_n_is_len] at H_i_lt_n
-  exists H_i_lt_n
++  -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
+   rw [@List.getElem?_eq_some_iff]
+   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
+   rw [<- H_n_is_len] at H_i_lt_n
+   exists H_i_lt_n
 
-  -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
-  unfold fizzbuzz
++  -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
++  unfold fizzbuzz
 
-1 goal
-i n : ℕ
-H_i_lt_n : i < (fizzbuzz n).length
-H_n_is_len : (fizzbuzz n).length = n
-⊢ (List.map fb_one_ntaylor (List.range' 1 n))[i] = fb_one_ntaylor (1 + i)
+ 1 goal
+ i n : ℕ
+ H_i_lt_n : i < (fizzbuzz n).length
+ H_n_is_len : (fizzbuzz n).length = n
+-⊢ (fizzbuzz n)[i] = fb_one (1 + i)
++⊢ (List.map fb_one_ntaylor (List.range' 1 n))[i] = fb_one_ntaylor (1 + i)
 ```
 
 ### Exploiting properties of `List`s
@@ -470,26 +477,27 @@ states the first property and
 states the latter.  
 
 
-```lean4
-theorem fb_one_to_fizzbuzz :
-    ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
-  intro i n H_i_lt_n
+```diff-lean4
+ theorem fb_one_to_fizzbuzz :
+     ∀ (i n : Nat), i < n → (fizzbuzz n)[i]? = some (fb_one (1 + i)) := by
+   intro i n H_i_lt_n
 
-  -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
-  rw [@List.getElem?_eq_some_iff]
-  have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
-  rw [<- H_n_is_len] at H_i_lt_n
-  exists H_i_lt_n
+   -- 1. Use the i < n hypothesis to remove the Option type (`?` and `some (...)`).
+   rw [@List.getElem?_eq_some_iff]
+   have H_n_is_len : (List.length (fizzbuzz n) = n) := by apply fb_length_n
+   rw [<- H_n_is_len] at H_i_lt_n
+   exists H_i_lt_n
 
-  -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
-  unfold fizzbuzz
-  rw [List.getElem_map, List.getElem_range']
+   -- 2. Now prove the equality of the `i`th element and `fb_one (i + 1)`.
+   unfold fizzbuzz
++  rw [List.getElem_map, List.getElem_range']
 
-1 goal
-i n : ℕ
-H_i_lt_n : i < (fizzbuzz n).length
-H_n_is_len : (fizzbuzz n).length = n
-⊢ fb_one_ntaylor (1 + 1 * i) = fb_one_ntaylor (1 + i) 
+ 1 goal
+ i n : ℕ
+ H_i_lt_n : i < (fizzbuzz n).length
+ H_n_is_len : (fizzbuzz n).length = n
+-⊢ (List.map fb_one_ntaylor (List.range' 1 n))[i] = fb_one_ntaylor (1 + i)
++⊢ fb_one_ntaylor (1 + 1 * i) = fb_one_ntaylor (1 + i) 
 ```
 The equality is _almost_ the same on both sides: the only difference is that
 the left-hand side multiplies by `1`.  (This is because `List.range_` also has

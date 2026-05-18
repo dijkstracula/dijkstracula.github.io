@@ -13,7 +13,7 @@ Last time we designed a mechanism to accumulate stateful computation on
 `Signal`s and `Event`s.  This design ended up looking a lot like a tiny version
 of the step-based reactive systems we designed in part 1, so some of you may
 have been wondering what the point of doing that is.  We'll answer that today:
-in this post we'll see how we can _compose_ such locally-stateful computations
+in this post we'll see how we can _compose_ such proof-carrying computations
 using the FRP combinators we already know and love.
 
 Let's do some light refactoring.  At the moment, our `FRP` namespace is
@@ -88,7 +88,7 @@ we could redefine it as such.
 ```lean4
 namespace Refining 
 ...
-abbrev RefinedSignal (inv : StateProp α) :=
+abbrev RSignal (inv : StateProp α) :=
   { s : Signal α // (□ (LTL.atom inv)) s }
 ```
 
@@ -102,17 +102,16 @@ containing a `Signal α` and a global property, it's a `Signal` that, at each
 time step, produces a pair containing a `α` and a _local_ proof of the
 invariant for that time step.
 
-Rather than writing the `RefinedSignal` abbreviation above, let's construct
-some new notation:
+Rather than using `RSignal` everywhere, let's construct some new notation:
 
 ::: margin-note
 Why am I powerless in the presence of metaprogramming?  I blame my Scheme
 upbringing.
 :::
 ```lean4
-notation      "□ "       α     " // " inv      => { s : Signal α // (□ (LTL.atom inv)) s }
-notation "( " "□ "       α ")" " // " inv      => { s : Signal α // (□ (LTL.atom inv)) s }
-notation      "□ " " ( " α "     // " inv " )" =>       Signal { s : α // inv s }
+notation      "□ "       α     " // " inv      => RSignal α inv
+notation "( " "□ "       α ")" " // " inv      => RSignal α inv
+notation      "□ " " ( " α "     // " inv " )" => Signal { s : α // inv s }
 ```
 
 (Notice that `(□ β) // inv` is the same as `□ β // inv`, owing to operator
@@ -179,8 +178,8 @@ then glue them together to make a refined value.
 ```lean4
 def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
   fun t => -- TODO something like:
-    let s : β := sorry 
-    let prf : inv s := sorry
+    let vals : β := sorry 
+    let safety : inv s := sorry
     ⟨s, prf⟩
 ```
 
@@ -189,7 +188,7 @@ the only way for us to produce `β`s.  Recalling that `sig.val` is a `□ β`,
 getting a `β` just from applying `t` seems like as good an idea as any!
 
 Similarly, `sig.property` is our safety property, ensuring `inv` will always
-hold over `vals`: concretely, `(□ (LTL.atom inv)) vals`.  Remember the definition
+hold over `vals`: concretely, `∀ t, inv (vals t)`.  Remember the definition
 of `LTL.always`:
 
 ```lean4
@@ -202,13 +201,16 @@ the LTL-FRP correspondence is that by Curry-Howard, `(□ (LTL.atom inv)) vals`
 is a _function_ we can call with some timestep `i`, to get a proof that `p`
 holds at `t=i`.  This is exactly the same "interface" as a `Signal`!
 
-```lean4
-def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
-  let vals : □ β := sig.val -- NEW
-  let safety : (□ (LTL.atom inv)) vals := sig.property -- NEW
-  fun t => 
-    ...
-    ⟨sorry, sorry⟩
+```diff-lean4
+ def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
++  let vals : □ β := sig.val
++  let safety : ∀ t, inv (vals t) := sig.property
+   fun t => -- TODO something like:
+-    let vals : β := sorry 
+-    let safety : inv s := sorry
+-    ⟨s, prf⟩
++    ...
++    ⟨sorry, sorry⟩
 ```
 
 
@@ -223,16 +225,51 @@ as a point-free function composition as I've done below).
 
 So, our final `split` is:
 
-```lean4
-def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
-  let vals : □ β := sig.val
-  let safety : (∀ t, inv (vals t)) := (always_atom_iff vals).mpr $ sig.property
-  fun t => ⟨ vals t, safety t ⟩
+```diff-lean4
+ def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+   let vals : □ β := sig.val
+-  let safety : ∀ t, inv (vals t) := sig.property
+-  fun t => 
+-    ...
+-    ⟨sorry, sorry⟩
++  let safety : (∀ t, inv (vals t)) := (always_atom_iff vals).mpr $ sig.property
++  fun t => ⟨ vals t, safety t ⟩
 ```
 
 ### `Signal.collect` compiles a `Signal` with a safety property
 
-TODO
+Let's write the operation that does the opposite: given a `Signal` where a safety
+proof is paired with its value at every time step, collect that infinite
+sequence of proofs into a safety propery.
+
+```lean4
+def Signal.collect (sig: □ (β // inv)) : (□ β) // inv := 
+  let vals : □ β := sorry 
+  let safety : (□ (LTL.atom inv)) vals := sorry 
+  ⟨s, safety⟩
+```
+
+(Note that a nice contrast between `split` and `collect` is that `split` needed
+to return a top-level `Signal` and thus the returned expression was a `fun t =>
+...`, whereas the refinement is the top-level construct for `collect.)
+
+We'll proceed in the same way as before: we'll extract a `□ β` and a `∀ t, inv
+(vals t)` from the input signature.  We'll apply `always_atom_iff`, in the
+left-to-right direction this time to transform the latter from a quantified
+statement to an LTL proposition.
+
+```diff-lean4
+-def Signal.collect (sig: □ (β // inv)) : (□ β) // inv := 
+-  let vals : □ β := sorry 
+-  let safety : (□ (LTL.atom inv)) vals := sorry 
+-  ⟨s, safety⟩
++def Signal.collect (sig : □ (β // inv)) : (□ β) // inv :=
++  let vals : □ β := 
++    fun t => (sig t).val
++  let safety : (□ (LTL.atom inv)) vals := 
++    (always_atom_iff vals).mp (fun t => (sig t).property)
++  ⟨ vals, safety ⟩
+```
 
 Notice that `accumulate` can be nicely simplified with `collect`; we construct
 the pointwise `Signal` using the recursor for `Nat`, and then glue it all
@@ -254,40 +291,80 @@ def accumulate
   Signal.collect step_at
 ```
 
-## `FRP.map` with assume-guarantee reasoning
+## Refined combinators with assume-guarantee reasoning
 
 Now that we have a syntactic separation between non-refined and refined
-FRP combinators, let's port `FRP.map` from the former to the latter.
-Here's the original implementation:
+FRP combinators, let's port some of the `FRP` combinators to their refined
+counterparts.
+
+### `const` is a collection
+
+Let's warm up by porting `FRP.const` into the refined world.  Here's the
+original implementation:
 
 ```lean4
-def map (f: α → β) (s : □ α) : □ β := fun t => f (s t)
+def Signal.const (v: α) : □ α := fun _ => v
 ```
 
-We'll begin by introducing two invariants over `α` and `β`:
+Pretty simple: at all time steps `t`, produce that constant value.  By
+contrast, `RSignal.const` will consume a single value paired with a
+refinement - a `{ a : α // inv a }` - and produce a `□ α // inv`.
+
+Here's our function signature with that in mind:  It'll now take an implicit
+`inv : StateProp α`, and the `a` value is now a refinement type that makes use
+of our `inv`.
+
+```
+def RSignal.const {inv: StateProp α} (a : { a : α // inv a } ) : □ α // inv :=
+  -- TODO
+```
+
+The _wrong_ thing to do is to simply produce the constant `Signal` `(fun _ =>
+a)` like before.  Reason is: that's a _pointwise refinement_: it produces
+`<val, proof>`  pairs at every `t`, whereas what we want is a single, global
+`<val, proof>` pair.
+
+Luckily, though, we just wrote a combinator to turn one into the other!
+`Signal.collect` really does all the heavy lifting here.
+
+```diff-lean4
+ def RSignal.const {inv: StateProp α} (a : { a : α // inv a } ) : □ α // inv :=
+-  -- TODO
++  let sig : □ (α // inv) := (fun _ => a)
++  Signal.collect sig
+```
+
+### `map` splits, then collects
+
+Okay, let's do `Signal.map` next.  Here's the original signature.
 
 ```lean4
-def map
-  {inv_a: StateProp α}
-  {inv_b: StateProp β}
+def RSignal.map (f: α → β) (s : □ α) : □ β := fun t => f (s t)
+```
+
+As with `const`, we'll begin by introducing two invariants over `α` and `β`:
+
+```lean4
+def RSignal.map
+  {inv_a: StateProp α} {inv_b: StateProp β}
   (f: α → β) (s : □ α) 
   : □ β := ...
 ```
 
-Where does it make sense for `inv_a` and `inv_b` to be used?  Certainly, in the
-places where `α` and `β` are.  `inv_a` becomes the safety property for the 
-input `Signal`, as well as a refinement on the argument to `f`; `inv_b` becomes
-the refinement on the _return value_ of `f`, and thus the safety property of
-the `Signal` that we return!
+And like before, `inv_a` becomes the safety property for the input `Signal`, as
+well as a refinement on the argument to `f`; `inv_b` becomes the refinement on
+the _return value_ of `f`, and thus the safety property of the `Signal` that we
+return!
 
 OK, so in summary, our signature looks like this:
 
-```lean4
-def map
-  {inv_a: StateProp α}
-  {inv_b: StateProp β}
-  (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
-  : (□ β) // inv_b := ...
+```diff-lean4
+ def RSignal.map
+   {inv_a: StateProp α} {inv_b: StateProp β}
+-  (f: α → β) (s : □ α) 
+-  : □ β := ...
++  (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
++  : (□ β) // inv_b := ...
 ```
 
 Let's write the body of `map`.  Roughly, our goal is going to be: "decompose
@@ -299,11 +376,48 @@ every timestep.  `fun t => f (Signal.split s t)` gives us a `□ (β // inv_b)`,
 and then `Signal.combine` stitches the pointwise invariants back into a
 safety property.  So, we're left with functionally a one-liner:
 
-```lean4
-def map
-  {inv_a: StateProp α}
-  {inv_b: StateProp β}
-  (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
-  : (□ β) // inv_b :=
-  Signal.collect (fun t => f (Signal.split s t))
+```diff-lean4
+ def RSignal.map
+   {inv_a: StateProp α} {inv_b: StateProp β}
+   (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
+-  : (□ β) // inv_b := ...
++  : (□ β) // inv_b :=
++  Signal.collect (fun t => f (Signal.split s t))
 ```
+
+::: warning
+Annoyingly, only when writing this implementation did I realise that Lean's
+`Functor` implementation is, depending on how you look at it, too demanding or
+not demanding enough, to accept `RSignal.map`.  The whole point of a functor is
+that it provides a way to map between _any two_ types (which you can see in the
+[typeclass
+definition](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html#Functor)) - in `(α → β) → F α → F β`, `α` and `β` can be _any_ type.
+The problem here is that our definition of `RSignal.map` constrains us
+specifically to _refined types_, so Lean rejects it as being insufficiently
+general for `Functor`'s purposes.
+:::
+
+`RSignal.map2` is not fundamentally different, either.
+
+::: margin-warning
+If `RSignal.map` does not get us to a `Functor`, then `RSignal.map2`
+_extremely_ does not get us to an `Applicative`.  For `Applicative`, `pure : α
+→ F α` has to produce a refined value out of nothing but an `α`, there's no
+`inv_a` lying around to use as the proof term, and a `StateProp` is too rich of
+a dependent type to be inferred from context by Lean.  Alas!
+
+You should email me if you have thoughts on how to make this better.
+:::
+```lean4
+def map2
+  {inv_a: StateProp α} {inv_b: StateProp β} {inv_c: StateProp γ}
+  (f: {a: α // inv_a a} → {b : β // inv_b b} → {c : γ // inv_c c})
+  (s1: □ α // inv_a) 
+  (s2: □ β // inv_b)
+  : □ γ // inv_c :=
+  (fun t => f (Signal.split s1 t) (Signal.split s2 t)) |> Signal.collect
+```
+
+## Connecting refined `Signals` is composing invariants
+
+## tA reactive spreadsheet

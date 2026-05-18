@@ -364,6 +364,14 @@ mjx-container[display="false"] {
     color: var(--syntax-builtin, #005cc5);
 }
 
+/* In the structured proof pane, hide the +/-/space diff prefix character;
+   the line background already signals what changed. */
+.lean-proof-block .proof-hyp .token.prefix,
+.lean-proof-block .proof-goal .token.prefix,
+.lean-proof-block .proof-case-header .token.prefix {
+    display: none;
+}
+
 
 /* ============================================ */
 /* Prism.js Syntax Highlighting - Theme-aware  */
@@ -506,4 +514,23 @@ code[class*="language-"] {
 
 .token.italic {
     font-style: italic;
+}
+
+/* Diff line highlighting — ```diff and ```diff-<lang> code fences. */
+.token.deleted:not(.prefix) {
+    background-color: color-mix(in srgb, #ef4444 15%, transparent);
+}
+
+.token.inserted:not(.prefix) {
+    background-color: color-mix(in srgb, #10b981 15%, transparent);
+}
+
+.token.prefix.deleted {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.token.prefix.inserted {
+    color: #10b981;
+    font-weight: 600;
 }

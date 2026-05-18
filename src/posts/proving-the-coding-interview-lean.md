@@ -417,12 +417,13 @@ What can we say about what `fizzbuzz 3` evaluates to?  Well, by the theorem
 we wrote earlier, we have a _proof of equality_ about its value.  So, we can
 use the `rw` tactic with `fizzbuzz_thm` to transform the goal into:
 
-```lean4
-theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
-  rw [fizzbuzz_thm] -- NEW
+```diff-lean4
+ theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
++  rw [fizzbuzz_thm]
 
-1 goal
-⊢ 0 < ["1", "2", "Fizz"].length
+ 1 goal
+-⊢ 0 < (fizzbuzz 3).length
++⊢ 0 < ["1", "2", "Fizz"].length
 ```
 
 ::: margin-note
@@ -447,13 +448,14 @@ The `unfold` tactic takes as argument the name of something in scope and
 replaces it with its definition.  Let's see what happens when we apply this
 tactic on the `length` function:
 
-```lean4
-theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
-  rw [fizzbuzz_thm]
-  unfold List.length -- NEW
+```diff-lean4
+ theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
+   rw [fizzbuzz_thm]
++  unfold List.length
 
-1 goal
-⊢ 0 < ["2", "Fizz"].length + 1
+ 1 goal
+-⊢ 0 < ["1", "2", "Fizz"].length
++⊢ 0 < ["2", "Fizz"].length + 1
 ```
 
 This makes sense if you're familiar with how a length function would be
@@ -544,14 +546,16 @@ shortcuts to abbreviate the proof, but it makes what's happening a bit opaque.
 I'm being as explicit as possible here just to keep the mechanism clearer.
 :::
 
-```lean4
-theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
-  rw [fizzbuzz_thm]
-  unfold List.length
-  apply Nat.add_one_pos (["2", "Fizz"].length) -- NEW
+```diff-lean4
+ theorem fb_of_3_len_nonzero : 0 < (fizzbuzz 3).length := by
+   rw [fizzbuzz_thm]
+   unfold List.length
++  apply Nat.add_one_pos (["2", "Fizz"].length)
 
-0 goals
-Goals accomplished!
+-1 goal
+-⊢ 0 < ["2", "Fizz"].length + 1
++0 goals
++Goals accomplished!
 ```
 
 ::: margin-note
@@ -621,15 +625,16 @@ Well, we don't have a lemma to tell us anything specifically about
 `fizzbuzz n`.  Guess we could do worse than just unfolding `fizzbuzz` itself
 to see if there's anything in its definition that can help us out.
 
-```lean4
-theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by 
-  unfold fizzbuzz -- NEW
+```diff-lean4
+ theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by 
++  unfold fizzbuzz
 
-1 goal
-n : ℕ
-⊢ (List.map
-      fb_one
-      (List.range' 1 n)).length = n
+ 1 goal
+ n : ℕ
+-⊢ (fizzbuzz n).length = n
++⊢ (List.map
++      fb_one
++      (List.range' 1 n)).length = n
 ```
 
 ### Exploiting theorems about `List`s
@@ -646,14 +651,17 @@ map over them (in our case, `fb_one`).
 Before proceeding, see if you can remember what tactic we can apply to this
 theorem to help us make progress on our goal.
 
-```lean4
-theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by
-  unfold fizzbuzz
-  rw [List.length_map] -- NEW
+```diff-lean4
+ theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by
+   unfold fizzbuzz
++  rw [List.length_map]
 
-1 goal
-n : ℕ
-⊢ (List.range' 1 n).length = n
+ 1 goal
+ n : ℕ
+-⊢ (List.map
+-      fb_one
+-      (List.range' 1 n)).length = n
++⊢ (List.range' 1 n).length = n
 ```
 
 If you guessed `rw`, you're right!  `List.length_map` is a statement about
@@ -675,14 +683,17 @@ our goal, so this completes the proof.
 We can group multiple adjacent rewrites onto one line like this: `rw
 [List.length_map, List.length_range']`. 
 :::
-```lean4
-theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by
-  unfold fizzbuzz
-  rw [List.length_map]
-  rw [List.length_range'] -- NEW
+```diff-lean4
+ theorem fb_length_n (n : Nat) : (fizzbuzz n).length = n := by
+   unfold fizzbuzz
+   rw [List.length_map]
++  rw [List.length_range']
 
-0 goals
-Goals accomplished!
+-1 goal
+-n : ℕ
+-⊢ (List.range' 1 n).length = n
++0 goals
++Goals accomplished!
 ```
 
 ::: note

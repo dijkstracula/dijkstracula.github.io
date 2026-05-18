@@ -409,16 +409,18 @@ But, we can actually do that pattern-match right in the intro step, saving us
 a step and emphasizing that what's important are the two components of the
 statement.
 
-```lean4
-theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
-  intro t ⟨h_init, h_cons⟩
-  -- TODO: OK, what now??
+```diff-lean4
+ theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+-  intro t HValid
++  intro t ⟨h_init, h_cons⟩
+   -- TODO: OK, what now??
 
-1 goal
-t : Trace VMState
-h_init : t 0 = init
-h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
-⊢ noFreeLunch t
+ 1 goal
+ t : Trace VMState
+-HValid : validTrace t
++h_init : t 0 = init
++h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+ ⊢ noFreeLunch t
 ```
 
 ### Getting to the heart of the theorem
@@ -429,16 +431,17 @@ English-language proof.  A lot of machinery is hidden behind `noFreeLunch`, so
 let's unfold that definition, and also simplify away all the LTL connectives
 that make up the definition:
 
-```lean4
-theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
-  intro t ⟨h_init, h_cons⟩
-  simp [noFreeLunch, always, implies, next, atom, now, drop]
+```diff-lean4
+ theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+   intro t ⟨h_init, h_cons⟩
++  simp [noFreeLunch, always, implies, next, atom, now, drop]
 
-1 goal
-t : Trace VMState
-h_init : t 0 = init
-h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
-⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (1 + i)).dispensed = none
+ 1 goal
+ t : Trace VMState
+ h_init : t 0 = init
+ h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+-⊢ noFreeLunch t
++⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (1 + i)).dispensed = none
 ```
 
 Before proceeding, you should make sure that you're convinced that our goal
@@ -446,20 +449,21 @@ is still stating the no-free-lunch theorem.
 
 OK, We now have a new universal and two hypotheses, so let's pull them into the context too.
 
-```lean4
-theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
-  intro t ⟨h_init, h_cons⟩
-  simp [noFreeLunch, always, implies, next, atom, now, drop]
-  intro i h_empty h_unpaid
+```diff-lean4
+ theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+   intro t ⟨h_init, h_cons⟩
+   simp [noFreeLunch, always, implies, next, atom, now, drop]
++  intro i h_empty h_unpaid
 
-1 goal
-t : Trace VMState
-h_init : t 0 = init
-h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
-i : Nat
-h_empty : (t i).dispensed = none
-h_unpaid : (t i).coins < 2
-⊢ (t (1 + i)).dispensed = none
+ 1 goal
+ t : Trace VMState
+ h_init : t 0 = init
+ h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
++i : Nat
++h_empty : (t i).dispensed = none
++h_unpaid : (t i).coins < 2
+-⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (1 + i)).dispensed = none
++⊢ (t (1 + i)).dispensed = none
 ```
 
 ### Specializing a universally-quantified proof is like calling a function
@@ -481,24 +485,24 @@ about how parametric polymorphism is _also_ a universal quantification over
 type parameters, and so, say, instantiating `List` with `Int` looks just like
 function application too.)
 
-```lean4
-theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
-  intro t ⟨h_init, h_cons⟩
-  simp [noFreeLunch, always, implies, next, atom, now, drop]
-  intro i h_empty h_unpaid
-  have ⟨a, h_valid, h_step⟩ := h_cons i
+```diff-lean4
+ theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+   intro t ⟨h_init, h_cons⟩
+   simp [noFreeLunch, always, implies, next, atom, now, drop]
+   intro i h_empty h_unpaid
++  have ⟨a, h_valid, h_step⟩ := h_cons i
 
-1 goal
-t : Trace VMState
-h_init : t 0 = init
-h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
-i : Nat
-h_empty : (t i).dispensed = none
-h_unpaid : (t i).coins < 2
-a : VMAction
-h_valid : validAction (t i) a
-h_step : t (1 + i) = vmStep (t i) a h_valid
-⊢ (t (1 + i)).dispensed = none
+ 1 goal
+ t : Trace VMState
+ h_init : t 0 = init
+ h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+ i : Nat
+ h_empty : (t i).dispensed = none
+ h_unpaid : (t i).coins < 2
++a : VMAction
++h_valid : validAction (t i) a
++h_step : t (1 + i) = vmStep (t i) a h_valid
+ ⊢ (t (1 + i)).dispensed = none
 ```
 
 All this work has just gotten us to the following point: we need to prove that
@@ -507,25 +511,29 @@ the actual definition of a `validAction` at that time, for our given
 `VMAction`, unfolded for us is probably going to be useful.  However, when we
 do that unfolding, we end up with a real dog's breakfast in our context:
 
-```lean4
-...
-  unfold vmStep at h_step
+```diff-lean4
+ theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
+   intro t ⟨h_init, h_cons⟩
+   simp [noFreeLunch, always, implies, next, atom, now, drop]
+   intro i h_empty h_unpaid
+   have ⟨a, h_valid, h_step⟩ := h_cons i
++  unfold vmStep at h_step
 
-...
-h_step : t (1 + i) =
-  match a, h_valid with
-  | VMAction.DropCoin, H =>
-    { coins := (t i).coins + 1, dispensed := (t i).dispensed, numOrange := (t i).numOrange, numLL := (t i).numLL }
-  | VMAction.TakeItem, H =>
-    { coins := (t i).coins, dispensed := none, numOrange := (t i).numOrange, numLL := (t i).numLL }
-  | VMAction.Choose Flavour.Orange, H =>
-    { coins := (t i).coins - 2, dispensed := some Flavour.Orange, numOrange := (t i).numOrange - 1,
-      numLL := (t i).numLL }
-  | VMAction.Choose Flavour.LemonLime, H =>
-    { coins := (t i).coins - 2, dispensed := some Flavour.LemonLime, numOrange := (t i).numOrange,
-      numLL := (t i).numLL - 1 }
-  | VMAction.Restock, H => init
-...
+ ...
++  h_step : t (1 + i) =
++    match a, h_valid with
++    | VMAction.DropCoin, H =>
++      { coins := (t i).coins + 1, dispensed := (t i).dispensed, numOrange := (t i).numOrange, numLL := (t i).numLL }
++    | VMAction.TakeItem, H =>
++      { coins := (t i).coins, dispensed := none, numOrange := (t i).numOrange, numLL := (t i).numLL }
++    | VMAction.Choose Flavour.Orange, H =>
++      { coins := (t i).coins - 2, dispensed := some Flavour.Orange, numOrange := (t i).numOrange - 1,
++        numLL := (t i).numLL }
++    | VMAction.Choose Flavour.LemonLime, H =>
++      { coins := (t i).coins - 2, dispensed := some Flavour.LemonLime, numOrange := (t i).numOrange,
++        numLL := (t i).numLL - 1 }
++    | VMAction.Restock, H => init
+ ...
 ```
 
 Reflexively trying to simplify this with `simp at h_step` doesn't work because

@@ -145,35 +145,37 @@ Normally we would `intro` any arguments or universally-quantified variables,
 but we don't have any here! The `funext` tactic lets us exploit the property of
 functional extensionality: giving `funext` the argument `i` introduces `i` as
 the argument to the two function calls:
-```lean4
-theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
-  funext i -- NEW
+```diff-lean4
+ theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
++  funext i
 
-1 goal
-i : ℕ
-⊢ fb_one_ntaylor i = fb_one_sdiehl i 
+ 1 goal
++i : ℕ
+-⊢ fb_one_ntaylor = fb_one_sdiehl
++⊢ fb_one_ntaylor i = fb_one_sdiehl i 
 ```
 
 We've heard this song before.  I can't think of anything else to do but
 `unfold` our two implementations.
 
-```lean4
-theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
-  funext i
-  unfold fb_one_ntaylor --NEW
-  unfold fb_one_sdiehl  --NEW
+```diff-lean4
+ theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+   funext i
++  unfold fb_one_ntaylor
++  unfold fb_one_sdiehl
 
-1 goal
-i : ℕ
-⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "Fizzbuzz" else 
-   if i % 5 = 0 then "Buzz" else 
-   if i % 3 = 0 then "Fizz" else 
-   i.repr) =
-  match i % 3 == 0, i % 5 == 0 with
-  | true, true => "FizzBuzz"
-  | true, false => "Fizz"
-  | false, true => "Buzz"
-  | false, false => toString i
+ 1 goal
+ i : ℕ
+-⊢ fb_one_ntaylor i = fb_one_sdiehl i 
++⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "Fizzbuzz" else 
++   if i % 5 = 0 then "Buzz" else 
++   if i % 3 = 0 then "Fizz" else 
++   i.repr) =
++  match i % 3 == 0, i % 5 == 0 with
++  | true, true => "FizzBuzz"
++  | true, false => "Fizz"
++  | false, true => "Buzz"
++  | false, false => toString i
 ```
 
 Now's a good time to handle one of our differences: `fb_one_sdiehl` converts
@@ -182,26 +184,27 @@ even though those functions are not nominally the same, it's a simple matter
 to `have` a theorem that states they are, and `rfl` is enough to prove it.
 Then we can rewrite `toString` away using that theorem.
 
-```lean4
-theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
-  funext i
-  unfold fb_one_ntaylor
-  unfold fb_one_sdiehl
-  have repr_eq : toString i = Nat.repr i := by rfl -- NEW
-  rw [repr_eq] --NEW
+```diff-lean4
+ theorem fb_one_eq : fb_one_ntaylor = fb_one_sdiehl := by
+   funext i
+   unfold fb_one_ntaylor
+   unfold fb_one_sdiehl
++  have repr_eq : toString i = Nat.repr i := by rfl
++  rw [repr_eq]
 
-1 goal
-i : ℕ
-repr_eq : toString i = i.repr
-⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "Fizzbuzz" else 
-   if i % 5 = 0 then "Buzz" else 
-   if i % 3 = 0 then "Fizz" else 
-   i.repr) =
-  match i % 3 == 0, i % 5 == 0 with
-  | true, true => "FizzBuzz"
-  | true, false => "Fizz"
-  | false, true => "Buzz"
-  | false, false => i.repr
+ 1 goal
+ i : ℕ
++repr_eq : toString i = i.repr
+ ⊢ (if i % 3 = 0 ∧ i % 5 = 0 then "Fizzbuzz" else 
+    if i % 5 = 0 then "Buzz" else 
+    if i % 3 = 0 then "Fizz" else 
+    i.repr) =
+   match i % 3 == 0, i % 5 == 0 with
+   | true, true => "FizzBuzz"
+   | true, false => "Fizz"
+   | false, true => "Buzz"
+-  | false, false => toString i
++  | false, false => i.repr
 ```
 
 ### `repeat` reapplies a tactic until the goal stops changing
@@ -577,15 +580,16 @@ Remember way back in the first Lean post, we unfolded the definition of
 `List.length` and saw that it was recursively defined.  Let's do the same here
 with `String.length`:
 
-```lean4
-@[simp]
-lemma s_empty_len : ∀ (s : String), s.length = 0 ↔ s = "" := by
-  intros s --NEW
-  unfold String.length --NEW
+```diff-lean4
+ @[simp]
+ lemma s_empty_len : ∀ (s : String), s.length = 0 ↔ s = "" := by
++  intros s
++  unfold String.length
 
-1 goal
-s : String
-⊢ s.toList.length = 0 ↔ s = ""
+ 1 goal
++s : String
+-⊢ ∀ (s : String), s.length = 0 ↔ s = ""
++⊢ s.toList.length = 0 ↔ s = ""
 ```
 
 Hm, so `String.length` is implemented _in terms of `List.length`.  I'm not
@@ -594,14 +598,17 @@ reducing the problem to stating "only the empty `List` has length 0" might
 actually be good for us!  Indeed, we just needed to do some cheeky rewrites
 and we're good to go.
 
-```lean4
-@[simp]
-lemma s_empty_len : ∀ (s : String), s.length = 0 ↔ s = "" := by
-  intros s
-  unfold String.length 
-  rw [List.length_eq_zero_iff, String.toList_eq_nil_iff] --NEW
+```diff-lean4
+ @[simp]
+ lemma s_empty_len : ∀ (s : String), s.length = 0 ↔ s = "" := by
+   intros s
+   unfold String.length 
++  rw [List.length_eq_zero_iff, String.toList_eq_nil_iff]
 
-Goals accomplished!
+-1 goal
+-s : String
+-⊢ s.toList.length = 0 ↔ s = ""
++Goals accomplished!
 ```
 
 Since we've marked this lemma as `@[simp]`, once we've proven it, we can see
@@ -748,17 +755,20 @@ Rewriting with this theorem transforms, say, `"FizzBuzz" = (pure "FizzBuzz").run
 into `"FizzBuzz" = "FizzBuzz"` and then immediately discharges it, leaving us only
 with the contradictory goals.  We know `lia` will do the job there.
 
-```lean4
-theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
-  funext i
-  unfold fb_one_ntaylor
-  unfold fb_one_monadic
-  simp
-  repeat all_goals split
-  all_goals rw [Id.run_pure] <;> lia -- NEW
+```diff-lean4
+ theorem fb_one_eq : fb_one_ntaylor = fb_one_monadic := by
+   funext i
+   unfold fb_one_ntaylor
+   unfold fb_one_monadic
+   simp
+   repeat all_goals split
+-  all_goals rw [Id.run_pure]
++  all_goals rw [Id.run_pure] <;> lia
 
-0 goals
-Goals accomplished!
+-4 goals
+-...
++0 goals
++Goals accomplished!
 ```
 
 As cool as `fb_one_ntaylor = fb_one_sdiehl` was, this one feels even cooler.

@@ -167,24 +167,24 @@ it will, in fact, eventually fire.
 :::margin-note
 Just like with respect to `Signal`s: in Agda, we would get this for free.
 :::
-```lean4
-namespace FRP
-  structure Event (α : Type) where
-    f : Time → Option α
-    live : fires f
+```diff-lean4
+ namespace FRP
+   structure Event (α : Type) where
+     f : Time → Option α
++    live : fires f
 
-  notation "◇ " α => Event α
-end FRP
+   notation "◇ " α => Event α
+ end FRP
 
-def pedestrianButton : ◇ Unit := ⟨
- -- As before, we fire at t=2 and t=7...
- (fun t =>
-   match t with
-   | 2 | 7 => some ()
-   | _ => none),
- -- ...but unlike before, we provide a witness that we
- -- fire at least once.
- ⟨2, by simp⟩⟩ 
+ def pedestrianButton : ◇ Unit := ⟨
++ -- As before, we fire at t=2 and t=7...
+  (fun t =>
+    match t with
+    | 2 | 7 => some ()
+    | _ => none),
++ -- ...but unlike before, we provide a witness that we
++ -- fire at least once.
++ ⟨2, by simp⟩⟩ 
 ```
 
 ## A few `Event` typeclass instances
@@ -245,13 +245,15 @@ Sadly this isn't enough for us, because what we _actually_ need to do is
 produce that new function, but also with a proof that _it, too_ eventually
 fires!
 
-```lean4
-instance : Functor Event where
-  map f ev :=
-    let f' := fun t => Option.map f (ev t)
-    have staysLive : fires f' := by 
-      sorry -- TODO: what's the _actual_ proof?
-    ⟨f', staysLive⟩
+```diff-lean4
+ instance : Functor Event where
+   map f ev :=
+-    let ev' := fun t => Option.map f (ev t)
+-    ev
++    let f' := fun t => Option.map f (ev t)
++    have staysLive : fires f' := by 
++      sorry -- TODO: what's the _actual_ proof?
++    ⟨f', staysLive⟩
 ```
 
 It shouldn't be too hard to convince yourself that this is a true statement.
@@ -275,34 +277,36 @@ We can see from our proof state that `f'` is the right type: it's a `Time →
 Option β`.  Now, we don't have to explicitly do this, but I think it's nice
 to state clearly that already have a proof that the previous `Event` fired:
 
-```lean4
-have staysLive : fires f' := by
-  have wasLive : fires ev.f := ev.live
+```diff-lean4
+ have staysLive : fires f' := by
++  have wasLive : fires ev.f := ev.live
 
-1 goal
-α✝ β✝ : Type
-f : α✝ → β✝
-ev : Event α✝
-f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
-wasLive : fires ev.f
-⊢ fires f'
+ 1 goal
+ α✝ β✝ : Type
+ f : α✝ → β✝
+ ev : Event α✝
+ f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
++wasLive : fires ev.f
+ ⊢ fires f'
 ```
 
 Notice the symmetry between the goal we're trying to prove, and the `wasLive`
 assumption in our context.  Let's unfold both uses of `fires` and `f'`.
 
-```lean4
-have staysLive : fires f' := by
-  have wasLive : fires ev.f := ev.live
-  unfold fires at * ; unfold f'
+```diff-lean4
+ have staysLive : fires f' := by
+   have wasLive : fires ev.f := ev.live
++  unfold fires at * ; unfold f'
 
-1 goal
-α✝ β✝ : Type
-f : α✝ → β✝
-ev : Event α✝
-f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
-wasLive : ∃ t, (ev.f t).isSome = true
-⊢ ∃ t, (Option.map f (ev.f t)).isSome = true
+ 1 goal
+ α✝ β✝ : Type
+ f : α✝ → β✝
+ ev : Event α✝
+ f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
+-wasLive : fires ev.f
++wasLive : ∃ t, (ev.f t).isSome = true
+-⊢ fires f'
++⊢ ∃ t, (Option.map f (ev.f t)).isSome = true
 ```
 
 The goal is looking extremely close to wasLive!  The only difference is that
@@ -311,19 +315,20 @@ we're now applying `Option.map f`.  Our intuition told us earlier that
 theorem that says just
 that](https://github.com/leanprover/lean4/blob/0eb80e34a660f54b88002b33c4d93965651c71cb/src/Init/Data/Option/Lemmas.lean#L297):
 
-```lean4
-have staysLive : fires f' := by
-  have wasLive : fires ev.f := ev.live
-  unfold fires at * ; unfold f'
-  simp [Option.isSome_map]
+```diff-lean4
+ have staysLive : fires f' := by
+   have wasLive : fires ev.f := ev.live
+   unfold fires at * ; unfold f'
++  simp [Option.isSome_map]
 
-1 goal
-α✝ β✝ : Type
-f : α✝ → β✝
-ev : Event α✝
-f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
-wasLive : ∃ t, (ev.f t).isSome = true
-⊢ ∃ t, (ev.f t).isSome = true
+ 1 goal
+ α✝ β✝ : Type
+ f : α✝ → β✝
+ ev : Event α✝
+ f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
+ wasLive : ∃ t, (ev.f t).isSome = true
+-⊢ ∃ t, (Option.map f (ev.f t)).isSome = true
++⊢ ∃ t, (ev.f t).isSome = true
 ```
 
 Now our goal is exactly the same as `wasLive`, so either `assumption` or `exact
@@ -331,12 +336,22 @@ wasLive` will complete the goal.  Since `Option.isSome_map` is marked as
 `@simp`, if we change our unfoldings to just simplifications, and apply `ev.live`
 directly instead of giving it its own name, we can simplify the proof down.
 
-```lean4
-have staysLive : fires f' := by
-  simp [fires, f', Option.isSome_map] at * 
-  exact ev.live
+```diff-lean4
+ have staysLive : fires f' := by
+-  have wasLive : fires ev.f := ev.live
+-  unfold fires at * ; unfold f'
+-  simp [Option.isSome_map]
++  simp [fires, f', Option.isSome_map] at * 
++  exact ev.live
 
-Goals accomplished!
+-1 goal
+-α✝ β✝ : Type
+-f : α✝ → β✝
+-ev : Event α✝
+-f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
+-wasLive : ∃ t, (ev.f t).isSome = true
+-⊢ ∃ t, (ev.f t).isSome = true
++Goals accomplished!
 ```
 
 With the proof completed, we can complete our `Functor` implementation
@@ -346,14 +361,15 @@ Don't forget that, while I'm using anonymous constructor syntax, you could
 specify the fields in an `Event` directly, by writing `{f := f', live :=
 staysLive}` instead of `⟨f', staysLive⟩`.
 :::
-```lean4
-instance : Functor Event where
-  map f ev :=
-    let f' := fun t => Option.map f (ev t)
-    have staysLive : fires f' := by
-      simp [fires, f', Option.isSome_map] at *
-      exact ev.live
-    ⟨f', staysLive⟩
+```diff-lean4
+ instance : Functor Event where
+   map f ev :=
+     let f' := fun t => Option.map f (ev t)
+     have staysLive : fires f' := by
+-      sorry -- TODO: what's the _actual_ proof?
++      simp [fires, f', Option.isSome_map] at *
++      exact ev.live
+     ⟨f', staysLive⟩
 ```
 
 ## A few `Event` combinators: `merge`
@@ -376,11 +392,12 @@ use `Option.orElse`, or the
 [Alternative](https://lean-lang.org/doc/reference/latest/Functors___-Monads-and--do--Notation/#Alternative___mk)
 typeclass's `<|>` operator.
 
-```lean4
-def Event.merge (e1: Event α) (e2 : Event α) : Event α := 
-  let f := fun t => e1 t <|> e2 t
-  let fires : fires f := by sorry -- TODO
-  ⟨f, fires⟩
+```diff-lean4
+ def Event.merge (e1: Event α) (e2 : Event α) : Event α := 
+-  let f := fun t => ... -- TODO 
++  let f := fun t => e1 t <|> e2 t
+   let fires : fires f := by sorry -- TODO
+   ⟨f, fires⟩
 ```
 
 To prove `fires`, we'll proceed in the same way as before, simplifying
@@ -408,16 +425,18 @@ Using the
 lemma, we can factor out the `exists` such that we're left with two existential
 disjunctions.
 
-```lean4
-let fires : fires f := by
-  simp [fires, f]
-  apply exists_or.mpr
+```diff-lean4
+ let fires : fires f := by
+   simp [fires, f]
++  apply exists_or.mpr
 
-1 goal
-α : Type
-e1 e2 : Event α
-f : Time → Option α := ⋯
-⊢ (∃ x, (e1.f x).isSome = true) ∨ ∃ x, (e2.f x).isSome = true
+ 1 goal
+ α : Type
+ e1 e2 : Event α
+-f : Time → Option α := fun t => e1.f t <|> e2.f t
++f : Time → Option α := ⋯
+-⊢ ∃ t, (e1.f t).isSome = true ∨ (e2.f t).isSome = true
++⊢ (∃ x, (e1.f x).isSome = true) ∨ ∃ x, (e2.f x).isSome = true
 ```
 
 This is great because `(∃ x, (e1.f x).isSome = true)` is precisely `e1.live`,
@@ -425,15 +444,51 @@ and `(∃ x, (e2.f x).isSome = true)` is `e2.live`!  To satisfy the disjunction
 we just need to show one side, so let's choose `left` followed by `exact e1.live`,
 closing the goal and completing the combinator.
 
-```lean4
-def Event.merge (e1: Event α) (e2 : Event α) : Event α :=
-  let f := fun t => e1 t <|> e2 t
-  let fires : fires f := by
-    simp [fires, f]
-    apply exists_or.mpr
-    left ; exact e1.live
-  ⟨f, fires⟩
+```diff-lean4
+ def Event.merge (e1: Event α) (e2 : Event α) : Event α :=
+   let f := fun t => e1 t <|> e2 t
+   let fires : fires f := by
+     simp [fires, f]
+     apply exists_or.mpr
++    left ; exact e1.live
+   ⟨f, fires⟩
+
+Goals accomplished!
 ```
+
+## Bridging `Event`s and `Signal`s with a stateful `Signal`
+
+here's one more combinator that might come in handy for us.  Suppose we'd like
+a way to "retain" the most recent `a` that was fired by a `Event a` at some
+point in time.  We'll call this combinator `latch`:  It'll consume that `Event a`
+and produce the corresponding `Signal a`, which you can think of as a constant
+`Signal` in between different events firing.
+
+To make the signal well-defined, the user will supply an initial value that the
+`Signal` will produce before the first firing.
+
+```lean4
+def Event.latch (init: α) (e: Event α) : Signal α :=
+  fun t => ...
+```
+
+When `t=0`, we either produce `e 0` if it happened to fire, or else `init`.
+When `t=(n+1)`, we either produce `e (n+1)` if _it_ happened to fire, or else
+recurse.  Easy enough to write via structural recursion on the input `Time`:
+
+::: margin-note
+`getD` produces a default value if the supplied `Option` is `none`; it's a
+special form that only lazily evaluates the default argument.
+:::
+```lean4
+def Event.latch (init: α) (e: Event α) : Signal α
+  | 0 => (e 0).getD init
+  | (n + 1) => (e (n + 1)).getD (latch init e n)
+```
+
+This is our first example of a `Signal` whose value is not a straightforward
+computation from the given timestep, but relies on past values.  In the next
+post, we'll have a lot to say about stateful `Signal` combinators.
 
 ## Proving a safety property involving events
 
@@ -461,48 +516,61 @@ button : FRP.Event Unit
 We'll proceed as before: first we'll simplify the domain-specific definitions
 for the traffic light problem, and then simplify away the LTL and FRP primitives.
 
-```lean4
-theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by
-  simp [walkOnlyWhenRed, pedCrossing] -- Unfold outer definitions...
-  simp [LTL.always, LTL.atom, now, drop, FRP.map2] --Unfold primitives...
-  simp [carLight, walkSignal] -- Unfold inner definitions...
+```diff-lean4
+-theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by 
+-  -- TODO
++theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by
++  simp [walkOnlyWhenRed, pedCrossing]
++  simp [LTL.always, LTL.atom, now, drop, FRP.map2]
++  simp [carLight, walkSignal]
 
-1 goal
-button : FRP.Event Unit
-⊢ ∀ (i : ℕ),
-  (match button i with
-      | some PUnit.unit => WalkSign.Walk
-      | none => WalkSign.DontWalk) =
-      WalkSign.Walk →
-    (match button i with
-      | some PUnit.unit => Light.Red
-      | none => cycling i) =
-      Light.Red
+ 1 goal
+ button : FRP.Event Unit
+-⊢ walkOnlyWhenRed button
++⊢ ∀ (i : ℕ),
++  (match button i with
++      | some PUnit.unit => WalkSign.Walk
++      | none => WalkSign.DontWalk) =
++      WalkSign.Walk →
++    (match button i with
++      | some PUnit.unit => Light.Red
++      | none => cycling i) =
++      Light.Red
 ```
 
 Now we can introduce our time value and split on the possible values of `button i`:
 
-```lean4
-theorem walkSafe (button : FRP.Event Unit) : walkOnlyWhenRed button := by
-  simp [walkOnlyWhenRed, pedCrossing]
-  simp [LTL.always, LTL.atom, now, drop, FRP.map2]
-  simp [carLight, walkSignal]
-  intro t --NEW 
-  split <;> --NEW: TODO
+```diff-lean4
+ theorem walkSafe (button : FRP.Event Unit) : walkOnlyWhenRed button := by
+   simp [walkOnlyWhenRed, pedCrossing]
+   simp [LTL.always, LTL.atom, now, drop, FRP.map2]
+   simp [carLight, walkSignal]
++  intro t
++  split <;>
 
-2 goals
-case h_1
-button : FRP.Event Unit
-t : ℕ
-x✝ : Option Unit
-heq✝ : button t = some PUnit.unit
-⊢ WalkSign.Walk = WalkSign.Walk → Light.Red = Light.Red
-case h_2
-button : FRP.Event Unit
-t : ℕ
-x✝ : Option Unit
-heq✝ : button t = none
-⊢ WalkSign.DontWalk = WalkSign.Walk → cycling t = Light.Red
+-1 goal
++2 goals
+-⊢ ∀ (i : ℕ),
+-  (match button i with
+-      | some PUnit.unit => WalkSign.Walk
+-      | none => WalkSign.DontWalk) =
+-      WalkSign.Walk →
+-    (match button i with
+-      | some PUnit.unit => Light.Red
+-      | none => cycling i) =
+-      Light.Red
++case h_1
+ button : FRP.Event Unit
++t : ℕ
++x✝ : Option Unit
++heq✝ : button t = some PUnit.unit
++⊢ WalkSign.Walk = WalkSign.Walk → Light.Red = Light.Red
++case h_2
++button : FRP.Event Unit
++t : ℕ
++x✝ : Option Unit
++heq✝ : button t = none
++⊢ WalkSign.DontWalk = WalkSign.Walk → cycling t = Light.Red
 ```
 
 `simp` is enough to discharge both these goals, so `split <;> simp` completes

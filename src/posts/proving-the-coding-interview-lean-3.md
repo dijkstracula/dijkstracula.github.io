@@ -102,20 +102,21 @@ As usual, our first tactic involves introducing statements into our context
 and unfolding some basic definitions.  You've seen this a bunch before so
 we'll move quickly at the beginning.
 
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 -- NEW 
-  unfold fb_one -- NEW
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
++  intros i H3 H5
++  unfold fb_one
 
-1 goal
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-⊢ (if i % 15 = 0 then FB.FizzBuzz else 
-   if i % 5 = 0 then FB.Buzz else 
-   if i % 3 = 0 then FB.Fizz else 
-   FB.Num i) = FB.FizzBuzz
+ 1 goal
++i : ℕ
++H3 : i % 3 = 0
++H5 : i % 5 = 0
+-⊢ ∀ (i : ℕ), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz
++⊢ (if i % 15 = 0 then FB.FizzBuzz else 
++   if i % 5 = 0 then FB.Buzz else 
++   if i % 3 = 0 then FB.Fizz else 
++   FB.Num i) = FB.FizzBuzz
 ```
 
 In which cases does the left-hand side of the goal equality match the right?
@@ -142,26 +143,31 @@ When we have control flow like an `if...then` or `match` expression that
 we want to handle the different cases for, using the `split` tactic will 
 decompose the goal into the different paths that the program could go
 
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5
-  unfold fb_one
-  split
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+   intros i H3 H5
+   unfold fb_one
++  split
 
-2 goals
-case isTrue
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-h✝ : i % 15 = 0
-⊢ FB.FizzBuzz = FB.FizzBuzz
-case isFalse
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-h✝ : ¬i % 15 = 0
-⊢ FB.Buzz = FB.FizzBuzz
+-1 goal
++2 goals
++case isTrue
+ i : ℕ
+ H3 : i % 3 = 0
+ H5 : i % 5 = 0
++h✝ : i % 15 = 0
++⊢ FB.FizzBuzz = FB.FizzBuzz
++case isFalse
++i : ℕ
++H3 : i % 3 = 0
++H5 : i % 5 = 0
++h✝ : ¬i % 15 = 0
+-⊢ (if i % 15 = 0 then FB.FizzBuzz else 
+-   if i % 5 = 0 then FB.Buzz else 
+-   if i % 3 = 0 then FB.Fizz else 
+-   FB.Num i) = FB.FizzBuzz
++⊢ FB.Buzz = FB.FizzBuzz
 ```
 
 ::: margin-note
@@ -197,21 +203,29 @@ Since `split` is doing case-analysis on the first `if`, it constructs a new
 hypothesis named `h✝`, which is a terrible, Unicode symbol-laden name!  What's
 worse, `split` seemingly does not let you give it a better name.  Argh.
 :::
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5
-  unfold fb_one
-  split
-  · --NEW
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+   intros i H3 H5
+   unfold fb_one
+   split
++  ·
 
-1 goal
-case pos
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-h✝ : i % 15 = 0
-⊢ FB.FizzBuzz = FB.FizzBuzz
+-2 goals
+-case isTrue
++1 goal
++case pos
+ i : ℕ
+ H3 : i % 3 = 0
+ H5 : i % 5 = 0
+ h✝ : i % 15 = 0
+ ⊢ FB.FizzBuzz = FB.FizzBuzz
+-case isFalse
+-i : ℕ
+-H3 : i % 3 = 0
+-H5 : i % 5 = 0
+-h✝ : ¬i % 15 = 0
+-⊢ FB.Buzz = FB.FizzBuzz
 ```
 
 This is the "then" side of the `if` expression: when the conditional `i % 15 =
@@ -226,22 +240,26 @@ goal!  The solution was right there in front of us, the whole time.)
 The second subgoal, the "else" side of the conditional, is more complicated to
 solve, and introduces a really interesting concept about what falsity means:
 
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split
-  · rfl 
-  · --NEW
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+   intros i H3 H5 
+   unfold fb_one
+   split
+-  ·
++  · rfl 
++  ·
 
-1 goal
-case isFalse
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-h✝ : ¬i % 15 = 0
-⊢ FB.Buzz = FB.FizzBuzz
+ 1 goal
+-case pos
++case isFalse
+ i : ℕ
+ H3 : i % 3 = 0
+ H5 : i % 5 = 0
+-h✝ : i % 15 = 0
++h✝ : ¬i % 15 = 0
+-⊢ FB.FizzBuzz = FB.FizzBuzz
++⊢ FB.Buzz = FB.FizzBuzz
 ```
 
 Our goal, `FB.Buzz = FB.FizzBuzz`, should feel problematic to you: an axiom
@@ -255,22 +273,24 @@ we can see that Lean agrees with us.
 The `simp` isn't strictly necessary for Lean to understand what's going on,
 but as a good rule of thumb it's helpful for _us_ to understand what's going on.
 :::
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5
-  unfold fb_one
-  split
-  · rfl 
-  · simp --NEW
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+   intros i H3 H5
+   unfold fb_one
+   split
+   · rfl 
+-  ·
++  · simp
 
-1 goal
-case isFalse
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-h✝ : ¬i % 15 = 0
-⊢ False
+ 1 goal
+ case isFalse
+ i : ℕ
+ H3 : i % 3 = 0
+ H5 : i % 5 = 0
+ h✝ : ¬i % 15 = 0
+-⊢ FB.Buzz = FB.FizzBuzz
++⊢ False
 ```
 
 Ooooook.
@@ -301,22 +321,23 @@ our two contradictory statements.
 
 Well, let's do that, then: let's state that, actually, `i % 15 = 0`:
 
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split
-  · rfl 
-  · simp
-    have H15: i % 15 = 0 := by
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+   intros i H3 H5 
+   unfold fb_one
+   split
+   · rfl 
+   · simp
++    have H15: i % 15 = 0 := by
 
-1 goal
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-h✝ : ¬i % 15 = 0
-⊢ i % 15 = 0
+ 1 goal
+ i : ℕ
+ H3 : i % 3 = 0
+ H5 : i % 5 = 0
+ h✝ : ¬i % 15 = 0
+-⊢ False
++⊢ i % 15 = 0
 ```
 
 Notice that the goal has changed, because we've stated something with `have`
@@ -341,24 +362,26 @@ automated solver, like we did with Dafny.
 
 All right, with our lemma proven, the trap's set:
 
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split
-  · rfl 
-  · simp
-    have H15 : i % 15 = 0 := by lia -- NEW
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+   intros i H3 H5 
+   unfold fb_one
+   split
+   · rfl 
+   · simp
+-    have H15: i % 15 = 0 := by
++    have H15 : i % 15 = 0 := by lia
 
-1 goal
-case neg
-i : ℕ
-H3 : i % 3 = 0
-H5 : i % 5 = 0
-h✝ : ¬i % 15 = 0
-H15 : i % 15 = 0
-⊢ False
+ 1 goal
++case neg
+ i : ℕ
+ H3 : i % 3 = 0
+ H5 : i % 5 = 0
+ h✝ : ¬i % 15 = 0
++H15 : i % 15 = 0
+-⊢ i % 15 = 0
++⊢ False
 ``` 
 
 ::: margin-note
@@ -372,18 +395,26 @@ _both_ be true, since one's the negation of the other.  So, we have two statemen
 that contradict in our context!  The only thing left to us is to close out the
 subgoal by marking it as a proof by contradiction:
 
-```lean4
-theorem mod_15_is_fizzbuzz : 
-  ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
-  intros i H3 H5 
-  unfold fb_one
-  split
-  · rfl 
-  · simp 
-    have H15 : i % 15 = 0 := by lia
-    contradiction --NEW 
+```diff-lean4
+ theorem mod_15_is_fizzbuzz : 
+   ∀ (i : Nat), i % 3 = 0 → i % 5 = 0 → fb_one i = FB.FizzBuzz := by
+   intros i H3 H5 
+   unfold fb_one
+   split
+   · rfl 
+   · simp 
+     have H15 : i % 15 = 0 := by lia
++    contradiction
 
-Goals accomplished!
+-1 goal
+-case neg
+-i : ℕ
+-H3 : i % 3 = 0
+-H5 : i % 5 = 0
+-h✝ : ¬i % 15 = 0
+-H15 : i % 15 = 0
+-⊢ False
++Goals accomplished!
 ```
 
 ## Simplifying our proofs with tactics combinators

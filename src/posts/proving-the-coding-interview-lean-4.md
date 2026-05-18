@@ -272,14 +272,15 @@ to a good old-fashioned `if` special form, but at _typechecking time_, whatever
 the conditional is, it acts as an assumption in our proof context.  Take a
 look!
 
-```lean4
-def fb_one (i : Nat) : FB i :=
-    if h15 : i % 15 = 0 then FB.FizzBuzz (by -- NEW
+```diff-lean4
+ def fb_one (i : Nat) : FB i :=
+-    if i % 15 = 0 then FB.FizzBuzz (by 
++    if h15 : i % 15 = 0 then FB.FizzBuzz (by
 
-1 goal
-i : Nat
-h15 : i % 15 = 0
-⊢ i % 15 = 0
+ 1 goal
+ i : Nat
++h15 : i % 15 = 0
+ ⊢ i % 15 = 0
 ```
 
 We can see that, as expected, the `if` is now in our context! That's exactly

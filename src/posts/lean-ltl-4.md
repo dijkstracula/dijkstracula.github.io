@@ -410,7 +410,23 @@ Since a `Signal T` makes a value of type `T` _always_ available at all points
 in time, this is our first Curry-Howard correspondence: The type of a `Signal
 T` is `□ T`.  `□` means the same thing in both worlds.
 
-::: margin-warning
+::: margin-note
+Because Lean's elaborator is type-aware, when multiple syntactically-equivalent
+notations could be chosen, it can use type information from context to pick the
+right one.  In principle, this means we can just write `□ ...` and Lean will
+do the rest!
+:::
+```lean4
+namespace LTL
+    ...
+    prefix:max "□ " => always    -- Prop: ∀ t, p (drop t trace)
+end LTL
+namespace FRP
+    notation "□ " α => Signal α  -- Type: Time → α
+end FRP
+```
+
+::: warning
 In Lean, we have to be a bit careful: in a previous article we discussed that
 `Prop`s and `Type`s differ: one lives in "the logical world" and the other "the
 computational world".  The LTL-types-FRP paper is implemented in Agda, another
@@ -426,15 +442,6 @@ language design choice on the part of Lean buys some ergonomic simplicity but
 at the expense of expressiveness, which we can see when comparing our
 implementation to how it's done in Agda.)
 :::
-```lean4
-namespace LTL
-    ...
-    prefix:max "□ " => always    -- Prop: ∀ t, p (drop t trace)
-end LTL
-namespace FRP
-    notation "□ " α => Signal α  -- Type: Time → α
-end FRP
-```
 
 On its own, this isn't all that interesting, because so far the `α` type parameters
 we've seen for Signal (`Int`, `String`, `Light`) themselves aren't all that
@@ -491,29 +498,33 @@ example : neverBothGreen := by -- TODO
 Right now the goal is pretty opaque, so let's unfold the definitions of `neverBothGreen`
 and `junction` so we actually have something to work with:
 
-```lean4
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2] -- NEW: unfold domain definitions
+```diff-lean4
+-example : neverBothGreen := by -- TODO
++example : neverBothGreen := by
++  simp [neverBothGreen, junction, l1, l2]
 
-1 goal
-⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
-    (FRP.map2 Prod.mk cycling (FRP.delay cycling 1))
+ 1 goal
+-⊢ neverBothGreen
++⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
++    (FRP.map2 Prod.mk cycling (FRP.delay cycling 1))
 ```
 
 Great, that gives us something to actually work with now.  Next, let's unfold
 our relevant LTL primitives.  That will give us a quantifier over `Time` that
 we can also introduce into the context.
 
-```lean4
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2]
-  simp [LTL.always, LTL.not, LTL.atom] -- NEW: unfold LTL operators
-  intro t -- NEW: "let `t` be some timestep..."
+```diff-lean4
+ example : neverBothGreen := by
+   simp [neverBothGreen, junction, l1, l2]
++  simp [LTL.always, LTL.not, LTL.atom]
++  intro t
 
-1 goal
-t : ℕ
-⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).1 = Light.Green →
-  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).2 = Light.Green
+ 1 goal
++t : ℕ
+-⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
+-    (FRP.map2 Prod.mk cycling (FRP.delay cycling 1))
++⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).1 = Light.Green →
++  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).2 = Light.Green
 ```
 
 So far so good; that seems like a nice theorem to prove.  Now let's unfold our
@@ -525,16 +536,18 @@ we see two occurrences of it in this simplified form.  You might find it
 interesting to reimplement `l1` and `l2` with distinct implementation to see
 how the form of the proof might change.
 :::
-```lean4
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2]
-  simp [LTL.always, LTL.not, LTL.atom]
-  intro t
-  simp [now, drop, FRP.map2, FRP.delay] -- NEW: unfold FRP operators
+```diff-lean4
+ example : neverBothGreen := by
+   simp [neverBothGreen, junction, l1, l2]
+   simp [LTL.always, LTL.not, LTL.atom]
+   intro t
++  simp [now, drop, FRP.map2, FRP.delay]
 
-1 goal
-t : ℕ
-⊢ cycling t = Light.Green → ¬cycling (t + 1) = Light.Green
+ 1 goal
+ t : ℕ
+-⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).1 = Light.Green →
+-  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).2 = Light.Green
++⊢ cycling t = Light.Green → ¬cycling (t + 1) = Light.Green
 ```
 
 After all that, we can finally unfold `cycling` and get down to the crunchy
@@ -546,113 +559,132 @@ You might be tempted, since there's an implication here, to `intro` the antecede
 eventually case-split on `t % 3`.  You might find it amusing/annoying to try introing
 it and seeing where you get stuck.
 :::
-```lean4
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2]
-  simp [LTL.always, LTL.not, LTL.atom]
-  intro t
-  simp [now, drop, FRP.map2, FRP.delay]
-  simp [cycling]
+```diff-lean4
+ example : neverBothGreen := by
+   simp [neverBothGreen, junction, l1, l2]
+   simp [LTL.always, LTL.not, LTL.atom]
+   intro t
+   simp [now, drop, FRP.map2, FRP.delay]
++  simp [cycling]
 
-1 goal
-t : ℕ
-⊢ (match t % 3, ⋯ with
-    | 0, x => Light.Red
-    | 1, x => Light.Yellow
-    | 2, x => Light.Green) = Light.Green →
-  ¬(match (t + 1) % 3, ⋯ with
-      | 0, x => Light.Red
-      | 1, x => Light.Yellow
-      | 2, x => Light.Green) = Light.Green
+ 1 goal
+ t : ℕ
+-⊢ cycling t = Light.Green → ¬cycling (t + 1) = Light.Green
++⊢ (match t % 3, ⋯ with
++    | 0, x => Light.Red
++    | 1, x => Light.Yellow
++    | 2, x => Light.Green) = Light.Green →
++  ¬(match (t + 1) % 3, ⋯ with
++      | 0, x => Light.Red
++      | 1, x => Light.Yellow
++      | 2, x => Light.Green) = Light.Green
 ```
 
 So now let's `split` on the antecedent `match`, leaving us with three
 cases depending on the value of `t % 3`, noting that `h_1` and `h_2`
 could immediately be discharged away:
 
-```lean4
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2]
-  simp [LTL.always, LTL.not, LTL.atom]
-  intro t
-  simp [now, drop, FRP.map2, FRP.delay]
-  simp [cycling]
-  split -- NEW
+```diff-lean4
+ example : neverBothGreen := by
+   simp [neverBothGreen, junction, l1, l2]
+   simp [LTL.always, LTL.not, LTL.atom]
+   intro t
+   simp [now, drop, FRP.map2, FRP.delay]
+   simp [cycling]
++  split
 
-3 goals
-case h_1
-...
-heq✝¹ : t % 3 = 0
-⊢ Light.Red = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
-case h_2
-...
-heq✝¹ : t % 3 = 1
-⊢ Light.Yellow = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
-case h_3
-...
-heq✝¹ : t % 3 = 2
-⊢ Light.Green = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
+-1 goal
++3 goals
++case h_1
+ ...
+-t : ℕ
+-⊢ (match t % 3, ⋯ with
+-    | 0, x => Light.Red
+-    | 1, x => Light.Yellow
+-    | 2, x => Light.Green) = Light.Green →
+-  ¬(match (t + 1) % 3, ⋯ with
+-      | 0, x => Light.Red
+-      | 1, x => Light.Yellow
+-      | 2, x => Light.Green) = Light.Green
++heq✝¹ : t % 3 = 0
++⊢ Light.Red = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
++case h_2
++...
++heq✝¹ : t % 3 = 1
++⊢ Light.Yellow = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
++case h_3
++...
++heq✝¹ : t % 3 = 2
++⊢ Light.Green = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
 ```
 
 For each of these three cases, we have three more possibilities, so let's
 `split` on _those_, too:
 
-```lean4
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2]
-  simp [LTL.always, LTL.not, LTL.atom]
-  intro t
-  simp [now, drop, FRP.map2, FRP.delay]
-  simp [cycling]
-  split <;> split
+```diff-lean4
+ example : neverBothGreen := by
+   simp [neverBothGreen, junction, l1, l2]
+   simp [LTL.always, LTL.not, LTL.atom]
+   intro t
+   simp [now, drop, FRP.map2, FRP.delay]
+   simp [cycling]
+-  split
++  split <;> split
 
-9 goals
-case h_1
-...
-heq✝³ : t % 3 = 0
-heq✝¹ : (t + 1) % 3 = 0
-⊢ Light.Red = Light.Green → ¬Light.Red = Light.Green
-case h_2
-...
-heq✝³ : t % 3 = 0
-heq✝¹ : (t + 1) % 3 = 1
-⊢ Light.Red = Light.Green → ¬Light.Yellow = Light.Green
-case h_3
-...
-heq✝³ : t % 3 = 0
-heq✝¹ : (t + 1) % 3 = 2
-⊢ Light.Red = Light.Green → ¬Light.Green = Light.Green
-case h_4
-...
-heq✝³ : t % 3 = 1
-heq✝¹ : (t + 1) % 3 = 0
-⊢ Light.Yellow = Light.Green → ¬Light.Red = Light.Green
-... and so on until ...
-case h_9
-heq✝³ : t % 3 = 2
-heq✝¹ : (t + 1) % 3 = 2
-⊢ Light.Green = Light.Green → ¬Light.Green = Light.Green
+-3 goals
++9 goals
+ case h_1
+ ...
+ heq✝³ : t % 3 = 0
++heq✝¹ : (t + 1) % 3 = 0
+-⊢ Light.Red = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
++⊢ Light.Red = Light.Green → ¬Light.Red = Light.Green
+ case h_2
+ ...
+ heq✝³ : t % 3 = 0
++heq✝¹ : (t + 1) % 3 = 1
+-⊢ Light.Red = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
++⊢ Light.Red = Light.Green → ¬Light.Yellow = Light.Green
+ case h_3
+ ...
+ heq✝³ : t % 3 = 0
++heq✝¹ : (t + 1) % 3 = 2
+-⊢ Light.Red = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
++⊢ Light.Red = Light.Green → ¬Light.Green = Light.Green
++case h_4
++...
+ heq✝³ : t % 3 = 1
++heq✝¹ : (t + 1) % 3 = 0
+-⊢ Light.Yellow = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
++⊢ Light.Yellow = Light.Green → ¬Light.Red = Light.Green
++... and so on until ...
++case h_9
+ heq✝³ : t % 3 = 2
++heq✝¹ : (t + 1) % 3 = 2
+-⊢ Light.Green = Light.Green → ¬(match (t + 1) % 3, ⋯ with ...) Light.Green
++⊢ Light.Green = Light.Green → ¬Light.Green = Light.Green
 ```
 
 `simp` will discharge away all the contradictory cases (where the antecedent is
 `False`) or trivial cases (where the implication is `True -> True`), leaving
 just one:
 
-```lean4
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2]
-  simp [LTL.always, LTL.not, LTL.atom]
-  intro t
-  simp [now, drop, FRP.map2, FRP.delay]
-  simp [cycling]
-  split <;> split <;> simp
+```diff-lean4
+ example : neverBothGreen := by
+   simp [neverBothGreen, junction, l1, l2]
+   simp [LTL.always, LTL.not, LTL.atom]
+   intro t
+   simp [now, drop, FRP.map2, FRP.delay]
+   simp [cycling]
+-  split <;> split
++  split <;> split <;> simp
 
-1 goal
-case h_9
-...
-heq✝³ : t % 3 = 2
-heq✝¹ : (t + 1) % 3 = 2
-⊢ False
+ 1 goal
+ case h_9
+ heq✝³ : t % 3 = 2
+ heq✝¹ : (t + 1) % 3 = 2
+-⊢ Light.Green = Light.Green → ¬Light.Green = Light.Green
++⊢ False
 ```
 
 From the values in our context, we can see that the one case that `simp`
@@ -667,24 +699,24 @@ Since the lynchpin of the proof here involves a contradiction in our context:
 That closes the final goal and proves safety of our first functional reactive
 program!
 
-```lean4
-def l1 : □ Light := cycling
-def l2 : □ Light := FRP.delay cycling 1
-def junction : □ (Light × Light) := FRP.map2 Prod.mk l1 l2
+```diff-lean4
+ def l1 : □ Light := cycling
+ def l2 : □ Light := FRP.delay cycling 1
+ def junction : □ (Light × Light) := FRP.map2 Prod.mk l1 l2
 
-#eval junction 5
+ #eval junction 5
 
-def neverBothGreen : Prop :=
-  LTL.always (LTL.not (LTL.atom (fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)))) junction
+ def neverBothGreen : Prop :=
+   LTL.always (LTL.not (LTL.atom (fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)))) junction
 
-example : neverBothGreen := by
-  simp [neverBothGreen, junction, l1, l2]
-  simp [LTL.always, LTL.not, LTL.atom]
-  intro t
-  simp [now, drop, FRP.map2, FRP.delay]
-  simp [cycling]
-  split <;> split <;> simp
-  lia
+ example : neverBothGreen := by
+   simp [neverBothGreen, junction, l1, l2]
+   simp [LTL.always, LTL.not, LTL.atom]
+   intro t
+   simp [now, drop, FRP.map2, FRP.delay]
+   simp [cycling]
+   split <;> split <;> simp
++  lia
 ```
 
 Even though this is a silly program, proving mutual exclusion is super

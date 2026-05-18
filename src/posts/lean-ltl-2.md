@@ -187,14 +187,14 @@ introducing a new "language feature": `State` introduces, well, mutable state,
 `Except` introduces exception raising, and now `Writer` introduces output
 logging, none of which are obviously present in a pure functional language!
 :::
-```lean4
-def perform (a : VMAction) : TSM Unit := do
-  let s ← get
-  if h : validAction s a then
-    tell [s] -- NEW: remember that we saw [s]
-    let s' := vmStep s a h
-    set s'
-  else Except.error s!"Invalid action {repr a} in state {repr s}"
+```diff-lean4
+ def perform (a : VMAction) : TSM Unit := do
+   let s ← get
+   if h : validAction s a then
++    tell [s] -- remember that we saw [s]
+     let s' := vmStep s a h
+     set s'
+   else Except.error s!"Invalid action {repr a} in state {repr s}"
 
 ...
 
