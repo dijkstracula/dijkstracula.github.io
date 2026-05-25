@@ -6,6 +6,7 @@ tags: [post, sat, smt, logic, verification]
 excerpt: "From propositional logic to first-order logic: introducing theories and equality reasoning into SAT solvers"
 series: lets-build-a-theorem-prover
 series_title: "Part three - satisfiability modulo theories"
+inlineCodeLang: python
 ---
 
 *This post originally appeared on [Cohost](https://web.archive.org/web/20241104063507/https://cohost.org/nathan/post/654021-let-s-build-a-theore).*

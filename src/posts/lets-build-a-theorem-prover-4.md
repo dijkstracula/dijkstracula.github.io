@@ -6,6 +6,7 @@ tags: [post, sat, logic, verification]
 excerpt: "Lazy SMT solving: building an SMT solver with iterative refinement and blocking lemmas"
 series: lets-build-a-theorem-prover
 series_title: "Part four - SMT with equality"
+inlineCodeLang: python
 ---
 
 *This post originally appeared on [Cohost](https://web.archive.org/web/20241104063507/https://cohost.org/nathan/post/789960-let-s-build-a-theore).*

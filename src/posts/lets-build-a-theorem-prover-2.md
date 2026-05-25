@@ -6,6 +6,7 @@ tags: [post, sat, logic, verification]
 excerpt: "From Davis-Putnam to DPLL to CDCL: improving SAT solvers with backtracking and conflict-driven clause learning"
 series: lets-build-a-theorem-prover
 series_title: "Part two - DPLL to CDCL"
+inlineCodeLang: python
 ---
 
 *This post originally appeared on [Cohost](https://web.archive.org/web/20241104063350/https://cohost.org/nathan/post/559376-let-s-build-a-theore).*

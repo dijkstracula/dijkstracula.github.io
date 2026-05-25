@@ -1,5 +1,29 @@
 [
   {
+    "title": "Being oncall taught me everything",
+    "url": "https://yaoyue.org/blog/2026-oncall/",
+    "date": "2026-05-22T00:00:00.000Z",
+    "source": "Yao Yue's site"
+  },
+  {
+    "title": "Book Review: On the Calculation of Volume",
+    "url": "https://www.stephendiehl.com/posts/calculation_of_volume/",
+    "date": "2026-05-20T01:00:00.000Z",
+    "source": "Stephen Diehl's blog"
+  },
+  {
+    "title": "Agentic software development hypothesis",
+    "url": "http://brooker.co.za/blog/2026/05/20/hypothesis.html",
+    "date": "2026-05-20T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "What's Easy Now? What's Hard Now?",
+    "url": "http://brooker.co.za/blog/2026/05/18/whats-easy-whats-hard.html",
+    "date": "2026-05-18T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
     "title": "The highbrow rom-com",
     "url": "https://cecilycarver.substack.com/p/the-highbrow-rom-com",
     "date": "2026-05-11T04:46:03.000Z",
@@ -214,29 +238,5 @@
     "url": "https://okmij.org/ftp/tagless-final/Compiler/index.html",
     "date": "2026-02-02T00:01:00.000Z",
     "source": "okmij"
-  },
-  {
-    "title": "Steve Waldman and Yao Yue Explore Complexity in Computing Systems and Economics",
-    "url": "https://www.youtube.com/watch?v=sabwTPxfVgU",
-    "date": "2026-02-01T00:00:00.000Z",
-    "source": "Yao Yue's site"
-  },
-  {
-    "title": "Education is not one-size-fits-all for the latest CTO Fellows",
-    "url": "https://www.allthingsdistributed.com/2026/01/education-cohort.html?utm_campaign=inbound&utm_source=rss",
-    "date": "2026-01-27T14:00:00.000Z",
-    "source": "All Things Distributed (Werner Vogels' blog)"
-  },
-  {
-    "title": "Tosca's predicament",
-    "url": "https://cecilycarver.substack.com/p/toscas-predicament",
-    "date": "2026-01-26T07:23:05.000Z",
-    "source": "The Amateur"
-  },
-  {
-    "title": "Pass@k is Mostly Bunk",
-    "url": "http://brooker.co.za/blog/2026/01/21/pass-k.html",
-    "date": "2026-01-21T00:00:00.000Z",
-    "source": "Marc Brooker's blog"
   }
 ]

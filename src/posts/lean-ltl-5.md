@@ -722,21 +722,7 @@ applying those functions is consistent with their types:
 -  let switch (t: Time) : β → β := match ev t with
 -  | none => onNone
 -  | some a => onSome a
-+  let switch (t: Time) : {s: β // inv s} → {s': β // inv s'} :=
-+    match ev t with
-+    | none => onNone
-+    | some a => onSome a
-```
-:::
-
-Our use of `Nat.rec` requires a bit more refactoring, though.  Currently, it's
-used directly in the value returned by `accumulate`.  Let's quickly just factor
-it out into its own name, and then inspect the type error:
-
-::: warning
-```lean4
-  let step_at := fun n => Nat.rec
-    (switch 0 init)
++   init
     (fun n s => switch (n + 1) s) n
 ```
 ```lean4
@@ -755,7 +741,7 @@ is also simple change - just gotta follow the types:
 ```diff-lean4
 -  let step_at := fun n => Nat.rec
 +  let step_at : Signal {s: β // inv s} := fun n => Nat.rec
-     (switch 0 init)
+     init 
      (fun n s => switch (n + 1) s) n
 ```
 :::
@@ -777,28 +763,39 @@ theorem always_atom {inv : StateProp β} (sig : Signal β) (h : ∀ t, inv (sig 
     : (□ (LTL.atom inv)) sig := by
   intro t ; simp [LTL.atom, drop, now] ; exact h t
 
-/- ... -/
-
 def accumulate
+  -- Given a property over some state ...
   {inv: StateProp β}
+  -- an initial state,
   (init : { s: β // inv s})
+  -- a transition function when no event fires...
   (onNone: { s: β // inv s } → { s': β // inv s' })
+  -- a transition function when an event _does_ fire...
   (onSome: α → { s: β // inv s} → {s': β // inv s'})
-  (ev: ◇ α)
-  : { sig : (Signal β) // (□ (LTL.atom inv)) sig } :=
+  -- and an event...
+  (ev: Event α)
+  -- ...produce a single refined value, made up of a `Signal β`, and
+  -- a safety proof over all time steps.
+  : { sig : Signal β // (□ (LTL.atom inv)) sig } :=
 
+  -- `switch` produces the next state, depending on whether the event
+  -- fired at the given timestep
   let switch (t: Time) : {s: β // inv s} → {s': β // inv s'} :=
     match ev t with
     | none => onNone
     | some a => onSome a
 
-  let step_at : Signal {s: β // inv s} := fun n => Nat.rec
-    init
-    (fun n s => switch (n + 1) s) n
-
-  let vals : Signal β := fun t => (step_at t).vals
+  -- `step_at` takes `t` steps through `switch`; at each time step, it
+  -- produces a β alongside its proof of .preserving `inv`
+  let step_at : □ {s: β // inv s} := 
+    fun t => Nat.rec 
+      init 
+      (fun n s => switch (t + 1) s) 
+      t
+ 
+  -- Reorganize the signal of refined values into a refined signal.
+  let vals : □ β := fun t => (step_at t).vals
   let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
-
   ⟨ vals, always_atom vals safety ⟩
 ```
 
@@ -890,14 +887,14 @@ discharge it with `lia`; as it stands now the tactic can see through the
 ```diff-lean4
  def tick : { s: CrossingState // bounded s } → { s': CrossingState // bounded s' }
 -  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by sorry ⟩
--  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by sorry ⟩
--  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by sorry ⟩
--  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by sorry ⟩
--  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by sorry ⟩
 +  | ⟨.Idle, _ ⟩        => ⟨ .Idle, by trivial ⟩
+-  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by sorry ⟩
 +  | ⟨.Cooldown 0, _ ⟩  => ⟨ .Idle, by trivial ⟩
+-  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by sorry ⟩
 +  | ⟨.Cooldown (n+1), _ ⟩  => ⟨ .Cooldown n, by lia⟩
+-  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by sorry ⟩
 +  | ⟨.Countdown 0, _ ⟩     => ⟨ .Cooldown 3, by lia ⟩
+-  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by sorry ⟩
 +  | ⟨.Countdown (n+1), _ ⟩ => ⟨ .Countdown n, by lia ⟩
 ```
 :::

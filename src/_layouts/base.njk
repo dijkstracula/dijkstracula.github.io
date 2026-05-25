@@ -36,23 +36,21 @@
 </head>
 <body>
 
-<header class="masthead">
-  <h1 class="wordmark"><a href="/">nathan taylor<span class="dot">.</span></a></h1>
+<header class="site-head">
+  <a class="site-name" href="/">Nathan Taylor</a>
+  <span class="sep">·</span>
+  <a href="/about/"{% if page.url == "/about/" %} class="current"{% endif %}>About</a>
+  <span class="sep">·</span>
+  <a href="/blog/"{% if page.url == "/blog/" %} class="current"{% endif %}>Blog</a>
+  <span class="sep">·</span>
+  <a href="https://github.com/dijkstracula/resume/blob/master/resume.pdf">Resume</a>
+  <span class="sep">·</span>
+  <a href="/blogroll/"{% if page.url == "/blogroll/" %} class="current"{% endif %}>Blogroll</a>
+  <span class="sep">·</span>
+  <a href="/feed.xml">RSS</a>
 </header>
 
-<nav class="primary">
-  <a href="/about/"{% if page.url == "/about/" %} class="current"{% endif %}>About</a>
-  <a href="/blog/"{% if page.url == "/blog/" %} class="current"{% endif %}>Blog</a>
-  <a href="https://github.com/dijkstracula/resume/blob/master/resume.pdf">Resume</a>
-  <a href="/blogroll/"{% if page.url == "/blogroll/" %} class="current"{% endif %}>Blogroll</a>
-  <a href="/feed.xml">RSS</a>
-</nav>
-
 {{ content | safe }}
-
-<footer class="colophon">
-  <span>© {{ "" | currentYear }} Nathan Taylor</span>
-</footer>
 
 </body>
 </html>

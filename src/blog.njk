@@ -4,7 +4,11 @@ title: Blog
 permalink: /blog/
 ---
 
-<aside class="columns-rail">
+<div class="columns-main">
+  <h1>Blog</h1>
+  <p>Here I write about formal methods, low-level and concurrent systems, and
+  anything else I might find interesting.</p>
+
   {% if collections.seriesList.length > 0 %}
   <h2>Series</h2>
   <ul class="series-list">
@@ -20,14 +24,8 @@ permalink: /blog/
     {% endfor %}
   </ul>
   {% endif %}
-</aside>
 
-<div class="columns-main">
-  <h1>Recent Posts</h1>
-  <p>Here I write about formal methods, low-level and concurrent systems, and
-  anything else I might find interesting.</p>
-
-  <h2>All Posts</h2>
+  <h2>All posts</h2>
 
   {% if collections.posts.length > 0 %}
   <ul class="post-list">

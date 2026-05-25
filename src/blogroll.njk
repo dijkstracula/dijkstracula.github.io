@@ -4,15 +4,6 @@ title: Blogroll
 permalink: /blogroll/
 ---
 
-<aside class="columns-rail">
-  <h2>Sources</h2>
-  <ul>
-    {%- for entry in blogroll %}
-    <li><a href="{{ entry.url }}">{{ entry.name }}</a></li>
-    {%- endfor %}
-  </ul>
-</aside>
-
 <div class="columns-main">
   <h1>Blogs and sites I enjoy reading</h1>
 
@@ -30,4 +21,11 @@ permalink: /blogroll/
     {%- endfor %}
   </ul>
   {% endif %}
+
+  <h2>Sources</h2>
+  <ul>
+    {%- for entry in blogroll %}
+    <li><a href="{{ entry.url }}">{{ entry.name }}</a></li>
+    {%- endfor %}
+  </ul>
 </div>

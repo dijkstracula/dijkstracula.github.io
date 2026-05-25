@@ -6,6 +6,7 @@ tags: [post, sat, logic, verification]
 excerpt: "Implementing the lazy CDCL(T) algorithm with Union-Find for equality reasoning"
 series: lets-build-a-theorem-prover
 series_title: "Part five - lazy CDCL(T)"
+inlineCodeLang: python
 ---
 
 *This post originally appeared on [Cohost](https://web.archive.org/web/20241104063507/https://cohost.org/nathan/post/861374-let-s-build-a-theore).*

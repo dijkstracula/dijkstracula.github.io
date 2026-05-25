@@ -4,23 +4,30 @@ layout: base.njk
 
 <article class="post">
 
-  <aside class="post-rail">
+    <header>
+      <div class="post-meta">
+        <time datetime="{{ date | isoDate }}">{{ date | isoDate }}</time>
+        {% for tag in tags %}{% if tag != "post" %}<span class="sep">·</span><a href="/tags/{{ tag | slugify }}/">#{{ tag }}</a>{% endif %}{% endfor %}
+      </div>
+      <h1 class="post-title">{{ title }}</h1>
+      {% if excerpt %}<p class="post-subtitle">{{ excerpt | safe }}</p>{% endif %}
+    </header>
+
     {% if series %}
     {% set seriesItems = collections.posts | seriesPosts(series) %}
     {% if seriesItems.length > 1 %}
-    <nav class="series" aria-label="Series contents">
-      <h3>
-        {%- set currentIdx = 0 -%}
-        {%- set total = 0 -%}
-        {%- for p in seriesItems -%}
-          {%- if not p.data.draft or p.page.url == page.url -%}
-            {%- set total = total + 1 -%}
-            {%- if p.page.url == page.url -%}{%- set currentIdx = total -%}{%- endif -%}
-          {%- endif -%}
-        {%- endfor -%}
-        <strong>Part {{ currentIdx }} of {{ total }}</strong>
-        {% if seriesMeta[series] and seriesMeta[series].title %}<span>{{ seriesMeta[series].title }}</span>{% endif %}
-      </h3>
+    {%- set currentIdx = 0 -%}
+    {%- set total = 0 -%}
+    {%- for p in seriesItems -%}
+      {%- if not p.data.draft or p.page.url == page.url -%}
+        {%- set total = total + 1 -%}
+        {%- if p.page.url == page.url -%}{%- set currentIdx = total -%}{%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+    <nav class="series-toc" aria-label="Series contents">
+      <p class="series-toc-head">
+        Part {{ currentIdx }} of {{ total }}{% if seriesMeta[series] and seriesMeta[series].title %} of <em>{{ seriesMeta[series].title }}</em>{% endif %}
+      </p>
       <ol>
         {% for p in seriesItems %}
           {% if not p.data.draft or p.page.url == page.url %}
@@ -37,18 +44,6 @@ layout: base.njk
     </nav>
     {% endif %}
     {% endif %}
-  </aside>
-
-  <div class="post-main">
-
-    <header>
-      <div class="post-meta">
-        <time datetime="{{ date | isoDate }}">{{ date | isoDate }}</time>
-        {% for tag in tags %}{% if tag != "post" %}<span class="sep">·</span><a href="/tags/{{ tag | slugify }}/">#{{ tag }}</a>{% endif %}{% endfor %}
-      </div>
-      <h1 class="post-title">{{ title }}</h1>
-      {% if excerpt %}<p class="post-subtitle">{{ excerpt | safe }}</p>{% endif %}
-    </header>
 
     <div class="prose">
       {{ content | safe }}
@@ -97,7 +92,5 @@ layout: base.njk
         <a href="mailto:nathan@dijkstracula.net">Reply by email</a>
       </span>
     </footer>
-
-  </div><!-- /.post-main -->
 
 </article>

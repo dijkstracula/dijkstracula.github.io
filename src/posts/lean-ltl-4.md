@@ -103,7 +103,7 @@ that will come soon enough, but you can imagine that it might involve the
 "functional" part of "FRP".)
 
 
-## Some `Signal`s
+## Some basic `Signal`s
 
 Here's our first `Signal`, which doesn't do more than act as a "what time is it"
 clock:
@@ -113,17 +113,25 @@ def clock : Signal Time :=
   fun t => t --At time step t, our output is t itself
 ```
 
-Just like with LTL's `drop`, we can delay the value of a signal of any time by
-shifting it forward in time:
+Just like with LTL's `drop`, we can advance the value of a signal by shifting
+it forward in time:
 
-::: margin-note
-`delay` is the usual term for this, but it's really more of an `advance`, if you
-think about it.
-:::
 ```lean4
-def delay (s: Signal α) (t: Time): Signal α := fun n => s (n+t)
+def advance (s: Signal α) (t: Time): Signal α := fun n => s (n+t)
 
-#eval (delay clock 3) 5 -- At t=5, a clock delayed by 3 is 8
+#eval (advance clock 3) 5 -- At t=5, a clock advanced by 3 is 8
+#eval (List.range 10).map (advance clock 4) -- [4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+```
+
+Conversely, we can delay a signal arriving by shifting backwards in time.
+Since subtraction of `Nat`s is defined such that `0` is produced if the
+value would have gone negative, our implementation here just recycles the
+value at `t=0` until the clock actually starts running.
+
+```lean4
+def delay (s: Signal α) (t: Time): Signal α := fun n => s (n-t)
+
+#eval (List.range 10).map (delay clock 4) -- [0, 0, 0, 0, 0, 1, 2, 3, 4, 5]
 ```
 
 Next, let's define a way that lifts a value into the world of `Signal`s:
@@ -476,7 +484,7 @@ road junction certainly do!
 
 ```lean4
 def l1 : □ Light := cycling
-def l2 : □ Light := FRP.delay cycling 1
+def l2 : □ Light := FRP.advance cycling 1
 def junction : □ (Light × Light) := FRP.map2 Prod.mk l1 l2
 
 #eval junction 5 -- (Light.Green, Light.Red)
@@ -506,7 +514,7 @@ and `junction` so we actually have something to work with:
  1 goal
 -⊢ neverBothGreen
 +⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
-+    (FRP.map2 Prod.mk cycling (FRP.delay cycling 1))
++    (FRP.map2 Prod.mk cycling (FRP.advance cycling 1))
 ```
 
 Great, that gives us something to actually work with now.  Next, let's unfold
@@ -522,9 +530,9 @@ we can also introduce into the context.
  1 goal
 +t : ℕ
 -⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
--    (FRP.map2 Prod.mk cycling (FRP.delay cycling 1))
-+⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).1 = Light.Green →
-+  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).2 = Light.Green
+-    (FRP.map2 Prod.mk cycling (FRP.advance cycling 1))
++⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).1 = Light.Green →
++  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).2 = Light.Green
 ```
 
 So far so good; that seems like a nice theorem to prove.  Now let's unfold our
@@ -541,12 +549,12 @@ how the form of the proof might change.
    simp [neverBothGreen, junction, l1, l2]
    simp [LTL.always, LTL.not, LTL.atom]
    intro t
-+  simp [now, drop, FRP.map2, FRP.delay]
++  simp [now, drop, FRP.map2, FRP.advance]
 
  1 goal
  t : ℕ
--⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).1 = Light.Green →
--  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.delay cycling 1)))).2 = Light.Green
+-⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).1 = Light.Green →
+-  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).2 = Light.Green
 +⊢ cycling t = Light.Green → ¬cycling (t + 1) = Light.Green
 ```
 
@@ -564,7 +572,7 @@ it and seeing where you get stuck.
    simp [neverBothGreen, junction, l1, l2]
    simp [LTL.always, LTL.not, LTL.atom]
    intro t
-   simp [now, drop, FRP.map2, FRP.delay]
+   simp [now, drop, FRP.map2, FRP.advance]
 +  simp [cycling]
 
  1 goal
@@ -589,7 +597,7 @@ could immediately be discharged away:
    simp [neverBothGreen, junction, l1, l2]
    simp [LTL.always, LTL.not, LTL.atom]
    intro t
-   simp [now, drop, FRP.map2, FRP.delay]
+   simp [now, drop, FRP.map2, FRP.advance]
    simp [cycling]
 +  split
 
@@ -626,7 +634,7 @@ For each of these three cases, we have three more possibilities, so let's
    simp [neverBothGreen, junction, l1, l2]
    simp [LTL.always, LTL.not, LTL.atom]
    intro t
-   simp [now, drop, FRP.map2, FRP.delay]
+   simp [now, drop, FRP.map2, FRP.advance]
    simp [cycling]
 -  split
 +  split <;> split
@@ -674,7 +682,7 @@ just one:
    simp [neverBothGreen, junction, l1, l2]
    simp [LTL.always, LTL.not, LTL.atom]
    intro t
-   simp [now, drop, FRP.map2, FRP.delay]
+   simp [now, drop, FRP.map2, FRP.advance]
    simp [cycling]
 -  split <;> split
 +  split <;> split <;> simp
@@ -701,7 +709,7 @@ program!
 
 ```diff-lean4
  def l1 : □ Light := cycling
- def l2 : □ Light := FRP.delay cycling 1
+ def l2 : □ Light := FRP.advance cycling 1
  def junction : □ (Light × Light) := FRP.map2 Prod.mk l1 l2
 
  #eval junction 5
@@ -713,7 +721,7 @@ program!
    simp [neverBothGreen, junction, l1, l2]
    simp [LTL.always, LTL.not, LTL.atom]
    intro t
-   simp [now, drop, FRP.map2, FRP.delay]
+   simp [now, drop, FRP.map2, FRP.advance]
    simp [cycling]
    split <;> split <;> simp
 +  lia

@@ -5,7 +5,6 @@ const markdownIt = require("markdown-it");
 const markdownItFootnote = require("markdown-it-footnote");
 const markdownItContainer = require("markdown-it-container");
 const Prism = require("prismjs");
-const { execSync } = require("child_process");
 
 global.Prism = Prism;
 require('./src/js/prism-lean.js');
@@ -285,17 +284,6 @@ module.exports = function(eleventyConfig) {
   eleventyConfig.addFilter("postTagLabel", (tags) => {
     if (!Array.isArray(tags)) return "";
     return tags.filter(t => t && t !== "post").slice(0, 2).join(" · ");
-  });
-
-  // When was src/_data/now.json last committed? (falls back to now if not in a repo)
-  eleventyConfig.addGlobalData("nowUpdated", () => {
-    try {
-      const iso = execSync("git log -1 --format=%cI -- src/_data/now.json", { stdio: ["ignore", "pipe", "ignore"] })
-        .toString().trim();
-      return iso || null;
-    } catch (_) {
-      return null;
-    }
   });
 
   // Filter posts belonging to a series, sorted by date (oldest first)
