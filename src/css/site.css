@@ -9,6 +9,7 @@
   --mute: #777777;
   --rule: #D6D4CE;
   --accent: #2E4A7B;
+  --accent-hover: #1B3768;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   --serif: "Computer Modern Serif", "Latin Modern Roman", Georgia, serif;
 
@@ -45,6 +46,7 @@
     --mute: #8A8A8A;
     --rule: #2F2F33;
     --accent: #8AA8D6;
+    --accent-hover: #B0C5E5;
 
     --tone-note:    var(--mute);
     --tone-info:    #8AA8D6;
@@ -88,12 +90,12 @@ p { margin: 0 0 1em; }
 ul, ol { padding-left: 1.5rem; }
 
 a {
-  color: var(--ink);
+  color: var(--accent);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
-a:hover { color: var(--accent); }
+a:hover { color: var(--accent-hover); }
 
 hr {
   border: none;
@@ -185,6 +187,8 @@ section.log {
 .entries li {
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--rule);
+  font-size: 1.1rem;
+  line-height: 1.55;
 }
 .entries li:first-child { border-top: 1px solid var(--rule); }
 .entries .date {
@@ -367,9 +371,9 @@ article.post .prose .lean-proof-block .proof-state code {
   display: block;
   font-family: var(--serif);
   line-height: 1.3;
-  color: var(--ink);
+  color: var(--accent);
 }
-.series-nav a:hover { color: var(--accent); }
+.series-nav a:hover { color: var(--accent-hover); }
 .series-nav a.next { text-align: right; }
 .series-nav a:only-child.next { grid-column: 2; }
 .series-nav a:only-child.prev { grid-column: 1; }
@@ -380,7 +384,7 @@ article.post .prose .lean-proof-block .proof-state code {
   color: var(--mute);
   margin-bottom: 2px;
 }
-.series-nav a:hover .label { color: var(--accent); }
+.series-nav a:hover .label { color: var(--accent-hover); }
 
 /* Footnotes */
 article.post .footnotes {
@@ -497,8 +501,8 @@ main.columns p { font-size: 1.05rem; line-height: 1.55; }
   font-size: 0.98rem;
 }
 .series-list ul li { margin: 0.1rem 0; }
-.series-list a { text-decoration: none; color: var(--ink); }
-.series-list a:hover { color: var(--accent); }
+.series-list a { text-decoration: none; color: var(--accent); }
+.series-list a:hover { color: var(--accent-hover); }
 
 /* Generic post-list (blog index, blogroll) */
 .post-list,
@@ -522,7 +526,7 @@ main.columns p { font-size: 1.05rem; line-height: 1.55; }
   text-decoration: none;
 }
 .post-list a:hover,
-.blogroll-posts a:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.blogroll-posts a:hover { color: var(--accent-hover); text-decoration: underline; text-underline-offset: 3px; }
 .post-date, .blogroll-meta {
   font-family: var(--serif);
   font-style: italic;
@@ -547,7 +551,7 @@ main.columns p { font-size: 1.05rem; line-height: 1.55; }
 }
 .tag-list li:first-child { border-top: 1px solid var(--rule); }
 .tag-list a { text-decoration: none; font-family: var(--serif); font-size: 1.05rem; }
-.tag-list a:hover { color: var(--accent); }
+.tag-list a:hover { color: var(--accent-hover); }
 .tag-list .count {
   font-family: var(--serif);
   font-style: italic;
