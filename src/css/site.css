@@ -39,12 +39,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #16161A;
-    --paper-2: #1F1F23;
-    --ink: #E6E6E6;
-    --ink-2: #BDBDBD;
-    --mute: #8A8A8A;
-    --rule: #2F2F33;
+    --paper: #141619;
+    --paper-2: #1D1F24;
+    --ink: #CFD3D8;
+    --ink-2: #A0A5AC;
+    --mute: #7A7F86;
+    --rule: #292B30;
     --accent: #8AA8D6;
     --accent-hover: #B0C5E5;
 
@@ -298,9 +298,9 @@ article.post .prose h4 { font-size: 1.05rem; margin: 1.3rem 0 0.3rem; }
 article.post .prose em { font-style: italic; }
 article.post .prose code:not(pre code) {
   font-family: var(--mono);
-  font-size: 0.92em;
   background: var(--paper-2);
-  padding: 1px 5px;
+  padding: 0px 2px;
+  white-space: nowrap;
 }
 article.post .prose blockquote {
   margin: 1.5rem 0;

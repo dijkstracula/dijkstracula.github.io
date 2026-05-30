@@ -5,7 +5,7 @@ date: 2026-04-24
 tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "If Signals type to LTL.always, what could type to LTL.eventually?"
 series: lean-ltl
-series_title: "Intro to FRP: Events"
+series_title: "FRP: Events"
 ---
 
 Last time, we introduced `Signal`s, which are time-varying datatypes: at all

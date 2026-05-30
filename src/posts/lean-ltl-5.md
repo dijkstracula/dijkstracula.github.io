@@ -4,7 +4,7 @@ title: "FRP in Lean: Stateful combinators, safety, and liveness"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "FRP: non-pointwise combinators"
+series_title: "FRP: Safety"
 inlineCodeLang: lean4
 ---
 
@@ -649,19 +649,20 @@ So, our final function signature for `accumulate` is:
 Notice that this refines the entire `Signal`, not the `β` inside the signal.
 "`(Signal β) // ...`" is saying "here's a `Signal` and a proof of its safety
 property", whereas, if we'd parenthesized it differently, `Signal (β // ...)`
-would make a pointwise claim about every timestep.  
+would make a pointwise claim about the `β` available at every timestep.  
 
+::: margin-note
+If you're one to push symbols around and see what shakes out, you might wonder,
+"what would it mean if we changed the `□` in the return type to `◇`, so it
+reads `Signal β // (◇ (LTL.atom inv)) sig`? This would produce, instead of a
+safety property, a _liveness property_, proving "eventually, but not now, `inv`
+holds".  We're not quite ready to do so yet, but maybe we'll write a combinator
+to produce such a `Signal` down the road.
+:::
 `sig : (Signal β) // (□ (LTL.atom inv)) sig` is what we get for proving
-initiation and consecution: if we implement our refined `accumulate` correctly,
-it'll guarantee that `inv` holds at all time steps and therefore will guarantee
-our safety property.  
-
-A bit more concretely, a refined value has two fields: `.val` and `.property`.
-What this means for our safety proof-carrying signal is that, informally,
-`(s.val)[t] : β` - we can extract the raw signal value at any time step `t`
-like before.  But now, we can also extract the per-tick proof of the invariant
-holding; again, informally, `(s.property)[t] : inv (s.val t)`.  (This isn't
-valid Lean, but just meant to be demonstrative.)
+initiation and consecution: under the assumption that `inv` holds initially,
+and its preserved whether or not the `Event` fires, we'll guarantee that `inv`
+holds at all time steps and therefore will guarantee our safety property.
 
 Such "assume-guarantee" reasoning is critical for composing verified code
 together: the guarantee out of one function can become an assumption into the

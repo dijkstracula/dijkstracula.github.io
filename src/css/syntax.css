@@ -498,7 +498,6 @@ code[class*="language-"] {
 
 .token.class-name {
     color: var(--syntax-class);
-    font-weight: 600;
 }
 
 .token.regex,

@@ -237,6 +237,10 @@ module.exports = function(eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/robots.txt");
   eleventyConfig.addPassthroughCopy("src/CNAME");
 
+  // Resume submodule (dijkstracula/resume) — served at /resume/ as-is.
+  eleventyConfig.addPassthroughCopy("src/resume");
+  eleventyConfig.ignores.add("src/resume");
+
   // Add date filter for displaying dates nicely
   eleventyConfig.addFilter("readableDate", dateObj => {
     return new Date(dateObj).toLocaleDateString('en-CA', {

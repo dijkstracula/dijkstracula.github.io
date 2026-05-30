@@ -2,7 +2,17 @@
 layout: base.njk
 ---
 
-<script src="/js/dither.js" defer></script>
+<script>
+  // The dither effect is an interactive easter egg; on touch-primary devices
+  // (no hover, coarse pointer) it can't be triggered, so skip loading the
+  // script entirely — the visible image is already a pre-dithered PNG.
+  if (matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    const s = document.createElement("script");
+    s.src = "/js/dither.js";
+    s.defer = true;
+    document.head.appendChild(s);
+  }
+</script>
 
 <main class="home">
   <div class="bio">
@@ -20,6 +30,7 @@ layout: base.njk
   </div>
 
   <section class="log">
+    <h3>Recent posts</h3>
     <ol class="entries">
       {% for post in collections.publishedPosts | limit(5) %}
       <li>
