@@ -14,13 +14,17 @@ Last time we designed a mechanism to accumulate stateful computation on
 of the step-based reactive systems we designed in part 1, so some of you may
 have been wondering what the point of doing that is.  We'll answer that today:
 in this post we'll see how we can _compose_ such proof-carrying computations
-using the FRP combinators we already know and love.
+using the FRP combinators we already know and love.  We'll do this by building
+up to _Hoare logic_, which is a classic way of modeling stateful, imperative
+programs formally, and seeing how connectives in hoare logic map to FRP (and
+thus LTL).
 
-Let's do some light refactoring.  At the moment, our `FRP` namespace is
-polluted with both ordinary, non proof-checking combinators (like, `FRP.map`)
-as well as ones that _do_ make statements about, say, safety properties (like
-`FRP.accumulate`).  Let's create a sub-namespace to isolate the more
-complicated proof-carrying ones.
+Before we do that, though, let's do some light refactoring.  At the moment, our
+`FRP` namespace is polluted with both ordinary, non proof-checking combinators
+(like, `FRP.map`) as well as ones that _do_ make statements about, say, safety
+properties (like `FRP.accumulate`, which was the meat of the previous post
+in this series).  Let's create a sub-namespace to isolate the more complicated
+proof-carrying ones.
 
 ::: tip
 ```lean4
@@ -76,14 +80,25 @@ end FRP
 
 Note that I'm using `always_atom_iff`, which I encouraged you to write in the
 previous post.  If you haven't yet, no better time than the present!  This
-theorem's type is `{inv : StateProp β} (sig : Signal β) : (∀ t, inv (sig t)) ↔
-(□ (LTL.atom inv)) sig`; a biconditional, which we've discussed in previous
-installments.
+theorem's type is `(sig : Signal β) : (∀ t, inv (sig t)) ↔
+(□ (LTL.atom inv)) sig`; a biconditional that states "making a statement about
+a `Signal` at every time step is interchangable with making the equivalent
+statement in temporal logic".
 
 ## Warmup: better notation for refined `Signal`s.
 
-In the previous post, our program was littered with gnarly-looking
-`Signale`.  For instance, `accumulate`'s return type was:
+In the previous post, we introduced using Lean's refinement type system,
+and used them to make statements about properties of `Signal`s.  Last time,
+we said, strictly informally:
+
+1. "`(Signal β) // inv`" is saying "here's a `Signal` that produces `β`s, and a
+proof of a safety property `inv`; we might call this "a refined `Signal`";
+2. "`Signal (β // inv)`" is saying "here's a `Signal` that produces `(β // inv)`s;
+that is to say, at every time step, we get a value and a proof of some property
+about that time step's value.  We might call this "a `Signal` of refinements".
+
+Syntactically, though, it was a bit of a mess. Our program was littered with
+gnarly-looking `Signal`.  For instance, `accumulate`'s return type was:
 
 ```lean4
 def accumulate
@@ -91,14 +106,9 @@ def accumulate
   : { sig : (□ β) // (□ (LTL.atom inv)) sig }
 ```
 
-This type refines a `Signal β` with an LTL safety property. A value of this type
-is made up of two parts: A value of type `Signal β` and then the `LTL.always`
-proposition that the `Signal` has been proven to maintain. 
-
-This whole time, we've been punning on `□` having distinct meanings in the FRP
-world and the LTL world (they are technically the same owing to Curry-Howard,
-but Lean doesn't let us unify them precisely like we could in Agda, say).
-Let's create a type alias for this refined signal to make this a bit less convoluted.
+(This type refines a `Signal β` with an LTL safety property, so it's an example
+of the first type of refined signal.)  Let's create a type alias for this
+refined signal to make this a bit less convoluted-looking.
 
 ```diff-lean4
 + abbrev RSignal (α : Type) (inv : StateProp α) := { s : Signal α // (□ (LTL.atom inv)) s }
@@ -109,20 +119,12 @@ Let's create a type alias for this refined signal to make this a bit less convol
 +  : RSignal β inv
 ```
 
+This is already cleaner, but we've lost the `//` operator and thus the connection
+to refinement types.  That's where Lean's macro system can once again help us out.
+
 ### A syntax transformer for `RSignal`s
 
-If we were free to make up notation for an `RSignal`, we might write something
-like `(□ α) // inv`.  Structurally, it's what we said before: the whole `Signal`
-is refined by the safety invariant `inv`; the parens just make it obvious that 
-we mean "(A signal of `a`s), where `inv` holds".
-
-What would it mean if we balanced the parentheses differently, say, `□ (α //
-inv)` (that is, "A signal of (`a`s, where `inv` holds)")?  This "pushes ths
-invariant" inside each time step: rather than a pair containing a `Signal α`
-and a global property, it's a `Signal` that, at each time step, produces a pair
-containing a `α` and a _local_ proof of the invariant for that time step.
-
-One of the things I really like about Lean is that we _are_ free to make up
+One of the things I really like about Lean is that we are free to make up
 notation!  When we introduced the LTL <-> FRP correspondence, we used the
 `notation` special form to imbue `□` with meaning.  We _also_ saw that Lean's
 macro system is richer than, say, C's, since it was smart enough to choose the
@@ -148,8 +150,8 @@ Scheme upbringing.
 +  : □ β // inv := ...
 ```
 
-In addition to `accumulate` returning a `(□ β) // inv`, inside the function,
-the `step_at` helper can be typed as `□ (β // inv)`.
+In addition to `accumulate` returning a `(□ β) // inv`, inside the body of that
+function, the `step_at` helper can be typed as `□ (β // inv)`.
 
 ```diff-lean4
  def accumulate
@@ -166,7 +168,19 @@ the `step_at` helper can be typed as `□ (β // inv)`.
   ⟨ vals, (always_atom_iff vals).mp safety ⟩
 ```
 
+When I made this transformation, it hinted at something deeper that I'd missed
+before: seems like if we agree that the syntax of `(□ β) // inv` is close to
+that of `□ (β // inv)`, then perhaps we could agree that the _semantics_ of the
+two are related, too.
+
 ### Metaprogramming our way to a better syntax
+
+Before we do that, though, let's tidy up our syntax transformation. 
+
+::: tip
+If you're _truly_ uninterested in the finer points of hygenic macros, I wouldn't
+fault you for skipping to the next section in this post.
+:::
 
 `notation` auto-generates three things for us: 
 
@@ -272,9 +286,10 @@ we would expect!
 
 With this new notation, it's easier to see what `accumulate` is doing
 internally: with `step_at`, we collate together all our refined values, across
-all time steps, into a `□ (β // inv)`. Once we've got that, we turn all the
-individual local proofs of `inv` holding into a global safety property,
-producing a final refined signal of type `(□ β) // inv`.
+all time steps, into a `□ (β // inv)`.  (That's a "signal of refinements").
+Once we've got that, we turn all the individual local proofs of `inv` holding
+into a global safety property, producing a final refined signal of type `(□ β)
+// inv` (a refined signal).
 
 As I worked on an earlier draft of this post, I found myself not only repeating
 this operation, but also performing the _inverse_ operation, which takes a
@@ -282,8 +297,8 @@ single `(□ β) // inv` and "shards out" its safety property to produce a `□ 
 // inv)`.  This suggested to me that there was some sort of underlying
 primitive that I'd missed in previous posts.
 
-Indeed!  If we construct a way to go between `(□ β) // inv` and `□ (β //
-inv)`s, we can simplify a lot of the FRP combinators we need.
+Indeed!  It turns out that if we construct a way to go between `(□ β) // inv`
+and `□ (β // inv)`s, we can simplify a lot of the FRP combinators we need.
 
 Here's the skeleton of what we're after in this section:
 
@@ -305,15 +320,15 @@ def Signal.collect : □ (β // inv) -> (□ β) // inv :=
 
 ### `Signal.split` shards out a safety property into pointwise statements
 
-The rough shape of `split` will be the following: at every time step, we
-somehow produce a `β` and a proof that that `β` satisfies the invariant, and
-then glue them together to make a refined value.
+The rough shape of `split` will be the following: We consume a refined
+`Signal`, and produce a new `Signal` such that at every time step, we somehow
+produce a `β` and a proof that that `β` satisfies the invariant, and then glue
+them together to make a "signal of refinements".
 
 ```diff-lean4
   def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
 -    sorry -- TODO
-+    fun t => -- TODO: something roughly like:
-+      ⟨...val, prf⟩
++    fun t => ⟨...val, prf⟩ -- TODO: something roughly like:
 ```
 
 How can we construct a `val`?  It has to come out of `sig` somehow, since that's
@@ -322,38 +337,32 @@ getting a `β` just from applying `t` seems like as good an idea as any!
 
 ```diff-lean4
   def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
--    let vals : □ β := sig.val
-+    fun t => -- TODO: something roughly like:
--      let val : β := sorry 
-+      let prf : inv s := sorry
--      ⟨...val, prf⟩
-+      ⟨vals t, prf⟩
++    let vals : □ β := sig.val
+-    fun t => ⟨...val, prf⟩ -- TODO: something roughly like:
++    fun t => ⟨vals t, prf⟩ -- TODO: something roughly like:
 ```
 
 Similarly, `sig.property` is our safety property, ensuring `inv` will always
-hold over `vals`: concretely, `∀ t, inv (vals t)`.  Remember the definition
-of `LTL.always`:
+hold over `vals`.  This is a proof that our LTL formula holds at every
+timestep.  
 
-```lean4
-def always (p : Trace σ → Prop) (t : Trace σ) : Prop :=
-  ∀ i, p (drop i t)
-```
+The beauty of the LTL-FRP correspondence is that by Curry-Howard, a proof of
+`(□ (LTL.atom inv)) vals` is a _function_ we can call with some timestep `i`,
+to get a proof that `p` holds at `t=i`!  So, the body of `always` is identical
+to `fun i => p (drop i t)`. This means `sig.property` can be applied:
+`sig.property i` gives us a proof that the invariant holds at time `i`.
 
-This is a proof that our LTL formula holds at every timestep.  The beauty of
-the LTL-FRP correspondence is that by Curry-Howard, `(□ (LTL.atom inv)) vals`
-is a _function_ we can call with some timestep `i`, to get a proof that `p`
-holds at `t=i`.  This is exactly the same "interface" as a `Signal`!
-
-::: warning
 ```diff-lean4
  def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
    let vals : □ β := sig.val
 +  let safety : (□ (LTL.atom inv)) := sig.property
-   fun t => -- TODO something like:
--    let safety : inv s := sorry
--    ⟨vals t, prf⟩
-+    ⟨vals t, safety t⟩
+-  fun t => ⟨vals t, prf⟩ -- TODO something like:
++  fun t => ⟨vals t, safety t⟩
 ```
+
+Bad news, though, it doesn't work!
+
+::: warning
 ```lean4
 Type mismatch
   sig.property
@@ -365,14 +374,13 @@ but is expected to have type
 :::
 
 
-Hopefully it's not too hard to see that `vals t` produces the `β` that we need,
-so we know what we need to do there. `safety t` _almost_ produces the proof
-that we need: it gives us a `LTL.atom inv (drop t vals)`, the global safety
-property, but what we in fact need is the pointwise proof at time `t`.
-Luckily, that's what `always_atom_iff` gives us! `fun t => (always_atom_iff
-vals).mpr sig.property t` first converts the safety property into its pointwise
-form, and then applies `t` to it.  (If you're feeling fancy you can write this
-as a point-free function composition as I've done below).
+Argh, but feels like we're close.  `safety t` _almost_ produces the proof that
+we need: it gives us a `LTL.atom inv (drop t vals)`, the global safety
+property, but what we in fact need is the pointwise proof at time `t`. Luckily,
+that's what `always_atom_iff` gives us! `fun t => (always_atom_iff vals).mpr
+sig.property t` first converts the safety property into its pointwise form, and
+then applies `t` to it.  (If you're feeling fancy you can write this as a
+point-free function composition as I've done below).
 
 So, our final `split` is:
 
@@ -382,16 +390,14 @@ So, our final `split` is:
    let vals : □ β := sig.val
 -  let safety : (□ (LTL.atom inv))  := sig.property
 +  let safety : (∀ t, inv (vals t)) := (always_atom_iff vals).mpr sig.property
-   fun t => 
-    ⟨ vals t, safety t ⟩
+   fun t => ⟨ vals t, safety t ⟩
 ```
 :::
 
 ### `Signal.collect` compiles a `Signal` with a safety property
 
-Let's write the operation that does the opposite: given a `Signal` where a safety
-proof is paired with its value at every time step, collect that infinite
-sequence of proofs into a safety propery.
+Let's write the operation that does the opposite: given a `Signal` of
+refinements, collect that infinite sequence of proofs into a refined `Signal`.
 
 ```lean4
 def Signal.collect (sig: □ (β // inv)) : (□ β) // inv := 
@@ -400,9 +406,9 @@ def Signal.collect (sig: □ (β // inv)) : (□ β) // inv :=
   ⟨vals, safety⟩
 ```
 
-(Note that a nice contrast between `split` and `collect` is that `split` needed
-to return a top-level `Signal` and thus the returned expression was a `fun t =>
-...`, whereas the refinement is the top-level construct for `collect.)
+(Note the asymmetry between `split` and `collect`'s bodies: `split` needed to
+return a top-level `Signal` and thus the returned expression was a `fun t =>
+...`, whereas the refinement pair is the top-level construct for `collect`.)
 
 We'll proceed in the same way as before: we'll extract a `□ β` and a `∀ t, inv
 (vals t)` from the input signature.  We'll apply `always_atom_iff`, in the
@@ -413,8 +419,8 @@ statement to an LTL proposition.
 ```diff-lean4
  def Signal.collect (sig: □ (β // inv)) : (□ β) // inv := 
 -  let vals : □ β := sorry 
-+  let vals : □ β := fun t => (sig t).val
 -  let safety : (□ (LTL.atom inv)) vals := sorry 
++  let vals : □ β := fun t => (sig t).val
 +  let safety : (□ (LTL.atom inv)) vals := 
 +    (always_atom_iff vals).mp (fun t => (sig t).property)
    ⟨ vals, safety ⟩
@@ -439,9 +445,9 @@ def accumulate
 
 ## Refined combinators with assume-guarantee reasoning
 
-Now that we have a syntactic separation between non-refined and refined
-FRP combinators, let's port some of the `FRP` combinators to their refined
-counterparts.
+Now that we have a syntactic separation between non-refined and refined FRP
+combinators, and a bit of experience splitting and collecting `RSignal`s, let's
+port some of the `FRP` combinators to their refined counterparts.
 
 ### `const` is a collection
 
@@ -456,12 +462,11 @@ Pretty simple: at all time steps `t`, produce that constant value.  By
 contrast, `RSignal.const` will consume a single value paired with a
 refinement - a `{ a : α // inv a }` - and produce a `□ α // inv`.
 
-Here's our function signature with that in mind:  It'll now take an implicit
-`inv : StateProp α`, and the `a` value is now a refinement type that makes use
-of our `inv`.
+Here's our function signature with that in mind:  It'll now take a _refined
+value_, and produce a _refined signal_ with the same property.
 
 ```lean4
-def RSignal.const {inv: StateProp α} (a : { a : α // inv a } ) : □ α // inv :=
+def RSignal.const (a : { a : α // inv a } ) : □ α // inv :=
   -- TODO
 ```
 
@@ -476,38 +481,33 @@ Luckily, though, we just wrote a combinator to turn one into the other!
 ```diff-lean4
  def RSignal.const {inv: StateProp α} (a : { a : α // inv a } ) : □ α // inv :=
 -  -- TODO
-+  let sig : □ (α // inv) := (fun _ => a)
-+  Signal.collect sig
++  Signal.collect (fun _ => a)
 ```
 
 ### `map` splits, then collects
 
+::: margin-warning
+Annoyingly, only when writing this implementation did I realise that Lean's
+`Functor` implementation is, depending on how you look at it, too demanding or
+not demanding enough, to accept `RSignal.map`.  The whole point of a functor is
+that it provides a way to map between _any two_ types (which you can see in the
+[typeclass
+definition](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html#Functor)) - in `(α → β) → F α → F β`, `α` and `β` can be _any_ type.
+The problem here is that our definition of `RSignal.map` constrains us
+specifically to _refined types_, so Lean rejects it as being insufficiently
+general for `Functor`'s purposes.
+:::
 Okay, let's do `Signal.map` next.  Here's the original signature.
 
 ```lean4
 def Signal.map (f: α → β) (s : □ α) : □ β := fun t => f (s t)
 ```
 
-As with `const`, we'll begin by introducing two invariants over `α` and `β`:
-
-```lean4
-def RSignal.map
-  {inv_a: StateProp α} {inv_b: StateProp β}
-  (f: α → β) (s : □ α) 
-  : □ β := 
-  ...
-```
-
-And like before, `inv_a` becomes the safety property for the input `Signal`, as
-well as a refinement on the argument to `f`; `inv_b` becomes the refinement on
-the _return value_ of `f`, and thus the safety property of the `Signal` that we
-return!
-
-OK, so in summary, our signature looks like this:
+We'll now have _two_ invariants: one for the input type, and one for the output
+type.  OK, so in summary, our signature looks like this:
 
 ```diff-lean4
  def RSignal.map
-   {inv_a: StateProp α} {inv_b: StateProp β}
 -  (f: α → β) (s : □ α) 
 +  (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
 -  : □ β := ...
@@ -526,25 +526,14 @@ safety property.  So, we're left with functionally a one-liner:
 
 ```diff-lean4
  def RSignal.map
-   {inv_a: StateProp α} {inv_b: StateProp β}
    (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
    : (□ β) // inv_b := 
 +  Signal.collect (fun t => f (Signal.split s t))
 ```
 
-::: warning
-Annoyingly, only when writing this implementation did I realise that Lean's
-`Functor` implementation is, depending on how you look at it, too demanding or
-not demanding enough, to accept `RSignal.map`.  The whole point of a functor is
-that it provides a way to map between _any two_ types (which you can see in the
-[typeclass
-definition](https://leanprover-community.github.io/mathlib4_docs/Init/Prelude.html#Functor)) - in `(α → β) → F α → F β`, `α` and `β` can be _any_ type.
-The problem here is that our definition of `RSignal.map` constrains us
-specifically to _refined types_, so Lean rejects it as being insufficiently
-general for `Functor`'s purposes.
-:::
 
-`RSignal.map2` is not fundamentally different, either.
+`RSignal.map2` is not fundamentally different, either, just now with _three_
+invariants.
 
 ::: margin-warning
 If `RSignal.map` does not get us to a `Functor`, then `RSignal.map2`
@@ -557,7 +546,6 @@ You should email me if you have thoughts on how to make this better.
 :::
 ```lean4
 def map2
-  {inv_a: StateProp α} {inv_b: StateProp β} {inv_c: StateProp γ}
   (f: {a: α // inv_a a} → {b : β // inv_b b} → {c : γ // inv_c c})
   (s1: □ α // inv_a) 
   (s2: □ β // inv_b)

@@ -4,7 +4,7 @@ title: "FRP in Lean: Stateful combinators, safety, and liveness"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "FRP: Safety"
+series_title: "FRP: Stateful combinators and safety"
 inlineCodeLang: lean4
 ---
 
@@ -993,23 +993,23 @@ the trace looks like:
 
 No matter how hard we hammer the button, we'll at least once in awhile
 eventually get an `Idle` state for crosswise traffic to flow again.
+Back in Part 4, this exact event was the counter-example to liveness; `spammer`
+could keep cars from ever proceeding. Under the countdown-and-then-cooldown
+protocol, that's no longer possible. The system returns to Idle every 9 ticks,
+no matter what, which means cars get their turn even under maximum harassment.
+We've essentially fixed the liveness violation from Part 4 by introducing
+state!
 
-Notice something interesting: in Part 4, this exact event was the
-counter-example to liveness; `spammer` could keep cars from ever proceeding.
-Under the countdown-and-then-cooldown protocol, that's no longer possible. The
-system returns to Idle every 9 ticks, no matter what — which means cars get
-their turn even under maximum harassment.  We've essentially fixed the liveness
-violation from Part 4 by introducing state!
-
-This is a liveness property: "always, eventually `Idle`." But because we have
-an explicit bound (every 9 ticks, never longer), it's actually expressible as a
-safety property, via a technique called _liveness-to-safety reduction_. The
-trick is to augment the state with a deadline counter and assert "either we're
-Idle now, or the deadline is still in the future." That conjunction is an
-inductive invariant; accumulate would give us `□` of it for free.  This post is
-already too long so I won't show you the details here, but the takeaway is that
-bounded liveness is closer to within reach than the safety/liveness distinction
-usually suggests.
+This is a liveness as well as a _fairness_ property: "always, eventually
+`Idle`." But because we have an explicit bound (every 9 ticks), it's actually
+expressible as a safety property, via a technique called _liveness-to-safety
+reduction_. The trick is to augment the state with a deadline counter and
+assert "either we're Idle now, or the deadline is still in the future." That
+conjunction is an inductive invariant; accumulate would give us `□` of it for
+free.  This post is already too long so I won't show you the details here, but
+the takeaway is that bounded liveness is closer to within reach than the
+safety/liveness distinction usually suggests.
 
 Next time, we'll start composing reactive components, building more interesting
-dependency graphs of `Signal`s where one's output becomes another's input. 
+dependency graphs of `Signal`s where one's output values becomes another's
+input, and the output's safety property becomes a precondition for the other.
