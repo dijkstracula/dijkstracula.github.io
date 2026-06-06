@@ -4,13 +4,13 @@ title: "FRP in Lean: Stateful combinators, safety, and liveness"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "FRP: Stateful combinators and safety"
+series_title: "Stateful combinators and safety"
 inlineCodeLang: lean4
 ---
 
 # Non-pointwise combinators have knowledge of previous timesteps
 
-Up to now, every `Signal` we've seen has been stateless.  `FRP.map` and
+Up to now, every Signal we've seen has been stateless.  `FRP.map` and
 `FRP.map2` from last time apply pure functions to the value at each timestep,
 with no memory of what came before.  Real reactive systems have evolving state:
 the value at time `t+1` depends on the value at time `t`. 
@@ -18,7 +18,7 @@ the value at time `t+1` depends on the value at time `t`.
 In this post, we'll build up to `FRP.accumulate`, which is a general-purpose
 non-pointwise FRP combinator.  We'll see that the point of these combinators is
 to combine a sequence of discrete `Events` at various points in time to
-maintain a running `Signal` that captures those events changing the `Signal`
+maintain a running Signal that captures those events changing the Signal
 value.
 
 ## A warmup exercise: a quick equivalence lemma
@@ -31,7 +31,7 @@ useful shortly.
 Suppose I have some `Signal β` - that is, a time-varying value of type `β`.
 And, suppose I have some statement `inv` about `β` values, such that at every
 time step in the signal, `inv` holds.  Then, `inv` is an _invariant_ over that
-`Signal`.  A bit more formally:
+Signal.  A bit more formally:
 
 ::: margin-note
 Quick reminder from previous posts: `StateProp β` is a `β -> Prop`; in other
@@ -88,7 +88,7 @@ Goals accomplished!
 ```
 
 this theorem is nice because it collates an infinite number of non-temporal
-`inv (sig t)` proofs into a single temporal proof. If we can build `Signal`s
+`inv (sig t)` proofs into a single temporal proof. If we can build Signals
 whose values satisfy an invariant at every timestep, then we can use
 `always_atom` to automatically lift that invariant into a _safety property_.
 We'll get the temporal logic guarantee without explicitly needing to do any
@@ -210,16 +210,16 @@ def screaming : Signal String := scan (· ++ "a") ""
 #eval (List.range 5).map screaming -- ["", "a", "aa", "aaa", "aaaa"]
 ```
 
-Something interesting to note is that this is our first `Signal` that isn't
+Something interesting to note is that this is our first Signal that isn't
 ultimately driven by the tick of the `clock`: we never actually do any
 computation based on the internal value of `t` like we did with the UTC
 time conversion example.
 
 This should also feel a lot like what we did with stepping state machines back
 in the first post!  The difference, of course, is that `vmStep` needed an
-action at each step (and a proof it was valid, of course).  `scan` `Signal`s
+action at each step (and a proof it was valid, of course).  `scan` Signals
 don't, by contrast; it's an autonomous state machine that just evolves on its
-own.  We'll need a richer combinator to start folding in `Event`s into the
+own.  We'll need a richer combinator to start folding in Events into the
 mix.
 
 ::: tip
@@ -312,15 +312,15 @@ def CrossingState.tick : CrossingState → CrossingState :=
 ```
 
 This is great!  We can step through our light example through time.  Of course,
-what's missing is a way for an `Event` to inject a change into the fold.
+what's missing is a way for an Event to inject a change into the fold.
 That's what `accumulate` will get us.
 
-## `accumulate` is a temporal fold over an `Event`
+## `accumulate` is a temporal fold over an Event
 
-The idea of `accumulate` is this: we're going to start with an `Event` of some
-type and produce a `Signal` of some type.  Since we said that `accumulate`
+The idea of `accumulate` is this: we're going to start with an Event of some
+type and produce a Signal of some type.  Since we said that `accumulate`
 generalises `scan`, makes sense that we should at least consume an `init`
-state - this at least nails down the type of the returned `Signal`.
+state - this at least nails down the type of the returned Signal.
 
 
 ```lean4
@@ -341,7 +341,7 @@ the catamorphism for `Option a` is.  (When you're ready: did you choose `β`
 
 ### ...when the event is not firing...
 
-One thing to notice is that so long as the given `Event` isn't triggering (that
+One thing to notice is that so long as the given Event isn't triggering (that
 is, when `ev t = none`, this is doing exactly the same thing as our `scan`
 combinator.  So, `scan`'s `step` might as well be called `onNone`, since that's
 how to just produce a new `β` given the previous one.
@@ -386,9 +386,9 @@ so, our final function will look thus:
 
 Before proceeding, you should spend a moment convincing yourself that the wrong
 thing to do here would have been to have `accumulate` consume an input,
-"background" `Signal` for when the event's not firing, instead of the `init`
+"background" Signal for when the event's not firing, instead of the `init`
 and `onNone` values.  Had we done that, we'd be back to the piecewise
-combinator where consequences of the `Event` firing can't ripple through
+combinator where consequences of the Event firing can't ripple through
 subsequent timesteps.
 
 ### Implementing `accumulate` with the recursor for Time
@@ -454,8 +454,8 @@ write `Event.latch` in terms of `accumulate`?
 ## Weaving in button presses
 
 At last, we have enough mechanism to actually fold over both ordinary
-transitions and inject events into the `Signal` stream:  Let's define a
-button press `Event` that fires at `t=2` and `t=5`:
+transitions and inject events into the Signal stream:  Let's define a
+button press Event that fires at `t=2` and `t=5`:
 
 ::: margin-note
 Remember that to make an event truly an "eventually" we need to also supply a
@@ -631,7 +631,7 @@ proposition that should be true on the return type?
 Remember that inductive invariants encode safety properties.  So, whatever that
 property is, it better hold for every time step in the returned signal.  That's
 an proposition in LTL!  In particular, `(□ (LTL.atom inv))` applied to the
-`Signal`.
+Signal.
 
 So, our final function signature for `accumulate` is:
 
@@ -646,8 +646,8 @@ So, our final function signature for `accumulate` is:
 +  : { sig : (Signal β) // (□ (LTL.atom inv)) sig }  := ... -- TODO: implementation?
 ```
 
-Notice that this refines the entire `Signal`, not the `β` inside the signal.
-"`(Signal β) // ...`" is saying "here's a `Signal` and a proof of its safety
+Notice that this refines the entire Signal, not the `β` inside the signal.
+"`(Signal β) // ...`" is saying "here's a Signal and a proof of its safety
 property", whereas, if we'd parenthesized it differently, `Signal (β // ...)`
 would make a pointwise claim about the `β` available at every timestep.  
 
@@ -657,22 +657,22 @@ If you're one to push symbols around and see what shakes out, you might wonder,
 reads `Signal β // (◇ (LTL.atom inv)) sig`? This would produce, instead of a
 safety property, a _liveness property_, proving "eventually, but not now, `inv`
 holds".  We're not quite ready to do so yet, but maybe we'll write a combinator
-to produce such a `Signal` down the road.
+to produce such a Signal down the road.
 :::
 `sig : (Signal β) // (□ (LTL.atom inv)) sig` is what we get for proving
 initiation and consecution: under the assumption that `inv` holds initially,
-and its preserved whether or not the `Event` fires, we'll guarantee that `inv`
+and its preserved whether or not the Event fires, we'll guarantee that `inv`
 holds at all time steps and therefore will guarantee our safety property.
 
 Such "assume-guarantee" reasoning is critical for composing verified code
 together: the guarantee out of one function can become an assumption into the
 next.  (In the next post, we'll see how assume-guarantee reasoning composes.)
 
-### Coercing a subtype back into a `Signal`
+### Coercing a subtype back into a Signal
 
-OK, `accumulate` returns a refinement type-pair of a `Signal` plus the safety
-witness, but in actual uses of `accumulate` we only want the `Signal` itself.
-Let's add a quick coercion, just like we did for `Event`s last time, to treat
+OK, `accumulate` returns a refinement type-pair of a Signal plus the safety
+witness, but in actual uses of `accumulate` we only want the Signal itself.
+Let's add a quick coercion, just like we did for Events last time, to treat
 the refinement type as callable, itself:
 
 ```lean4
@@ -941,7 +941,7 @@ def crosswalk (ev : ◇ Unit) : { sig // □ (LTL.atom bounded) sig } :=
 
 Let's look at the type signature of `crosswalk`: we can give it _any_ sequence
 of button presses - a polite button presser, an eager spammer, or some other
-sequence you or I haven't thought of yet - and out comes a `Signal` of states
+sequence you or I haven't thought of yet - and out comes a Signal of states
 bundled with a safety proof that the hardware never overflows its counter
 register.
 
@@ -967,12 +967,12 @@ like, say:
 ```
 
 ... or, a larger reactive program that composes `crosswalk` with other
-`Signal`s, or possibly any number of button schedule `Event`s, will carry
+Signals, or possibly any number of button schedule Events, will carry
 through that safety property, holding us in good stead, all held together
 by Lean's typechecker.
 
-Next time, we'll looking at composing `Signal`s with different safety
-properties: As an example, let's go back to our `spammer` `Event` and see what
+Next time, we'll looking at composing Signals with different safety
+properties: As an example, let's go back to our `spammer` Event and see what
 the trace looks like:
 
 ```lean4
@@ -1011,5 +1011,5 @@ the takeaway is that bounded liveness is closer to within reach than the
 safety/liveness distinction usually suggests.
 
 Next time, we'll start composing reactive components, building more interesting
-dependency graphs of `Signal`s where one's output values becomes another's
+dependency graphs of Signals where one's output values becomes another's
 input, and the output's safety property becomes a precondition for the other.

@@ -8,23 +8,23 @@ series: lean-ltl
 series_title: "FRP: Events"
 ---
 
-Last time, we introduced `Signal`s, which are time-varying datatypes: at all
+Last time, we introduced Signals, which are time-varying datatypes: at all
 time steps `t`, a `Signal a` produces some value of type `a`.  We also saw that
 because an `a` is always available, the type of a `Signal a` is `LTL.always a`.
-So, we can write `□ a` to refer _both_ to a `a`-producing `Signal`, as well
+So, we can write `□ a` to refer _both_ to a `a`-producing Signal, as well
 as the universally-quantified temporal proposition.
 
-# An `Event` occurs at some point in time
+# An Event occurs at some point in time
 
-The dual of a `Signal` is an `Event`, which you can think of a stream of values
+The dual of a Signal is an Event, which you can think of a stream of values
 to be consumed by the system at particular moments in time.  For an interactive
-webapp, you might, "right at this moment", send a "click" `Event` to a form
+webapp, you might, "right at this moment", send a "click" Event to a form
 button, which perhaps triggers other events to fire.  Or, maybe, you enqueue an
 event to fire some point in the future, like registering a timeout on a network
-call or something.  (If you come from an OOP background, an `Event` is very
+call or something.  (If you come from an OOP background, an Event is very
 much like an [Observable](https://reactivex.io/documentation/observable.html).)
 
-## Designing an `Event` type
+## Designing an Event type
 
 The second example I gave you, where we just define "at these points in the
 future, consume these actions" feels, operationally, extremely different from
@@ -37,26 +37,26 @@ conceptually simpler and has a nicer LTL correspondence that the equivalent one
 that has to messily interact with the real world.
 
 OK, so what's the type of a (closed) Event?  Before we can start reasoning
-about `Event`s we need to make sure our data definition is well-formed.
+about Events we need to make sure our data definition is well-formed.
 
-Just like `Signal`, we'll want the type parameterised on whatever the valid
+Just like Signal, we'll want the type parameterised on whatever the valid
 action space is, so it'll be a polymorphic type for sure, so `def Event α :=
 ... α` is not a terrible place to start.
 
 Since an action can be taken or not taken at any given moment in time, the
 rough shape will be `def Event α := Time → (Option α)`.  That this looks a
-lot like the datatype for `Signal` perhaps indicates to us that we're on the
-right track, and maybe that `Event`s are actually just a particular sort of
-`Signal`?  (This is a valid design choice -- Elm originally did just this --
+lot like the datatype for Signal perhaps indicates to us that we're on the
+right track, and maybe that Events are actually just a particular sort of
+Signal?  (This is a valid design choice -- Elm originally did just this --
 but I'm going to deliberately keep the datatypes distinct here.)
 
-OK!  So, in our traffic light example, an `Event` that corresponds to our
+OK!  So, in our traffic light example, an Event that corresponds to our
 example might look like the following:
 
 ::: margin-note
 Maybe, in a later installment, we'll revisit the open-termed version of
-`Event`, where input can come in from the outside world.  It might be worth
-meditating on what a good datatype for such an `Event` would be.
+Event, where input can come in from the outside world.  It might be worth
+meditating on what a good datatype for such an Event would be.
 :::
 ```lean4
 def Event α := Time → (Option α)
@@ -72,16 +72,16 @@ What we have here is a completed history - a series of events after the fact. A
 running FRP program would, of course, incrementally receive events in real time
 from an event loop.
 
-With this `Event` in place, we can wire up the button to a walk sign - whenever
+With this Event in place, we can wire up the button to a walk sign - whenever
 the button is pressed, the walk sign is on; otherwise, the "no walk" sign is.
 Similarly, the traffic light can be overridden to `Red`.
 
 ::: margin-note
-This is a pointwise transformation of a `Signal`; the `Signal` is only modified
+This is a pointwise transformation of a Signal; the Signal is only modified
 so long as the pedestrian is holding the button down.  Of course, in the real
 world, a pedestrian crossing button delays the lights long enough for them to
 cross the road!  We'll soon see the mechanism that lets us retain the value of
-an `Event` over subsequent time steps, but for now, humour me with this one
+an Event over subsequent time steps, but for now, humour me with this one
 here.
 :::
 ```lean4
@@ -117,7 +117,7 @@ def pedCrossing (button : FRP.Event Unit) : □ (Light × WalkSign) :=
 
 Given that `Signal T` guarantees a `T` at all time steps, and an `Event T` is
 really about the moments of time in which `T` holds, you might naturally
-conclude that the LTL type that corresponds to an `Event` is `eventually`:
+conclude that the LTL type that corresponds to an Event is `eventually`:
 after all, this is clearly true of `pedestrianButton`: It's clearly eventually
 pressed twice!
 
@@ -161,11 +161,11 @@ so let's give it a name:
 def fires (e : Time → Option α) : Prop := ∃ t, (e t).isSome
 ```
 
-The more exact version of an `Event` would bundle the event with a proof that
+The more exact version of an Event would bundle the event with a proof that
 it will, in fact, eventually fire.  
 
 :::margin-note
-Just like with respect to `Signal`s: in Agda, we would get this for free.
+Just like with respect to Signals: in Agda, we would get this for free.
 :::
 ```diff-lean4
  namespace FRP
@@ -187,12 +187,12 @@ Just like with respect to `Signal`s: in Agda, we would get this for free.
 + ⟨2, by simp⟩⟩ 
 ```
 
-## A few `Event` typeclass instances
+## A few Event typeclass instances
 
-Just like how we implemented some typeclasses on `Signal`s last time, we can do
-the same with `Event`s.
+Just like how we implemented some typeclasses on Signals last time, we can do
+the same with Events.
 
-### Making an `Event` callable with `CoeFun`
+### Making an Event callable with `CoeFun`
 
 `CoeFun` is a typeclass that makes a type "callable" with function application
 syntax, like `Fn` in Rust or `operator()` in C++.  A `CoeFun (Event a)` just
@@ -214,14 +214,14 @@ end FRP
      (Light.Yellow, WalkSign.DontWalk)]
 ```
 
-### Making an `Event` a `Functor`
+### Making an Event a `Functor`
 
-Next, just like how we made `Signal` a `Functor`, so too can we with `Event`.
+Next, just like how we made Signal a `Functor`, so too can we with Event.
 I'm not sure we'll necessarily need this, but it's pretty easy to imagine a map
-operation over an `Event`, changing the event payload when it fires (but not
+operation over an Event, changing the event payload when it fires (but not
 changing when it, itself fires).  `Functor` is a good typeclass for that.
 And, as it happens, implementing this is good practice for wrangling our new
-proof-carrying version of `Event` anyway.
+proof-carrying version of Event anyway.
 
 OK, here's the skeleton for a `Functor`:
 
@@ -230,7 +230,7 @@ instance : Functor Event where
   map f ev := ... -- TODO
 ```
 
-In our non-proof carrying `Event`, this would be super-straightforward:
+In our non-proof carrying Event, this would be super-straightforward:
 we'd just produce a new function that consumes a `t`, applies it to `ev`
 to get an `Option α`, and then applies `f` to that if it's a `some`:
 
@@ -275,7 +275,7 @@ f' : Time → Option β✝ := fun t => Option.map f (ev.f t)
 
 We can see from our proof state that `f'` is the right type: it's a `Time →
 Option β`.  Now, we don't have to explicitly do this, but I think it's nice
-to state clearly that already have a proof that the previous `Event` fired:
+to state clearly that already have a proof that the previous Event fired:
 
 ```diff-lean4
  have staysLive : fires f' := by
@@ -358,7 +358,7 @@ With the proof completed, we can complete our `Functor` implementation
 
 ::: margin-note
 Don't forget that, while I'm using anonymous constructor syntax, you could
-specify the fields in an `Event` directly, by writing `{f := f', live :=
+specify the fields in an Event directly, by writing `{f := f', live :=
 staysLive}` instead of `⟨f', staysLive⟩`.
 :::
 ```diff-lean4
@@ -372,12 +372,12 @@ staysLive}` instead of `⟨f', staysLive⟩`.
      ⟨f', staysLive⟩
 ```
 
-## A few `Event` combinators: `merge`
+## A few Event combinators: `merge`
 
 Let's write a few more small combinators that we might need in later posts,
 before returning to the traffic light example.  
 
-`merge` takes two `Event`s and "unions" them together:
+`merge` takes two Events and "unions" them together:
 
 ```lean4
 def Event.merge (e1: Event α) (e2 : Event α) : Event α := 
@@ -456,16 +456,16 @@ closing the goal and completing the combinator.
 Goals accomplished!
 ```
 
-## Bridging `Event`s and `Signal`s with a stateful `Signal`
+## Bridging Events and Signals with a stateful Signal
 
 here's one more combinator that might come in handy for us.  Suppose we'd like
 a way to "retain" the most recent `a` that was fired by a `Event a` at some
 point in time.  We'll call this combinator `latch`:  It'll consume that `Event a`
 and produce the corresponding `Signal a`, which you can think of as a constant
-`Signal` in between different events firing.
+Signal in between different events firing.
 
 To make the signal well-defined, the user will supply an initial value that the
-`Signal` will produce before the first firing.
+Signal will produce before the first firing.
 
 ```lean4
 def Event.latch (init: α) (e: Event α) : Signal α :=
@@ -486,14 +486,14 @@ def Event.latch (init: α) (e: Event α) : Signal α
   | (n + 1) => (e (n + 1)).getD (latch init e n)
 ```
 
-This is our first example of a `Signal` whose value is not a straightforward
+This is our first example of a Signal whose value is not a straightforward
 computation from the given timestep, but relies on past values.  In the next
-post, we'll have a lot to say about stateful `Signal` combinators.
+post, we'll have a lot to say about stateful Signal combinators.
 
 ## Proving a safety property involving events
 
 Last time we discussed safety properties, which are propositions that must
-always hold for a `Signal`.  Let's see what happens when `Event`s get mixed
+always hold for a Signal.  Let's see what happens when Events get mixed
 into a reactive program with a safety property.
 
 There's a pretty clear safety property for our traffic light example: when the
@@ -655,12 +655,12 @@ So, for instance, if some `Signal CrossingState` had a cooldown of `4` at some
 time `t`, we'd expect the value at `t+1` to be `3`, and so on.
 
 More broadly: our goal is to move towards a traffic light policy where, in
-order for a pedestrian button `Event` to actually affect the light cycle,
+order for a pedestrian button Event to actually affect the light cycle,
 `cooldown` must be zero; and, the Walk sign must be lit up until `countdown`
 goes to zero.
 
 Clearly we need to transform an `Event Unit` into a `Signal CrossingState`.
-However, we've only seen _pointwise `Signal` transformations_ like `map`, and
+However, we've only seen _pointwise Signal transformations_ like `map`, and
 that isn't expressive enough for us.  In order to implement a `Signal
 CrossingState` that correctly counts down, we need to be able to look backwards
 into previous states (otherwise, how would we know the previous countdown

@@ -214,7 +214,7 @@ section.log {
    POST / ARTICLE PAGE — single centered column
    ============================================================ */
 article.post {
-  max-width: 720px;
+  max-width: 880px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem 2rem;
 }
@@ -282,7 +282,6 @@ article.post .prose {
   color: var(--ink);
 }
 article.post .prose > * { max-width: 100%; }
-article.post .prose p { margin: 0 0 1rem; }
 article.post .prose h1,
 article.post .prose h2,
 article.post .prose h3,
@@ -568,6 +567,13 @@ main.columns p { font-size: 1.05rem; line-height: 1.55; }
 }
 .callout > p:first-child { margin-top: 0; }
 .callout > p:last-child  { margin-bottom: 0; }
+
+/* Reset margins for code blocks inside callouts. The default
+   `article.post .prose pre` rule has higher specificity than
+   syntax.css's generic `.callout > :first-child`, so we have
+   to scope this rule into the same `.prose` context to win. */
+article.post .prose .callout > pre:first-child { margin-top: 0; }
+article.post .prose .callout > pre:last-child  { margin-bottom: 0; }
 
 /* Margin callouts default to inline-style. */
 .callout-margin {

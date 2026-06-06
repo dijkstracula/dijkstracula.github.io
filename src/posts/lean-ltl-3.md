@@ -1,11 +1,11 @@
 ---
 layout: post.njk
-title: "Reactive Programming in Lean Part 3: Linear Temporal Logic"
+title: "Reactive Programming in Lean Part 3: A Deep Embedding of Linear Temporal Logic"
 date: 2026-04-02
 tags: [post, lean, reactive-programming, ltl]
 excerpt: "Specifications that move through time"
 series: lean-ltl
-series_title: "Linear Temporal Logic"
+series_title: "Linear temporal logic in Lean"
 ---
 
 In the previous posts, we saw how dependent types let us enforce that every

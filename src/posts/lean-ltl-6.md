@@ -1,16 +1,16 @@
 ---
 layout: post.njk
-title: "FRP in Lean: Proof-transforming combinators, composition, and Hoare logic"
+title: "FRP in Lean: Proof-transforming combinators and composition"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "FRP: proof-transforming combinators"
+series_title: "Composing verified signals"
 inlineCodeLang: lean4
 draft: true
 ---
 
 Last time we designed a mechanism to accumulate stateful computation on
-`Signal`s and `Event`s.  This design ended up looking a lot like a tiny version
+Signals and Events.  This design ended up looking a lot like a tiny version
 of the step-based reactive systems we designed in part 1, so some of you may
 have been wondering what the point of doing that is.  We'll answer that today:
 in this post we'll see how we can _compose_ such proof-carrying computations
@@ -82,23 +82,23 @@ Note that I'm using `always_atom_iff`, which I encouraged you to write in the
 previous post.  If you haven't yet, no better time than the present!  This
 theorem's type is `(sig : Signal β) : (∀ t, inv (sig t)) ↔
 (□ (LTL.atom inv)) sig`; a biconditional that states "making a statement about
-a `Signal` at every time step is interchangable with making the equivalent
+a Signal at every time step is interchangable with making the equivalent
 statement in temporal logic".
 
-## Warmup: better notation for refined `Signal`s.
+## Warmup: better notation for refined Signals.
 
 In the previous post, we introduced using Lean's refinement type system,
-and used them to make statements about properties of `Signal`s.  Last time,
+and used them to make statements about properties of Signals.  Last time,
 we said, strictly informally:
 
-1. "`(Signal β) // inv`" is saying "here's a `Signal` that produces `β`s, and a
-proof of a safety property `inv`; we might call this "a refined `Signal`";
-2. "`Signal (β // inv)`" is saying "here's a `Signal` that produces `(β // inv)`s;
+1. "`(Signal β) // inv`" is saying "here's a Signal that produces `β`s, and a
+proof of a safety property `inv`; we might call this "a refined Signal";
+2. "`Signal (β // inv)`" is saying "here's a Signal that produces `(β // inv)`s;
 that is to say, at every time step, we get a value and a proof of some property
-about that time step's value.  We might call this "a `Signal` of refinements".
+about that time step's value.  We might call this "a Signal of refinements".
 
 Syntactically, though, it was a bit of a mess. Our program was littered with
-gnarly-looking `Signal`.  For instance, `accumulate`'s return type was:
+gnarly-looking Signal.  For instance, `accumulate`'s return type was:
 
 ```lean4
 def accumulate
@@ -177,12 +177,13 @@ two are related, too.
 
 Before we do that, though, let's tidy up our syntax transformation. 
 
-::: tip
+::: note
 If you're _truly_ uninterested in the finer points of hygenic macros, I wouldn't
 fault you for skipping to the next section in this post.
 :::
 
-`notation` auto-generates three things for us: 
+If the above note didn't dissuade you: hello, fellow metaprogramming enjoyer!
+Okay, in Lean, the `notation` form auto-generates three things for us: 
 
 1) A `syntax` directive that, essentially, adds a new kind of AST node
 to Lean's parser;
@@ -271,7 +272,7 @@ macro_rules (kind := pointwiseRefined)
   | `(□ ($α // $inv)) => `(Signal { x : $α // $inv x })
 ```
 
-We can now use our syntax in place of `Signal` and `RSignal` in the way
+We can now use our syntax in place of Signal and `RSignal` in the way
 we would expect!
 
 ::: tip
@@ -321,7 +322,7 @@ def Signal.collect : □ (β // inv) -> (□ β) // inv :=
 ### `Signal.split` shards out a safety property into pointwise statements
 
 The rough shape of `split` will be the following: We consume a refined
-`Signal`, and produce a new `Signal` such that at every time step, we somehow
+Signal, and produce a new Signal such that at every time step, we somehow
 produce a `β` and a proof that that `β` satisfies the invariant, and then glue
 them together to make a "signal of refinements".
 
@@ -394,10 +395,10 @@ So, our final `split` is:
 ```
 :::
 
-### `Signal.collect` compiles a `Signal` with a safety property
+### `Signal.collect` compiles a Signal with a safety property
 
-Let's write the operation that does the opposite: given a `Signal` of
-refinements, collect that infinite sequence of proofs into a refined `Signal`.
+Let's write the operation that does the opposite: given a Signal of
+refinements, collect that infinite sequence of proofs into a refined Signal.
 
 ```lean4
 def Signal.collect (sig: □ (β // inv)) : (□ β) // inv := 
@@ -407,7 +408,7 @@ def Signal.collect (sig: □ (β // inv)) : (□ β) // inv :=
 ```
 
 (Note the asymmetry between `split` and `collect`'s bodies: `split` needed to
-return a top-level `Signal` and thus the returned expression was a `fun t =>
+return a top-level Signal and thus the returned expression was a `fun t =>
 ...`, whereas the refinement pair is the top-level construct for `collect`.)
 
 We'll proceed in the same way as before: we'll extract a `□ β` and a `∀ t, inv
@@ -428,7 +429,7 @@ statement to an LTL proposition.
 :::
 
 Notice that `accumulate` can be nicely simplified with `collect`; we construct
-the pointwise `Signal` using the recursor for `Nat`, and then glue it all
+the pointwise Signal using the recursor for `Nat`, and then glue it all
 together with `collect`.
 
 ```diff-lean4
@@ -443,7 +444,92 @@ def accumulate
 +  Signal.collect step_at
 ```
 
-## Refined combinators with assume-guarantee reasoning
+## Lifting unrefined functions into refined Signals
+
+The Signal boundary can also be where proofs about ordinary, non-verified
+functions can reside. Here's a silly, and probably wildly-bad, pseudo-random
+number generator.  You might implement this function in any programming
+language: it's just a function from `Int`s to `Int`s, no proofs, no dependent
+types, utterly pedestrian ;-)
+
+```lean4
+def lcg (x : Int) : Int := (5 * x + 17) % 256
+```
+
+If you remember our first combinator, `scan`, we can lift this into an old
+school, unrefined Signal if we also supply it a starting seed value:
+
+::: margin-note
+I notice that in this case we always flip-flop between even and odd numbers,
+suggesting that we should probably not use this for cryptographic purposes
+anytime soon.
+:::
+```lean4
+def prng : Signal Int := FRP.scan lcg 97
+#eval List.range 10 |>.map prng -- [97, 246, 223, 108, 45, 242, 203, 8, 57, 46]
+```
+
+Hopefully you will not push back too hard on me if I asserted that every
+random number will be nonnegative but not to exceed 256.  We could formalise
+this by lifting `prng` into a signal-of-refinements!
+
+```diff-lean4
++ abbrev unsignedMax (K : Int) : StateProp Int := fun x => 0 ≤ x ∧ x < K
+
+- def prng : Signal Int := FRP.scan lcg 97
++ def prng : □ (Int // unsignedMax 256) := 
++   FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by sorry⟩) 
++            ⟨97, by sorry⟩
+```
+
+Might be worth making sure you understand all our `sorry` placeholders before
+proceeding: `FRP.scan` now consumes and produces a refined pair of type `Int //
+unsignedMax 256` in its first argument, and needs to consume an initial such
+pair in its second argument.
+
+Filling out the initial argument isn't that hard: we'll give it our seed value,
+and `trivial` is enough to prove that `0 <= 97 < 256` right out the gate.
+
+```diff-lean4
+  def prng : Signal Int := FRP.scan lcg 97
+  def prng : □ (Int // unsignedMax 256) := 
+    FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by sorry⟩) 
+-            ⟨97, by sorry⟩
++            ⟨97, by trivial⟩
+```
+
+The proof that `lcg x` is within bounds is pretty easy to solve, too: we
+just have to unfold the definitions of `unsignedMax` and `lcg` to get at
+the raw `0 ≤ (5 * x + 17) % 256 ∧ (5 * x + 17) % 256 < 256` goal, and then
+`lia` kills it for us.
+
+```diff-lean4
+  def prng : Signal Int := FRP.scan lcg 97
+  def prng : □ (Int // unsignedMax 256) := 
+-   FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by sorry⟩) 
++   FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by simp [unsignedMax, lcg]; lia ⟩) 
+             ⟨97, by trivial⟩
+```
+
+And of course we know how to turn this into a refined signal!  Just pipe
+the whole thing into `Signal.collect`
+
+```diff-lean4
+  def prng : Signal Int := FRP.scan lcg 97
+- def prng : □ (Int // unsignedMax 256) := 
++ def prng : □ Int // unsignedMax 256 := 
+    FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by sorry⟩) 
+    FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by simp [unsignedMax, lcg]; lia ⟩) 
+             ⟨97, by trivial⟩
++   |> Signal.collect
+```
+
+This is great, we have a nice tight safety property for `prng`; we're also free
+to change the implementation of `lcg` to have different constant values, and so
+long as we never introduce the possibility of generating larger values, `prng`
+will still typecheck.
+
+## Refined versions of FRP combinators
 
 Now that we have a syntactic separation between non-refined and refined FRP
 combinators, and a bit of experience splitting and collecting `RSignal`s, let's
@@ -470,7 +556,7 @@ def RSignal.const (a : { a : α // inv a } ) : □ α // inv :=
   -- TODO
 ```
 
-The _wrong_ thing to do is to simply produce the constant `Signal` `(fun _ =>
+The _wrong_ thing to do is to simply produce the constant Signal `(fun _ =>
 a)` like before.  Reason is: that's a _pointwise refinement_: it produces
 `<val, proof>`  pairs at every `t`, whereas what we want is a single, global
 `<val, proof>` pair.
@@ -484,7 +570,70 @@ Luckily, though, we just wrote a combinator to turn one into the other!
 +  Signal.collect (fun _ => a)
 ```
 
-### `map` splits, then collects
+### Choosing good invariants for a `RSignal.const`
+
+Here's how we use `RSignal.const` in practice: suppose I have a constant hex
+value I want to lift into a refined Signal.  What's the type of `RSignal.const
+⟨0xFFFF, by lia⟩`?
+
+::: margin-note
+I'll tell you later why I decided to call this `ss`.
+:::
+```lean4
+def ss : □ Int // sorry /- TODO? -/ := RSignal.const ⟨0xFFFF, by lia⟩
+```
+
+Really, the invariant can be anything that `lia` is able to prove for us,
+because we let `inv` be an implicit parameter to the function itself, and
+that proposition needs to be discharged by `lia`.  
+
+The least interesting `inv` is the `StateProp` that says nothing all: "no
+matter what the state value is, produce the proposition `True`".  This is the
+_weakest_ of all `StateProp`s.  It's a bit like just using the unrefined `FRP.const`
+combinator; it's also a bit like, in OOP, assigning some object to a variable
+of type `Object`, in that all information about the type is thrown out.
+
+```diff-lean4
+- def ss : □ Int // sorry /- TODO? -/     := RSignal.const ⟨0xFFFF, by lia⟩
++ def ss : □ Int // Function.const _ True := RSignal.const ⟨0xFFFF, by lia⟩
+```
+
+::: margin-note
+There's a nice parallel with stats here.  Just like how `Fun.const True` admits
+all values, the uniform distribution over all values, assigns equal weights to
+all hypotheses is the least useful prior.  By contrast, `x = 0xFFFF` admitting
+exactly one value is like a Dirac function putting all its mass on a single
+outcome.
+:::
+Two more interesting invariants: we could also assert the fact that the value
+always is the constant we gave it.  This is the _strongest_ of all `StateProp`s
+that we could reasonably expect `lia` to prove for us; whereas `Function.const
+_ True` "admits everything", this invariant admits one fact, that the constant
+value never deviates.
+
+```diff-lean4
+- def ss : □ Int // Function.const _ True := RSignal.const ⟨0xFFFF, by lia⟩
++ def ss : □ Int // fun i => i = 0xFFFF   := RSignal.const ⟨0xFFFF, by lia⟩
+```
+
+Here's one that I'm actually going to use later on in this post: it's
+definitely the case that `0 <= 0xFFFF < 0xFFFF`, so we could assert that this
+value would always fit into a 16-bit hardware register.
+
+```diff-lean4
++ abbrev signedHalf (B : Int) : StateProp Int := fun x => -B ≤ x ∧ x < B
++ abbrev unsignedMax (M : Int) : StateProp Int := fun x => 0 ≤ x ∧ x < M
+
+- def ss : □ Int // fun i => i = 0xFFFF := RSignal.const ⟨0xFFFF, by lia⟩
++ def ss : □ Int // unsignedMax (2^16)  := RSignal.const ⟨0xFFFF, by lia⟩
+```
+
+Wouldn't it be great if Lean could infer which invariant is most useful for us
+given the context in which we use it?  Sadly, this goes back to the fact that
+dependent type inference is undecidable.  But, having to think about what
+the right invariant is isn't really the end of the world.
+
+### `map` splits, applies, then collects
 
 ::: margin-warning
 Annoyingly, only when writing this implementation did I realise that Lean's
@@ -503,21 +652,30 @@ Okay, let's do `Signal.map` next.  Here's the original signature.
 def Signal.map (f: α → β) (s : □ α) : □ β := fun t => f (s t)
 ```
 
-We'll now have _two_ invariants: one for the input type, and one for the output
-type.  OK, so in summary, our signature looks like this:
+We'll now have _two_ invariants: a _precondition_ that must hold for the input
+type, and a _postcondition_, that does the same for the output type.  `pre` and
+`post` will appear not just in the input and output Signals but in the
+mapping function: `f` will _assume_ that `pre` holds, and under that
+hypothesis, guarantee that `post` will hold.
+
+OK, so in summary, our signature looks like this:
 
 ```diff-lean4
  def RSignal.map
--  (f: α → β) (s : □ α) 
-+  (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
++  {pre: StateProp α}
++  {post: StateProp β}
+-  (f: α → β) 
+-  (s : □ α) 
 -  : □ β := ...
-+  : (□ β) // inv_b := 
++  (f: {a: α // pre a} → {b : β // post b}) 
++  (s: □ α // pre) 
++  :   □ β // post := 
    ...
 ```
 
 Let's write the body of `map`.  Roughly, our goal is going to be: "decompose
-the input `Signal` into its piecewise parts, apply the function on each part,
-and recombine into a new refined `Signal`.
+the input Signal into its piecewise parts, apply the function on each part,
+and recombine into a new refined Signal.
 
 `Signal.split s` gives us a `□ (α // inv_a)`, which `f` can be applied to at
 every timestep.  `fun t => f (Signal.split s t)` gives us a `□ (β // inv_b)`,
@@ -526,14 +684,68 @@ safety property.  So, we're left with functionally a one-liner:
 
 ```diff-lean4
  def RSignal.map
-   (f: {a: α // inv_a a} → {b : β // inv_b b}) (s: □ α // inv_a) 
-   : (□ β) // inv_b := 
+   {pre: α → Prop}
+   {post: β → Prop}
+   (f: {a: α // pre a} → {b : β // post b})
+   (s: □ α // pre)
+   : □ β // post :=
 +  Signal.collect (fun t => f (Signal.split s t))
 ```
 
+### Transforming values and properties, pointwise
+
+What can we do with a refined `map` that we couldn't before?  Let's suppose we
+wanted to take our `prng` signal from earlier, which we proved was always going
+to return a value on `[0, 256)`.  Suppose this is actually an 8-bit pointer
+into an 8-bit ROM bank, like you'd see on NES or Game Boy hardware.  Fixing the
+ROM base address as some constant, we want to consume a signal that gives us
+the offset into the bank and produces the full 16-bit pointer value.
+
+We'll implement this using `RSignal.map`: the only question is what the
+body of the function passed to it should be.
+
+```lean4
+def bankedMemory (page : {p : Int // unsignedMax (2^8) p})
+  : (□ Int // unsignedMax (2^8)) → (□ Int // unsignedMax (2^16)) :=
+  RSignal.map 
+    (fun ... /- TODO -/) 
+```
+
+Let's follow the types. `f` is a pointwise transformation of the input value
+and proof, so it'll take a tuple as argument...
+
+```diff-lean4
+def bankedMemory (page : {p : Int // unsignedMax (2^8) p})
+  : (□ Int // unsignedMax (2^8)) → (□ Int // unsignedMax (2^16)) :=
+  RSignal.map 
+-     (fun ... /- TODO -/) 
++     (fun ⟨off, h_off⟩ => sorry /- TODO -/)
+```
+
+... and similarly produce a tuple with the right padding, and a proof.  (It's
+worth pausing and pondering here to make sure you can express the types for
+`off` and `h_off`.)
+
+Some simple arithmetic will do the bitwise- padding job, and `lia` is smart
+enough to prove that we've stayed within `2^16`.  (You should definitely try
+changing the value of `unsignedMax` and changing the bitwise operation and see
+if Lean starts complaining.
+
+```diff-lean4
+def bankedMemory (page : {p : Int // unsignedMax (2^8) p})
+  : (□ Int // unsignedMax (2^8)) → (□ Int // unsignedMax (2^16)) :=
+  FRP.Refining.map 
+    RSignal.map 
+-     (fun ⟨off, h_off⟩ => sorry /- TODO -/)
++     (fun ⟨off, h_off⟩ => ⟨page * 256 + off, by lia⟩)
+```
+
+## `RSignal.map2` joins two values and two proofs
 
 `RSignal.map2` is not fundamentally different, either, just now with _three_
-invariants.
+invariants: two assumptions for the two input Signals and one postcondition for
+the output Signal.  Similarly, the mapping function can assume both conditions
+are true.
 
 ::: margin-warning
 If `RSignal.map` does not get us to a `Functor`, then `RSignal.map2`
@@ -553,9 +765,198 @@ def map2
   (fun t => f (Signal.split s1 t) (Signal.split s2 t)) |> Signal.collect
 ```
 
-## Connecting refined `Signals` is composing invariants
+::: margin-note
+Even after we got proper virtual address spaces and memory protection,
+segmentation was still used for things like thread-local storage (so on each
+thread switch, a different base pointer, for the new thread's TLS segment,
+would be swapped in.
 
-Something that's nice about our refined `Signal` formualtion is that we
-don't just compose transformations on data as values flow through the
-reactive program, but we can also transform _proofs_ about those values.
+Also: In one of my favourite examples of "use what ya got", when researchers
+started figuring out how to virtualise x86 - that is, to run entire OSs under a
+hypervisor on an architecture that did not actually support virtualisation -
+they reused those segment registers to isolate the hypervisor from the guest
+OSes.
+:::
+Let's try and use `map2` to implement, of all things, segmentation for
+real-mode on early x86 processors.  Segmentation can be thought of as an early
+predecessor to virtual memory: the Intel 8086 chipset had a 20-bit address
+space (with 1MiB of addressable memory), but its registers could only hold
+16-bit values, and so pointers could nominally only point to 64KiB of memory
+space.  So, to increase the addressability of the hardware, pointers were in
+fact actually 16 bit _offsets_ into a 16-bit _segment_, where the base address
+of the segment was stored in a separate register. 
 
+Because real mode segments were all aligned on a 4-bit boundary, mapping a
+segment-offset pair to a final memory address involved shifting the segment
+left by 4 bits to get the true 20 bit base pointer, to which the offset pointer
+is added.
+
+So, our `map2` signal ought to consume two `□ Int // unsignedMax (2^16)`s,
+and produce a `□ Int // unsignedMax (2^20)`.  Unfortunately, Lean won't
+let us prove this, and with good reason - it's not correct!  
+
+When `lia` tries to discharge the proof that `base * 16 + off < 2^20`, it's
+going to use properties of both input arguments (namely, `base < 2^16` and `off
+< 2^16`).  Problem is, these two propositions contradict the thing we want to
+prove.  Here's the output we get from the `lia` solver:
+
+::: warning
+``` lean4
+def segment_8086 : (□ Int // unsignedMax (2^16)) →
+                  (□ Int // unsignedMax (2^16)) →
+                  (□ Int // unsignedMax (2^20)) :=
+  FRP.Refining.map2 (fun ⟨base, hb⟩ ⟨off, ho⟩  => ⟨base * 16 + off, by lia⟩)
+```
+```lean4
+`grind` failed
+base : Int
+off : Int
+val : Int
+val_1 : Int
+⊢ False
+...
+linear constraints ▼
+      [assign] base := 61441
+      [assign] off := 65520
+      [assign] val := 0
+      [assign] val_1 := 0
+      [assign] 「2 ^ 16」 := 0 "
+```
+:::
+
+We're not used to seeing counterexamples in Lean, but `lia`'s solver lets us
+see one! From the return type, no matter what values of `base` and `off` we
+have, our computation must be `< 0x100000`; however, `base = 0xF001` and `off =
+0xFFFF`, and critically, `61441 * 16 + 65520 = 0x100000`!  `lia`'s solver
+found us the minimum counterexample. 
+
+What's the _maximum_ counterexample?  When `base = 0xFFFF` and `offset =
+0xFFFF`, highest possible 16-bit values for the base and offset pointers almost
+make up for a full additional segment; `0x10FFEF` is just 16 bytes short of a
+that additional 2^16.
+
+We can widen the return type to account for this additional `2^16 - 16` term,
+and see that `lia` now discharges our proof, even though of course the hardware
+didn't have that additional segment to address.
+
+::: tip
+```diff-lean4
+  def segment_8086 : (□ Int // unsignedMax (2^16)) →
+                    (□ Int // unsignedMax (2^16)) →
+-                   (□ Int // unsignedMax (2^20) :=
++                   (□ Int // unsignedMax (2^20 + 2^16 - 16)) :=
+    FRP.Refining.map2
+    (fun ⟨base, hb⟩ ⟨off, ho⟩ => ⟨(base * 16 + off), by lia⟩)
+```
+:::
+
+Back in the real world: On 8086 hardware, those overflowing addresses would
+just wrap around.  We can certainly model that, since we know that `lia` knows
+all about modular arithmetic:
+
+```lean4
+def segment_8086 : (□ Int // unsignedMax (2^16)) →
+                  (□ Int // unsignedMax (2^16)) →
+                  (□ Int // unsignedMax (2^20)) :=
+  FRP.Refining.map2
+  (fun ⟨base, hb⟩ ⟨off, ho⟩ => ⟨(base * 16 + off) % 20, by lia⟩)
+```
+
+Here, by specifying the implementation more precisely, we were able to be
+looser about the type signature of the output of `map2`.
+
+## `weaken` "downcasts" a Signal's invariant
+
+Something that's nice about our refined Signal formulation is that we don't
+just compose transformations on data as values flow through the reactive
+program, but we can also transform _proofs_ about those values.  Let's wrap
+this post up with a final combinator that 
+
+### Modeling the 286's A20 line
+
+We can also model the design change that went into the 80286.  That CPU now let
+us address 24-bits of memory (a whole 16 MiB's worth!).  So, in principle, our
+segment-to-address composition ought to be typed like this:
+
+```lean4
+def segment_286 : (□ Int // unsignedMax (2^16)) →
+                  (□ Int // unsignedMax (2^16)) →
+                  (□ Int // unsignedMax (2^24)) := sorry /- TODO -/
+```
+
+The problem was this: The curse of designing a followup to a successful CPU is
+that you'll have tons of existing software that can't break on the new design.
+(Unless you're Apple, I guess, in which case, just move everybody off Motorola
+and then PowerPC and then Intel anyway!) So, Intel had to carry the burden of
+maintaining backwards compatibility with software that [assumed that we'd wrap
+around on address
+`0x100000`](https://www.os2museum.com/wp/the-a20-gate-fallout/).
+The line that carried bit 20 (and thus enables addresses like `0x100000`) was,
+on the 286 (and, frankly, on [chipsets up until
+Nehalem](https://forum.osdev.org/viewtopic.php?t=29410)) had to be manually
+enabled.  This way, legacy software could still have the wrap-around semantics
+maintained, while new software could opt-into the larger address space.  (In
+practice, enabling that wire is one of the first things any semi-modern OS
+would do when it first boots.)
+
+Here's what it means for the A20 line to be in its initial disabled state:
+
+```lean4
+abbrev a20Masked (ptr : Int) : Prop :=
+  unsignedMax (2^24) ptr ∧ (ptr / 2^20) % 2 = 0
+```
+
+Note that this doesn't say anything about constraining the highest-order bits
+21, 22, or 23.  But that's okay: There's no way that `segment_8086` could ever
+touch those bits.  This falls out from the type of the signal returned by
+`segment_8086`, but we could always just state that as a theorem if we really
+wanted to:
+
+```lean4
+theorem a20_high_order_bits_unset (base off : {a : Int // unsignedMax (2^16) a})
+  : (base.val * 16 + off.val) / 2^21 = 0 := by lia
+```
+
+## TODO
+
+This is annoying because it stands to reason that `lia` or some other arithmetic
+tactic _could_ demonstrate this to Lean, but there's no way to slot that proof
+in anywhere.  `weaken` is the combinator that lets us do that.
+
+OK, so `weaken` is going to consume and produce an `RSignal` of the same base
+type, but with a different safety property.  
+
+```lean4
+def RSignal.weaken 
+  {P Q : StateProp α}
+  (s : □ α // P) 
+  :    □ α // Q := sorry --TODO
+```
+
+For this combinator to be well-formed, how do `P` and `Q` need to relate? Well,
+anything that needs to be true about `P`, the property we are given, needs to
+also be true with respect to `Q`, the property we're returning.  (For instance,
+for numbers for which `0 <= a < 256` is true, `0 <= a < 2048` is also true). In
+other words, for every `a`, if `P a`, then `Q a`; we need to know this implication
+holds!
+
+```diff-lean4
+ def RSignal.weaken 
+   {P Q : StateProp α}
++  (h : ∀ a, P a → Q a)
+   (s : □ α // P) 
+   :    □ α // Q := sorry --TODO
+```
+
+The body of weaken is not hard to see once you remember that `map` lets us
+manipulate the local safety proof as well as the value itself, and that `h`'s
+universal quantifier means we can apply an `a` to it like a function call:
+
+```diff-lean4
+ def RSignal.weaken 
+   {P Q : StateProp α}
+   (h : ∀ a, P a → Q a)
+   (s : □ α // P) 
+   :    □ α // Q :=
++   FRP.Refining.map (fun ⟨val, p⟩ => ⟨val, h val p⟩)
+```

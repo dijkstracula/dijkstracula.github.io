@@ -53,7 +53,7 @@ namespace FRP
 end FRP
 ```
 
-## A `Signal` is a time-varying value
+## A Signal is a time-varying value
 
 We just said that FRP is all about modeling your problem domain in terms of how
 your program's values change over time.  So, we better have a means to model
@@ -87,12 +87,12 @@ it otherwise just sits there; running the system through our monadic API
 produced it, and then we use Lean's theorem proving capabilities to inspect it.
 
 ::: margin-note
-We said just now that a `Signal` is a time-varying value. Technically, FRP
+We said just now that a Signal is a time-varying value. Technically, FRP
 allows for so called _reactive types_, which are _time-varying types_.
 Concretely, imagine a value such that on time steps `[0,5)`, it's a `Nat`, but
 from `[5,10)` it's a `String`.  This is a dependently-typed signal!
 
-You might enjoy trying to extend our `Signal` type to allow for time-dependent
+You might enjoy trying to extend our Signal type to allow for time-dependent
 types.
 :::
 A functional reactive program, on the other hand, treats Signals as core
@@ -103,9 +103,9 @@ that will come soon enough, but you can imagine that it might involve the
 "functional" part of "FRP".)
 
 
-## Some basic `Signal`s
+## Some basic Signals
 
-Here's our first `Signal`, which doesn't do more than act as a "what time is it"
+Here's our first Signal, which doesn't do more than act as a "what time is it"
 clock:
 
 ```lean4
@@ -134,7 +134,7 @@ def delay (s: Signal α) (t: Time): Signal α := fun n => s (n-t)
 #eval (List.range 10).map (delay clock 4) -- [0, 0, 0, 0, 0, 1, 2, 3, 4, 5]
 ```
 
-Next, let's define a way that lifts a value into the world of `Signal`s:
+Next, let's define a way that lifts a value into the world of Signals:
 
 ```lean4
 def const (v: α) : Signal α := fun _ => v
@@ -165,10 +165,10 @@ operations in the [next post](/posts/lean-ltl-5), though, so stay tuned.
 
 ### `const`, `map` and `map2` give us `Functor`s and `Applicative`s
 
-Implementing the `Functor` typeclass for `Signal` is straightforward: it only
+Implementing the `Functor` typeclass for Signal is straightforward: it only
 requires one definition, `map: (α → β) → f α → f β`, and that's exactly what
 our `map` does.  This means we can use the `<$>` operator to map a function
-through a `Signal`.
+through a Signal.
 
 ```lean4
 instance : Functor Signal where
@@ -176,12 +176,12 @@ instance : Functor Signal where
 ```
 
 ::: margin-note
-Should perhaps `Signal`s also be Monads?  Stay tuned for the tradeoffs.
+Should perhaps Signals also be Monads?  Stay tuned for the tradeoffs.
 :::
 If you're a type zoologist, you might recognise that `const` and `map2`
-mean that `Signal` is an applicative functor (which are more expressive than
+mean that Signal is an applicative functor (which are more expressive than
 ordinary functors but not as expressive as a Monad - we have defined `map` but
-not `bind`).  For a `Signal` to be an `Applicative`, we need to define two
+not `bind`).  For a Signal to be an `Applicative`, we need to define two
 operations on it, `pure`, which lifts a value into the `Applicative`, and `seq`,
 which sequences the 
 
@@ -197,7 +197,7 @@ being a thunk lets `seq` choose whether to actually produce the `f a` or not.
 In Haskell, where everything is lazily-evaluated, that's never a concern.
 :::
 `Applicative.seq : f (α → β) → (Unit → f α) → f β` is the gnarlier one. `seq sf
-sx` says "Produce a `Signal` that samples the _function_ from `sf` at time `t`,
+sx` says "Produce a Signal that samples the _function_ from `sf` at time `t`,
 samples the value from `sx` at the same time (after forcing the thunk), and
 applies the former to the latter". That's a lot of words, but it's not a lot of
 code if we use `map2` for this, since what combines its arguments is function
@@ -215,7 +215,7 @@ but in the next section we'll see how they can come about.
 ## Our first reactive program
 
 OK, here's our first reactive program.  Suppose we have a bunch of
-sensors that measure temperatures over time: modeling those as `Signal`s
+sensors that measure temperatures over time: modeling those as Signals
 is a great idea since temperatures are of course time-varying:
 
 ```lean4
@@ -239,7 +239,7 @@ def ctof (sc : Signal Float) : Signal Int32 :=
 
 If we wanted to separate out the rounding and truncation into their own functions,
 we could certainly do that too: notice that we read this right-to-left: we start
-with the input `Signal`, first apply the conversion function, and _then_ apply
+with the input Signal, first apply the conversion function, and _then_ apply
 the rounding and integer conversion function.
 
 ```lean4
@@ -260,10 +260,10 @@ Since we defined `Applicative.seq` in terms of `map2`, it stands to reason that
 we should be able to use `<*>` to implement `hallway`, too.  And indeed we can!
 In applicative style, we'd map, using `<$>`, first over `bedroom`: since `avg :
 Float -> Float -> Float` and `bedroom : Signal Float`, we end up with a curried
-`Signal (Float -> Float)`.  That's a `Signal` of a function that takes in a
+`Signal (Float -> Float)`.  That's a Signal of a function that takes in a
 `Float` and averages it with the current value of `bedroom`!
 
-If we then use `<*>` to apply `kitchen` inside the `Signal`, we end up with the
+If we then use `<*>` to apply `kitchen` inside the Signal, we end up with the
 expected `Signal Float`.
 
 ::: margin-note
@@ -274,7 +274,7 @@ guarantee that it'll do the same thing.  Can you find it?
 def hallway : Signal Float := avg <$> bedroom <*> kitchen
 ```
 
-Next: we might want to collect all the `Signal`s on hand here into a `List`.
+Next: we might want to collect all the Signals on hand here into a `List`.
 For instance, maybe we want to average all the current temperatures or report
 the coldest room or something.
 
@@ -290,7 +290,7 @@ which for some `Applicative m`, has type `List (m α) -> m (List α)`, we can do
 just that inversion.
 
 ::: margin-note
-Haskellers might note that if `Signal` was a monad, we could use the more
+Haskellers might note that if Signal was a monad, we could use the more
 common `mapM` combinator in place of `mapA`.
 :::
 ```lean4
@@ -310,7 +310,7 @@ def alertIfHot : Signal Bool := (fun rs => rs.any (· > 30.0)) <$> readings
 ```
 
 A note about the first argument to `List.mapA`: as the name suggests, this
-function maps over a list of `Signal`s before collating them into a single
+function maps over a list of Signals before collating them into a single
 `Signal (List β)`.  We passed in the identity function when defining
 `readings`, but we can compose surprisingly interesting things with only
 a small code change:
@@ -408,7 +408,7 @@ This is Curry-Howard in action: we have a value and a proof about that value;
 however, a proof _is also_ a value, with a type, and some types are empty.
 Matching against an empty type eliminates the branch.
 
-## The Curry-Howard correspondence for `Signal`
+## The Curry-Howard correspondence for Signal
 
 Before proceeding, you should convince yourself of the fact that one way to
 summarise a `Signal α` is as an `α` value that's always available, no matter
