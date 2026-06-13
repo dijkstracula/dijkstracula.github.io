@@ -1,23 +1,24 @@
 ---
 layout: post.njk
 title: "FRP in Lean: Proof-transforming combinators and composition"
-date: 2026-05-03
+date: 2026-06-10
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
 series_title: "Composing verified signals"
 inlineCodeLang: lean4
-draft: true
+excerpt: "How do our proofs change as we execute an FRP program?"
 ---
 
+::: margin-note
+Sorry that it's been awhile since my last post!  Big life stuff happening
+over here!
+:::
 Last time we designed a mechanism to accumulate stateful computation on
 Signals and Events.  This design ended up looking a lot like a tiny version
 of the step-based reactive systems we designed in part 1, so some of you may
 have been wondering what the point of doing that is.  We'll answer that today:
 in this post we'll see how we can _compose_ such proof-carrying computations
-using the FRP combinators we already know and love.  We'll do this by building
-up to _Hoare logic_, which is a classic way of modeling stateful, imperative
-programs formally, and seeing how connectives in hoare logic map to FRP (and
-thus LTL).
+using the FRP combinators we already know and love.  
 
 Before we do that, though, let's do some light refactoring.  At the moment, our
 `FRP` namespace is polluted with both ordinary, non proof-checking combinators
@@ -58,7 +59,7 @@ def Refining.accumulate
     fun t => Nat.rec init (fun n s => switch (t + 1) s) t
  
   -- Reorganize the signal of refined values into a refined signal.
-  let vals : □ β := fun t => (step_at t).vals
+  let vals : □ β := fun t => (step_at t).val
   let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
   ⟨ vals, (always_atom_iff vals).mp safety ⟩
 
@@ -82,7 +83,7 @@ Note that I'm using `always_atom_iff`, which I encouraged you to write in the
 previous post.  If you haven't yet, no better time than the present!  This
 theorem's type is `(sig : Signal β) : (∀ t, inv (sig t)) ↔
 (□ (LTL.atom inv)) sig`; a biconditional that states "making a statement about
-a Signal at every time step is interchangable with making the equivalent
+a Signal at every time step is interchangeable with making the equivalent
 statement in temporal logic".
 
 ## Warmup: better notation for refined Signals.
@@ -98,7 +99,7 @@ that is to say, at every time step, we get a value and a proof of some property
 about that time step's value.  We might call this "a Signal of refinements".
 
 Syntactically, though, it was a bit of a mess. Our program was littered with
-gnarly-looking Signal.  For instance, `accumulate`'s return type was:
+gnarly-looking Signal types.  For instance, `accumulate`'s return type was:
 
 ```lean4
 def accumulate
@@ -305,7 +306,7 @@ Here's the skeleton of what we're after in this section:
 
 ::: margin-note
 My original plan was to call these "fork" and "join", but if we keep this
-series going long ehough, we might find a better use for those terms :-)
+series going long enough, we might find a better use for those terms :-)
 :::
 ```lean4
 -- forks a signal with a global safety property into one where
@@ -436,7 +437,7 @@ together with `collect`.
 def accumulate
    ...
 
--  let vals : □ β := fun t => (step_at t).vals
+-  let vals : □ β := fun t => (step_at t).val
 -  let safety : ∀ t, inv (vals t) := fun t => (step_at t).property
 -
 - ⟨ vals, (always_atom_iff vals).mp safety ⟩
@@ -515,7 +516,6 @@ And of course we know how to turn this into a refined signal!  Just pipe
 the whole thing into `Signal.collect`
 
 ```diff-lean4
-  def prng : Signal Int := FRP.scan lcg 97
 - def prng : □ (Int // unsignedMax 256) := 
 + def prng : □ Int // unsignedMax 256 := 
     FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by sorry⟩) 
@@ -587,7 +587,7 @@ Really, the invariant can be anything that `lia` is able to prove for us,
 because we let `inv` be an implicit parameter to the function itself, and
 that proposition needs to be discharged by `lia`.  
 
-The least interesting `inv` is the `StateProp` that says nothing all: "no
+The least interesting `inv` is the `StateProp` that says nothing at all: "no
 matter what the state value is, produce the proposition `True`".  This is the
 _weakest_ of all `StateProp`s.  It's a bit like just using the unrefined `FRP.const`
 combinator; it's also a bit like, in OOP, assigning some object to a variable
@@ -617,8 +617,8 @@ value never deviates.
 ```
 
 Here's one that I'm actually going to use later on in this post: it's
-definitely the case that `0 <= 0xFFFF < 0xFFFF`, so we could assert that this
-value would always fit into a 16-bit hardware register.
+definitely the case that `0 <= i < 0xFFFF`, so we could assert that this value
+would always fit into a 16-bit hardware register.
 
 ```diff-lean4
 + abbrev signedHalf (B : Int) : StateProp Int := fun x => -B ≤ x ∧ x < B
@@ -729,12 +729,11 @@ worth pausing and pondering here to make sure you can express the types for
 Some simple arithmetic will do the bitwise- padding job, and `lia` is smart
 enough to prove that we've stayed within `2^16`.  (You should definitely try
 changing the value of `unsignedMax` and changing the bitwise operation and see
-if Lean starts complaining.
+if Lean starts complaining!)
 
 ```diff-lean4
 def bankedMemory (page : {p : Int // unsignedMax (2^8) p})
   : (□ Int // unsignedMax (2^8)) → (□ Int // unsignedMax (2^16)) :=
-  FRP.Refining.map 
     RSignal.map 
 -     (fun ⟨off, h_off⟩ => sorry /- TODO -/)
 +     (fun ⟨off, h_off⟩ => ⟨page * 256 + off, by lia⟩)
@@ -757,7 +756,7 @@ a dependent type to be inferred from context by Lean.  Alas!
 You should email me if you have thoughts on how to make this better.
 :::
 ```lean4
-def map2
+def RSignal.map2
   (f: {a: α // inv_a a} → {b : β // inv_b b} → {c : γ // inv_c c})
   (s1: □ α // inv_a) 
   (s2: □ β // inv_b)
@@ -780,20 +779,22 @@ OSes.
 Let's try and use `map2` to implement, of all things, segmentation for
 real-mode on early x86 processors.  Segmentation can be thought of as an early
 predecessor to virtual memory: the Intel 8086 chipset had a 20-bit address
-space (with 1MiB of addressable memory), but its registers could only hold
-16-bit values, and so pointers could nominally only point to 64KiB of memory
-space.  So, to increase the addressability of the hardware, pointers were in
+space (with 1MiB of addressable memory), so the bus would have 20 data lines,
+labeled `A0` through to `A19`.  However, its registers could only hold 16-bit
+values, and so therefore pointers could nominally only point to 64KiB of memory
+space. So, to increase the addressability of the hardware, pointers were in
 fact actually 16 bit _offsets_ into a 16-bit _segment_, where the base address
 of the segment was stored in a separate register. 
 
-Because real mode segments were all aligned on a 4-bit boundary, mapping a
-segment-offset pair to a final memory address involved shifting the segment
-left by 4 bits to get the true 20 bit base pointer, to which the offset pointer
-is added.
+Because segments were all aligned on a 4-bit boundary, mapping a segment-offset
+pair to a final memory address involved shifting the segment left by 4 bits to
+get the true 20 bit base pointer, to which the offset pointer is added.
 
-So, our `map2` signal ought to consume two `□ Int // unsignedMax (2^16)`s,
-and produce a `□ Int // unsignedMax (2^20)`.  Unfortunately, Lean won't
-let us prove this, and with good reason - it's not correct!  
+So, our `map2` signal ought to consume two `□ Int // unsignedMax (2^16)`s, one
+for the segment register's value and the other for the pointer (the offset into
+that segment), and ultimately produce a `□ Int // unsignedMax (2^20)`.
+Unfortunately, Lean won't let us prove this, and with good reason - it's not
+correct!  
 
 When `lia` tries to discharge the proof that `base * 16 + off < 2^20`, it's
 going to use properties of both input arguments (namely, `base < 2^16` and `off
@@ -803,9 +804,9 @@ prove.  Here's the output we get from the `lia` solver:
 ::: warning
 ``` lean4
 def segment_8086 : (□ Int // unsignedMax (2^16)) →
-                  (□ Int // unsignedMax (2^16)) →
-                  (□ Int // unsignedMax (2^20)) :=
-  FRP.Refining.map2 (fun ⟨base, hb⟩ ⟨off, ho⟩  => ⟨base * 16 + off, by lia⟩)
+                   (□ Int // unsignedMax (2^16)) →
+                   (□ Int // unsignedMax (2^20)) :=
+  RSignal.map2 (fun ⟨base, hb⟩ ⟨off, ho⟩  => ⟨base * 16 + off, by lia⟩)
 ```
 ```lean4
 `grind` failed
@@ -833,7 +834,9 @@ found us the minimum counterexample.
 What's the _maximum_ counterexample?  When `base = 0xFFFF` and `offset =
 0xFFFF`, highest possible 16-bit values for the base and offset pointers almost
 make up for a full additional segment; `0x10FFEF` is just 16 bytes short of a
-that additional 2^16.
+that additional 2^16.  Of course, neither `0x100000` nor `0x10FFEF` are valid
+addresses on the 8086; in both cases we'd wrap around to `0x00000` and
+`0x00FFEF`, respectively.
 
 We can widen the return type to account for this additional `2^16 - 16` term,
 and see that `lia` now discharges our proof, even though of course the hardware
@@ -842,24 +845,23 @@ didn't have that additional segment to address.
 ::: tip
 ```diff-lean4
   def segment_8086 : (□ Int // unsignedMax (2^16)) →
-                    (□ Int // unsignedMax (2^16)) →
--                   (□ Int // unsignedMax (2^20) :=
-+                   (□ Int // unsignedMax (2^20 + 2^16 - 16)) :=
-    FRP.Refining.map2
+                     (□ Int // unsignedMax (2^16)) →
+-                    (□ Int // unsignedMax (2^20) :=
++                    (□ Int // unsignedMax (2^20 + 2^16 - 16)) :=
+    RSignal.map2
     (fun ⟨base, hb⟩ ⟨off, ho⟩ => ⟨(base * 16 + off), by lia⟩)
 ```
 :::
 
-Back in the real world: On 8086 hardware, those overflowing addresses would
-just wrap around.  We can certainly model that, since we know that `lia` knows
-all about modular arithmetic:
+We can certainly model that real-world wraparound behaviour, since we know that
+`lia` knows all about modular arithmetic:
 
 ```lean4
 def segment_8086 : (□ Int // unsignedMax (2^16)) →
-                  (□ Int // unsignedMax (2^16)) →
-                  (□ Int // unsignedMax (2^20)) :=
-  FRP.Refining.map2
-  (fun ⟨base, hb⟩ ⟨off, ho⟩ => ⟨(base * 16 + off) % 20, by lia⟩)
+                   (□ Int // unsignedMax (2^16)) →
+                   (□ Int // unsignedMax (2^20)) :=
+  RSignal.map2
+  (fun ⟨base, hb⟩ ⟨off, ho⟩ => ⟨(base * 16 + off) % (2^20), by lia⟩)
 ```
 
 Here, by specifying the implementation more precisely, we were able to be
@@ -870,18 +872,25 @@ looser about the type signature of the output of `map2`.
 Something that's nice about our refined Signal formulation is that we don't
 just compose transformations on data as values flow through the reactive
 program, but we can also transform _proofs_ about those values.  Let's wrap
-this post up with a final combinator that 
+this post up with a final combinator that lets us start with a signal that
+maintains a strong invariant, and safely loosens it.
 
 ### Modeling the 286's A20 line
 
 We can also model the design change that went into the 80286.  That CPU now let
-us address 24-bits of memory (a whole 16 MiB's worth!).  So, in principle, our
-segment-to-address composition ought to be typed like this:
+us address 24-bits of memory (a whole 16 MiB's worth, wowee zowee!)  So, we now
+have four more bus lines, `A20` through to `A23`.
 
+So now, our signal will consume that 24-bit base address from the GDT, and
+a standard 16-bit pointer which forms the offset into the segment.
+
+::: margin-warning
+You should start getting itchy about potential overflows about now.
+:::
 ```lean4
-def segment_286 : (□ Int // unsignedMax (2^16)) →
-                  (□ Int // unsignedMax (2^16)) →
-                  (□ Int // unsignedMax (2^24)) := sorry /- TODO -/
+def segment_286_ish : (□ Int // unsignedMax (2^24)) →
+                      (□ Int // unsignedMax (2^16)) →
+                      (□ Int // unsignedMax (2^24)) := ...
 ```
 
 The problem was this: The curse of designing a followup to a successful CPU is
@@ -891,37 +900,71 @@ and then PowerPC and then Intel anyway!) So, Intel had to carry the burden of
 maintaining backwards compatibility with software that [assumed that we'd wrap
 around on address
 `0x100000`](https://www.os2museum.com/wp/the-a20-gate-fallout/).
-The line that carried bit 20 (and thus enables addresses like `0x100000`) was,
-on the 286 (and, frankly, on [chipsets up until
-Nehalem](https://forum.osdev.org/viewtopic.php?t=29410)) had to be manually
+
+A classic DOS programming trick involved overflowing the segment + offset
+calculation to compute pointers at the top of the address space.
+([This](https://www.os2museum.com/wp/who-needs-the-address-wraparound-anyway/)
+post covers why you might want to actually do this in practice.) Wrap-around
+worked on the 8086, until suddenly we had a larger address space with the 286!
+
+```lean4
+example : (0xF01D * 16 + 0xFEF0) % 2^20 = 0x000C0 := by lia
+example : (0xF01D * 16 + 0xFEF0)        ≠ 0x000C0 := by lia
+```
+
+The bus line that carried bit 20 (and thus enables addresses like `0x100000`)
+was, on the 286 (and, frankly, on [chipsets up until
+Haswell](https://forum.osdev.org/viewtopic.php?t=29410)) had to be manually
 enabled.  This way, legacy software could still have the wrap-around semantics
 maintained, while new software could opt-into the larger address space.  (In
 practice, enabling that wire is one of the first things any semi-modern OS
 would do when it first boots.)
 
-Here's what it means for the A20 line to be in its initial disabled state:
+Here's what it means for the A20 line to be in its initial disabled state
+and in its raised state:
 
+::: margin-note
+Note that `a20Disabled` doesn't say anything about constraining the
+highest-order bits 21, 22, or 23.  But that's okay: There's no way that
+`segment_8086` could ever touch those bits.
+:::
 ```lean4
-abbrev a20Masked (ptr : Int) : Prop :=
+-- when A20 is up, the full address space is accessible
+abbrev a20Enabled (ptr : Int) : Prop := unsignedMax (2^24) ptr
+
+-- when A20 is down (legacy mode), bit 20 will always have to be 0
+-- but other bits are passed through unaltered.
+abbrev a20Disabled (ptr : Int) : Prop :=
   unsignedMax (2^24) ptr ∧ (ptr / 2^20) % 2 = 0
 ```
 
-Note that this doesn't say anything about constraining the highest-order bits
-21, 22, or 23.  But that's okay: There's no way that `segment_8086` could ever
-touch those bits.  This falls out from the type of the signal returned by
-`segment_8086`, but we could always just state that as a theorem if we really
-wanted to:
+### Proving bus behaviour equivalence between the 8086 and the 286
 
-```lean4
-theorem a20_high_order_bits_unset (base off : {a : Int // unsignedMax (2^16) a})
-  : (base.val * 16 + off.val) / 2^21 = 0 := by lia
+The whole point of being able to toggle the A20 line on and off is that the
+same bus signals ought to be identical to to the 8086, when it's off.  In other
+words, we should be able to take a `□ Int // unsignedMax (2^20)` and use it
+where we expect a `□ Int // a20Disabled`, in the same way that we should be
+able to take an object of type `Dog` and use it where we expect an `Animal`.
+
+Unfortunately, this sort of "downcast" of a signal's safety property is too
+nontrivial for Lean to just let us do automatically:
+
+::: warning
 ```
+def a2o_masked_from_8086 : (□ Int // a20Disabled) := segment_8086 ss ss
 
-## TODO
+Type mismatch
+  segment_8086 ss ss
+has type
+  RSignal Int (unsignedMax (2 ^ 20))
+but is expected to have type
+  RSignal Int a20Disabled
+```
+:::
 
 This is annoying because it stands to reason that `lia` or some other arithmetic
 tactic _could_ demonstrate this to Lean, but there's no way to slot that proof
-in anywhere.  `weaken` is the combinator that lets us do that.
+in anywhere.  `RSignal.weaken` is the combinator that lets us do that.
 
 OK, so `weaken` is going to consume and produce an `RSignal` of the same base
 type, but with a different safety property.  
@@ -958,5 +1001,83 @@ universal quantifier means we can apply an `a` to it like a function call:
    (h : ∀ a, P a → Q a)
    (s : □ α // P) 
    :    □ α // Q :=
-+   FRP.Refining.map (fun ⟨val, p⟩ => ⟨val, h val p⟩)
++   RSignal.map (fun ⟨val, p⟩ => ⟨val, h val p⟩)
 ```
+
+And just as we expect, `lia` will let us weaken an 8086 address-producing
+signal to one that the 286 can dereference.
+
+::: tip
+```lean4
+def a20_off_is_8086 (sig : □ Int // unsignedMax (2^20)) : □ Int a20Disabled :=
+  RSignal.weaken (by lia) sig
+```
+:::
+
+What we _can't_ do is go the other way: an arbitrary physical address for a 286
+may not be well-defined on the 8086, and `lia` is happy to give us a counterexample
+to show us one such address:
+
+::: warning
+```lean4
+def i8086_from_286 (sig_286 : □ Int // a20Disabled) : □ Int // unsignedMax (2^20) :=
+  RSignal.weaken (by lia) sig_286
+
+`grind` failed
+linear constraints ▼
+    [assign] a := 2097152
+```
+(The counterexample, 2097152, is 2^21, aka `0x200000` aka
+`0b1000000000000000000000`, which is, indeed, a value that doesn't fit into 20
+bits, and yet still has bit 20 unset.)
+:::
+
+We _also_ can't, once we've enabled the A20 line, get back to the 8086-compatible
+address by weakening it either.  For this to happen, we'd need to be able to prove
+that bit 20 is zero, which of course may or may not be true for some arbitrary
+24-bit value.
+
+::: warning
+```lean4
+def a20_down_from_a20_up (sig_286 : □ Int // a20Enabled) : □ Int // a20Disabled :=
+  RSignal.weaken (by lia) sig_286
+
+`grind` failed
+linear constraints ▼
+    [assign] a := 1048576
+```
+(Here, the counterexample Lean generates for us is literally 2^20, which
+certainly has the 20th bit set!)
+:::
+
+We _could_, of course, enforce that bit 20 is always zero, in which case the
+proof _does_ go through.
+
+::: tip
+```lean4
+def a20_down_from_a20_up (sig_286 : □ Int // a20Enabled) : □ Int // a20Disabled :=
+  RSignal.map (fun ⟨ptr, inv⟩ =>
+    -- ptr && !(1 << 20)
+    ⟨ptr - 2^20 * (ptr / 2^20 % 2), by lia⟩)
+    sig_286
+```
+:::
+
+## Next time
+
+Phew!  I think I can safely say I have cornered the market on Lean blog posts
+that model pre-ia32 Intel architecture semantics :-)
+
+OK, that was a lot of fun.  Thanks for making it all the way to the end.
+
+We're on the home stretch of this series, I think!  We should have enough
+mechanism built to actually start writing interesting reactive programs. The
+plan for next time is, inspired by
+[this](https://www.dwarkesh.com/p/reiner-pope-2) podcast I listened to
+last week, to implement  _Hoare logic_, which is a classic way of modeling
+stateful, imperative programs formally, and seeing how connectives in hoare
+logic map to FRP (and thus LTL).  We'll use hoare logic to implement a simple
+systolic array in our FRP library, and prove some hopefully interesting
+properties about it.
+
+See you then.
