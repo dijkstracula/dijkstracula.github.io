@@ -8,6 +8,7 @@ const Prism = require("prismjs");
 
 global.Prism = Prism;
 require('./src/js/prism-lean.js');
+require('./src/js/prism-dafny.js');
 
 module.exports = function(eleventyConfig) {
   // Configure markdown-it with footnote support and callouts

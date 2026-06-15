@@ -4,7 +4,7 @@ title: "FRP in Lean: Proof-transforming combinators and composition"
 date: 2026-06-10
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "Composing verified signals"
+series_title: "Composing verified FRP signals"
 inlineCodeLang: lean4
 excerpt: "How do our proofs change as we execute an FRP program?"
 ---
@@ -247,12 +247,12 @@ syntactic forms that a signal AST can take.
 
 ```lean4
 declare_syntax_cat signalTree
-syntax (name := signalRaw) "□ " term : signalTree
+syntax (name := signalRaw) "□ " term:max : signalTree
 syntax (name := signalLift) signalTree : term
 
-syntax (name := pointwiseRefined) "□ " "(" term           " // " term ")" : term
-syntax (name := refinedSig)                signalTree     " // " term     : term
-syntax (name := outerRefinedSig)       "(" signalTree ")" " // " term     : term
+syntax (name := pointwiseRefined) "□ " "(" term:51        " // " term    ")" : term
+syntax (name := refinedSig)                signalTree     " // " term:51     : term
+syntax (name := outerRefinedSig)       "(" signalTree ")" " // " term        : term
 ```
 
 We gave each piece of syntax a name, so we can refer to them in their

@@ -4,7 +4,7 @@ title: "FRP in Lean: Stateful combinators, safety, and liveness"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "Stateful combinators and safety"
+series_title: "Stateful FRP combinators and safety"
 inlineCodeLang: lean4
 ---
 
