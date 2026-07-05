@@ -4,7 +4,7 @@ title: "FRP in Lean: Stateful combinators, safety, and liveness"
 date: 2026-05-03
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "Stateful FRP combinators and safety"
+series_title: "FRP: stateful combinators and safety"
 inlineCodeLang: lean4
 ---
 
@@ -315,14 +315,19 @@ This is great!  We can step through our light example through time.  Of course,
 what's missing is a way for an Event to inject a change into the fold.
 That's what `accumulate` will get us.
 
-## `accumulate` is a temporal fold over an Event
+## `accumulate` turnsa temporal fold over an Event
 
 The idea of `accumulate` is this: we're going to start with an Event of some
 type and produce a Signal of some type.  Since we said that `accumulate`
 generalises `scan`, makes sense that we should at least consume an `init`
 state - this at least nails down the type of the returned Signal.
 
-
+::: margin-note
+Something interesting is that `accumulate` lets us convert an Event into a
+Signal - that's a modality-converting operation!  Down the road we'll see what
+it means to convert a Signal into an Event, but you might enjoy spending a
+moment or two imagining what such a function might look like.
+:::
 ```lean4
 def accumulate /- TODO: what else? -/ (init: β) (ev: ◇ a) : Signal β := 
   sorry -- TODO: what to do?

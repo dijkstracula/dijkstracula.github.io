@@ -1,5 +1,65 @@
 [
   {
+    "title": "Modular Explicits:",
+    "url": "https://okmij.org/ftp/ML/higher-kind-poly.html#mod-exp",
+    "date": "2026-07-03T00:01:00.000Z",
+    "source": "Oleg Kiselyov's blog"
+  },
+  {
+    "title": "A return to two-pizza culture",
+    "url": "https://www.allthingsdistributed.com/2026/06/return-to-two-pizza-culture.html?utm_campaign=inbound&utm_source=rss",
+    "date": "2026-06-30T14:00:00.000Z",
+    "source": "All Things Distributed (Werner Vogels' blog)"
+  },
+  {
+    "title": "Prism: An Impure Functional Language With Typed Effects",
+    "url": "https://www.stephendiehl.com/posts/prism/",
+    "date": "2026-06-20T01:00:00.000Z",
+    "source": "Stephen Diehl's blog"
+  },
+  {
+    "title": "Meet Alice. Alice is impatient.",
+    "url": "http://brooker.co.za/blog/2026/06/19/waiting.html",
+    "date": "2026-06-19T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "Is this blog written by AI?",
+    "url": "http://brooker.co.za/blog/2026/06/18/my-blog-and-ai.html",
+    "date": "2026-06-18T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "Slow down and sit with it",
+    "url": "https://yaoyue.org/blog/2026-slowdown/",
+    "date": "2026-06-17T00:00:00.000Z",
+    "source": "Yao Yue's site"
+  },
+  {
+    "title": "Generators: the API for traversal, iteration and non-determinism:",
+    "url": "https://okmij.org/ftp/Computation/generators.html",
+    "date": "2026-06-08T00:01:00.000Z",
+    "source": "Oleg Kiselyov's blog"
+  },
+  {
+    "title": "Guidelines for Respectful Use of AI",
+    "url": "https://www.elidedbranches.com/2026/05/guidelines-for-respectful-use-of-ai.html",
+    "date": "2026-05-31T16:53:48.164Z",
+    "source": "Elided branches (Camille Fournier's blog)"
+  },
+  {
+    "title": "AI-induced layoff is (still) a leadership failure",
+    "url": "https://yaoyue.org/blog/2026-layoff/",
+    "date": "2026-05-30T00:00:00.000Z",
+    "source": "Yao Yue's site"
+  },
+  {
+    "title": "Crypto in 2026: Oh, This is the Bad Place",
+    "url": "https://www.stephendiehl.com/posts/bad_place_2026/",
+    "date": "2026-05-25T01:00:00.000Z",
+    "source": "Stephen Diehl's blog"
+  },
+  {
     "title": "Being oncall taught me everything",
     "url": "https://yaoyue.org/blog/2026-oncall/",
     "date": "2026-05-22T00:00:00.000Z",
@@ -39,7 +99,7 @@
     "title": "Bibliographic `web service' in VAX/VMS times: or shell scripting done right.",
     "url": "https://okmij.org/ftp/Babel/Babel.html#vax-scripting",
     "date": "2026-05-05T00:01:00.000Z",
-    "source": "okmij"
+    "source": "Oleg Kiselyov's blog"
   },
   {
     "title": "It's time to be right.",
@@ -87,7 +147,7 @@
     "title": "Matrix-matrix multiplication, from less conventional points of view:",
     "url": "https://okmij.org/ftp/Algorithms/matmul.html",
     "date": "2026-04-07T00:01:00.000Z",
-    "source": "okmij"
+    "source": "Oleg Kiselyov's blog"
   },
   {
     "title": "Book Review: What We Can Know",
@@ -171,72 +231,12 @@
     "title": "The last problem of Higher-Order Abstract Syntax:",
     "url": "https://okmij.org/ftp/meta-programming/calculi.html#HOAS",
     "date": "2026-03-02T00:01:00.000Z",
-    "source": "okmij"
+    "source": "Oleg Kiselyov's blog"
   },
   {
     "title": "Why I Left Big-O in the Dustbin When I Left School",
     "url": "https://www.youtube.com/watch?v=ZeI4apdgupg",
     "date": "2026-03-01T00:00:00.000Z",
     "source": "Yao Yue's site"
-  },
-  {
-    "title": "Dear Time Lords: Freeze Computers In 1993",
-    "url": "https://graydon2.dreamwidth.org/322461.html",
-    "date": "2026-02-26T23:26:02.000Z",
-    "source": "Graydon's blog"
-  },
-  {
-    "title": "SFQ: Simple, Stateless, Stochastic Fairness",
-    "url": "http://brooker.co.za/blog/2026/02/25/sfq.html",
-    "date": "2026-02-25T00:00:00.000Z",
-    "source": "Marc Brooker's blog"
-  },
-  {
-    "title": "The Picture They Paint of You",
-    "url": "https://ferd.ca/the-picture-they-paint-of-you.html",
-    "date": "2026-02-23T17:00:00.000Z",
-    "source": "ferd.ca"
-  },
-  {
-    "title": "Why Play the Piano?",
-    "url": "https://cecilycarver.substack.com/p/why-play-the-piano",
-    "date": "2026-02-23T04:36:25.000Z",
-    "source": "The Amateur"
-  },
-  {
-    "title": "Optimal Caverna Gameplay via Formal Methods",
-    "url": "https://www.stephendiehl.com/posts/caverna/",
-    "date": "2026-02-21T00:00:00.000Z",
-    "source": "Stephen Diehl's blog"
-  },
-  {
-    "title": "A chat with Byron Cook on automated reasoning and trust in AI systems",
-    "url": "https://www.allthingsdistributed.com/2026/02/a-chat-with-byron-cook-on-automated-reasoning-and-trust-in-ai-systems.html?utm_campaign=inbound&utm_source=rss",
-    "date": "2026-02-17T14:00:00.000Z",
-    "source": "All Things Distributed (Werner Vogels' blog)"
-  },
-  {
-    "title": "Can Opus 4.6 do Category Theory in Lean?",
-    "url": "https://www.stephendiehl.com/posts/lean-opus-blog/",
-    "date": "2026-02-16T00:00:00.000Z",
-    "source": "Stephen Diehl's blog"
-  },
-  {
-    "title": "Book Review: When We Cease to Understand the World",
-    "url": "https://www.stephendiehl.com/posts/cease_understand_world/",
-    "date": "2026-02-08T00:00:00.000Z",
-    "source": "Stephen Diehl's blog"
-  },
-  {
-    "title": "You Are Here",
-    "url": "http://brooker.co.za/blog/2026/02/07/you-are-here.html",
-    "date": "2026-02-07T00:00:00.000Z",
-    "source": "Marc Brooker's blog"
-  },
-  {
-    "title": "Compilers: Incrementally and Extensibly.",
-    "url": "https://okmij.org/ftp/tagless-final/Compiler/index.html",
-    "date": "2026-02-02T00:01:00.000Z",
-    "source": "okmij"
   }
 ]

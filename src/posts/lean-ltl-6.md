@@ -1,10 +1,10 @@
 ---
 layout: post.njk
-title: "FRP in Lean: Proof-transforming combinators and composition"
+title: "FRP in Lean: Composing invariant-transforming combinators"
 date: 2026-06-10
 tags: [post, lean, reactive-programming, ltl, frp]
 series: lean-ltl
-series_title: "Composing verified FRP signals"
+series_title: "FRP: Composing verified Signals"
 inlineCodeLang: lean4
 excerpt: "How do our proofs change as we execute an FRP program?"
 ---
