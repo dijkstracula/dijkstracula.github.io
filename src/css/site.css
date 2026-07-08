@@ -299,7 +299,6 @@ article.post .prose code:not(pre code) {
   font-family: var(--mono);
   background: var(--paper-2);
   padding: 0px 2px;
-  white-space: nowrap;
 }
 article.post .prose blockquote {
   margin: 1.5rem 0;

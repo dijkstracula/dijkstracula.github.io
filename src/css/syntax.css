@@ -311,10 +311,6 @@ mjx-container[display="false"] {
     padding: 0.25rem 0.75rem;
 }
 
-.lean-proof-block .proof-hyp {
-    padding: 0.1rem 0;
-}
-
 .lean-proof-block .proof-hyp:nth-child(even) {
     background-color: color-mix(in srgb, var(--syntax-builtin, #005cc5) 3%, transparent);
     margin: 0 -0.75rem;
@@ -353,8 +349,9 @@ mjx-container[display="false"] {
     border-bottom-right-radius: var(--pico-border-radius, 0.25rem);
 }
 
-.lean-proof-block .proof-goal code {
-    white-space: pre-wrap;
+.lean-proof-block .proof-goal-line code {
+  white-space: pre;
+  padding: 0;
 }
 
 /* Make the turnstile symbol more prominent */

@@ -660,6 +660,7 @@ we can also introduce into the context.
 +t : ℕ
 -⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
 -    (FRP.map2 Prod.mk cycling (FRP.advance cycling 1))
+
 +⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).1 = Light.Green →
 +  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).2 = Light.Green
 ```

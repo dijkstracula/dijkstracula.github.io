@@ -205,7 +205,11 @@ module.exports = function(eleventyConfig) {
           }
 
           if (block.goalLines.length > 0) {
-            stateHtml += '<div class="proof-goal"><code class="language-' + lang + '">' + block.goalLines.join('\n') + '</code></div>';
+            stateHtml += '<div class="proof-goal">';
+            block.goalLines.forEach(function(g) {
+              stateHtml += '<div class="proof-goal-line"><code class="language-' + lang + '">' + g + '</code></div>';
+            });
+            stateHtml += '</div>';
           }
 
           stateHtml += '</div>';
