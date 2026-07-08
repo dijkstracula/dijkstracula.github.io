@@ -455,8 +455,8 @@ Notice that our use of `Nat.rec` looks a lot like the body of `scan`.
    fun n => Nat.rec 
 -    sorry            -- TODO: what to do at t=0?
 -    (fun s => sorry) -- TODO: what to do at t=(n+1)?
-+    init                          -- n=0
-+    (fun n' s => switch (n'+1) s) -- n=(n'+1)
++    init                       -- n=0
++    (fun n' s => switch n' s)  -- n=(n'+1): event at n' drives the transition
      n
 ```
 
@@ -510,19 +510,6 @@ def crosswalk ev := FRP.accumulate
   CrossingState.onNone
   CrossingState.onSome
   ev
-
-#eval List.range 10 |>.map (fun n => (n, (crosswalk presses) n))
-
-[(0, CrossingState.Cooldown 2),
- (1, CrossingState.Cooldown 1),
- (2, CrossingState.Cooldown 0),  -- t=2: Button press (ignored)
- (3, CrossingState.Idle),
- (4, CrossingState.Idle),
- (5, CrossingState.Countdown 3), -- t=5: Button press (accepted)
- (6, CrossingState.Countdown 2),
- (7, CrossingState.Countdown 1),
- (8, CrossingState.Countdown 0),
- (9, CrossingState.Cooldown 3)]
 ```
 
 ::: tip
@@ -548,7 +535,7 @@ def crosswalk ev := FRP.accumulate
     return s.kind === 'Idle' ? 'Idle' : s.kind + ' ' + s.n;
   }
   const g = FRP.graph();
-  const presses = g.eventAt('presses', [2, 5], undefined, { noT0Click: true });
+  const presses = g.eventAt('presses', [2, 5]);
   g.accumulate('crosswalk',
                { kind: 'Cooldown', n: 2 },
                tick, onSome, presses);

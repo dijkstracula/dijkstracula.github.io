@@ -58,7 +58,7 @@ def Refining.accumulate
   -- `step_at` takes `t` steps through `switch`; at each time step, it
   -- produces a β alongside its proof of .preserving `inv`
   let step_at : □ {s: β // inv s} := 
-    fun t => Nat.rec init (fun n s => switch (n + 1) s) t
+    fun t => Nat.rec init (fun n s => switch n s) t
  
   -- Reorganize the signal of refined values into a refined signal.
   let vals : □ β := fun t => (step_at t).val
@@ -86,7 +86,7 @@ point on.
 <script>
 (() => {
   const g = FRP.graph();
-  const button = g.eventAt('button', [2, 5, 6, 9], undefined, { noT0Click: true });
+  const button = g.eventAt('button', [2, 5, 6, 9]);
   g.accumulate('count', 0, n => n, (_ev, n) => n + 1, button);
   FRP.renderTiming(document.getElementById('frp-accumulate'), g, { ticks: 10 });
 })();
@@ -174,7 +174,7 @@ function, the `step_at` helper can be typed as `□ (β // inv)`.
   ...
 - let step_at : □ {s: β // inv s} := 
 + let step_at : □ (β // inv) := 
-    fun t => Nat.rec init (fun n s => switch (n + 1) s) t
+    fun t => Nat.rec init (fun n s => switch n s) t
 
   let vals : □ β := fun t => (step_at t).vals
   let safety : ∀ t, inv (vals t) := fun t => (step_at t).property

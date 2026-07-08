@@ -29,10 +29,12 @@ is a Lean playground with the state of our program from last time.
 
 We'll define _execution traces_, which are a conceptually-infinite series of
 steps that a system like our vending machine can take, and we'll extend our
-monadic interpreter to produce such traces.  We'll soon hit the limits of
-expressivity in terms of what sorts of `Prop`s we can write over such traces,
-which we'll use to broaden our theorem vocabulary into richer program logics in
-subsequent posts.
+monadic interpreter to produce such traces.  
+
+We'll soon hit the limits of expressivity in terms of what sorts of state
+transitions we can write and what sorts o `Prop`s we can write over such
+transitions, which we'll use to broaden our theorem vocabulary into richer
+program logics in subsequent posts.
 
 ## The limits of `Prop`
 
@@ -300,8 +302,49 @@ example : ∃ h, orangeTrace 3 = vmStep (orangeTrace 2) (.Choose .LemonLime) h :
 constructor syntax. `by decide` fills the first slot: it evaluates `validAction
 (orangeTrace 2) (.Choose .LemonLime)` computationally (using the Decidable
 instance) and confirms it's true. `by rfl` fills the second slot: it evaluates
-both sides of the equality — `orangeTrace 3` and `vmStep (orangeTrace 2)
-(.Choose .LemonLime) h` — and confirms they reduce to the same value.
+both sides of the equality -- `orangeTrace 3` and `vmStep (orangeTrace 2)
+(.Choose .LemonLime) h` -- and confirms they reduce to the same value.
+
+State propositions of the form `VMState → Prop` are going to come up a lot,
+so let's give them a name and write our first one:
+
+```lean4
+def hopperEmpty : VMState → Prop := fun s => s.coins = 0
+example : hopperEmpty (orangeTrace 0) := by rfl
+```
+
+Now we can ask, at each tick of the trace, whether `hopperEmpty` holds.  Since
+`s.coins = 0` is `Decidable` (via equality on `Nat`), we can even evaluate it:
+
+```lean4
+#eval List.range 8 |>.map (fun t => decide (hopperEmpty (orangeTrace t)))
+-- [true, false, false, true, true, true, true, true]
+```
+
+<div id="frp-hopper-empty"></div>
+<script>
+(() => {
+  const trace = [
+    { coins: 0, dispensed: '-',  numOrange: 5, numLL: 5 },
+    { coins: 1, dispensed: '-',  numOrange: 5, numLL: 5 },
+    { coins: 2, dispensed: '-',  numOrange: 5, numLL: 5 },
+    { coins: 0, dispensed: 'LL', numOrange: 5, numLL: 4 },
+  ];
+  const final = { coins: 0, dispensed: '-', numOrange: 5, numLL: 4 };
+  const at = t => t < trace.length ? trace[t] : final;
+  const hopperEmpty = s => s.coins === 0;
+  const g = FRP.graph();
+  g.sig('coins',       t => at(t).coins);
+  g.sig('hopperEmpty', t => hopperEmpty(at(t)));
+  FRP.renderTiming(document.getElementById('frp-hopper-empty'), g, { ticks: 8 });
+})();
+</script>
+
+Notice how the truth of `hopperEmpty` fills out a `Time → Bool`, a
+"time-dependent boolean" derived pointwise from the trace.  This is the root of
+every temporal property we'll build in the next post: a proposition about a
+state, lifted over a whole trace, becomes a proposition about how the system
+evolves.
 
 We can generalise proofs about `orangeTrace`, too.  The previous example picked
 a specific action (`Choose .LemonLime`) and a specific state and showed
@@ -376,20 +419,47 @@ invariants don't forbid them), and only some of _those_ will actually ever be
 reachable (insofar as the transition function of the system doesn't preclude
 stepping to them).
 
-## The limits of what we can express
+## Towards propositions over states
+
+"Something about the present moment" is certainly something we need to be able
+to make statements about.  For example, we might define a `Prop` that expresses
+whether the pop machine's coin hopper is empty:
+
+```lean4
+def hopperEmpty (s: VMState) : Prop := s.coins = 0
+```
+
+If we weren't programming in a dependently-typed language, this would probably
+be a predicate function that consumes a state and returns a boolean.  Here,
+though, we're not evaluating a conditional expression but intead returning the
+expression (of type `Prop`, remember) itself, for a given state.  This is 
+an important enough datatype that we can give it a name:
+
+```lean4
+abbrev StateProp σ := σ → Prop
+```
+
+## The limits of `StateProp`
 
 For our concrete `orangeTrace`, we can point at specific time steps and verify
-whatever we like.  What's a lot harder is to make such statements about
-_arbitrary_ traces, where the only thing we know is that at every step they
-satisfy `validTrace`.
+whatever we like about the state at that moment.  What's a lot harder is to
+make such statements about _arbitrary_ traces, where the only thing we know is
+that at every step they satisfy `validTrace`.
 
-Consider a statement like "a can was dispensed and it hasn't been taken".  We'd
+Consider a statement like "a can was dispensed and it hasn't been taken".  This
+involves multiple states, neither of which might be "the present moment".  We'd
 need to be able to say something like "at some point `t` a can was dispensed,
 and for all times between then and now, it wasn't taken."  This is about
 quantifying over _part of a trace itself_, and we don't have the vocabulary to
 make that statement yet.
 
-## Next time: temporal propositions
+In fact, we might want to quantify over the entire trace!  Certainly, critical
+systems need to be able to assert that some bad state is _never_ reached, or
+that some desirable state is _always_, eventually, reached.  With the mechanism
+we have in place now, we'd have to write, conceptually, an infinite number of
+traces!
+
+## Next time: temporal propositions and reactive signals
 
 Today we built up some mechanism to reason about specific states in our traces.
 Next time we are going to introduce _temporal logic_, which will let us make
@@ -404,14 +474,33 @@ a single record.  We can't talk about how `dispensed` evolves without `coins`.
 
 To put it differently: our trace is one monolithic signal: at each point in
 time, we get the entire state of the world.  Reformulating our system as a
-composition of signals will open up a broader set of problems to model.
+constellation of independent values will open up a broader set of problems to
+model.
 
+::: margin-note
+We'll see that a `Time → α` generator function is called a _reactive signal_.
+:::
 We won't have to throw away much to generalise this, though.  Notice that
-`Trace α := Time → α` is a very general type, and stepping a state machine
-isn't the only kind of system that can yield such a trace. In a spreadsheet, if
-cell `C` says `A + B`, the relationship between `C` and its dependencies moves
-through time independently of, say, `D` and `E`. In aggregate, a spreadsheet
-doesn't form a single monolithic trace, but rather a constellation of
-interconnected ones. 
+`Trace α := Time → α` is a very general type: here we use it to mean "look up
+the value at time `t`.  A `Time → α` could just as easily be a _generator_ of
+values, saying "okay, we are at time `t`; compute the correct value at that 
+moment"!  
 
-Next time, we'll see what temporal properties look like for systems like that.
+A given generator function could compute its `α` value in terms of other
+dependent `Time → α` functions, too.  This _also_ means we can compose a `Trace
+α` and a `StateProp σ` to answer the question "what's a true proposition at
+time `t`?".
+
+Thinking of `Time → α`s as generators opens up a new model called _functional
+reactive programming_.  
+
+Take a spreadsheet, for instance, which is a classic reactive program: Every
+cell holds a value, and values can change (by the user or transitively from a
+changed dependency) over time.  If cell `C` is defined as `A + B`, `C` will
+recompute when `A` or `B` changes, but moves through time independently of,
+say, `D` and `E`. In aggregate, a spreadsheet doesn't form a single monolithic
+trace, but rather a constellation of interconnected computations. 
+
+Next time, we'll see what temporal properties look like for systems like that,
+before starting to implement an FRP library for incremental computation in
+Lean.

@@ -114,18 +114,16 @@
       },
 
       // accumulate init onNone onSome ev — event-driven stateful signal.
-      // Convention: at t=0 the signal shows `init` unconditionally
-      // (ev@0 is not consulted). For t>0 the value is switch(t)(prev),
-      // dispatching on ev@t. This matches the Lean pedagogy where init
-      // is "the value at t=0" and events transition the state from
-      // t-1 to t. Event sources that feed only into accumulate can set
-      // `meta.noT0Click: true` so the timing view doesn't render a
-      // clickable t=0 cell that has no observable effect.
+      // Convention: event at time t drives the transition FROM value(t)
+      // TO value(t+1). So value(t) for t>0 is `switch(t-1)(value(t-1))`,
+      // consulting ev@(t-1). Reader intuition matches: click a state at
+      // column k, the next column reflects the transition. init sits at
+      // t=0. ev@0 IS meaningful — it causes the transition to value(1).
       accumulate(name, init, onNone, onSome, e, meta) {
         return add(name, [e.name], (t, ctx) => {
           if (t <= 0) return init;
           const prev = ctx.at(name, t - 1);
-          const ev = ctx.at(e.name, t);
+          const ev = ctx.at(e.name, t - 1);
           if (ev === null || ev === undefined) return onNone(prev);
           return onSome(ev, prev);
         }, 'derived', Object.assign({ stateful: true }, meta || {}));

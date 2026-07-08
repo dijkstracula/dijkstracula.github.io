@@ -86,35 +86,27 @@ end LTL
 
 Logicians wouldn't really call this a modality, but "something about the
 present moment" is certainly something we need to be able to make statements
-about.  For example, we might define a `Prop` that expresses whether the
-pop machine's coin hopper is empty:
+about.  Last time we invented a type for propositions over states:
 
 ```lean4
 def hopperEmpty (s: VMState) : Prop := s.coins = 0
-```
 
-If we weren't programming in a dependently-typed language, this would probably
-be a predicate function that consumes a state and returns a boolean.  Here,
-though, we're not evaluating a conditional expression but intead returning the
-expression (of type `Prop`, remember) itself, for a given state.  This is 
-an important enough datatype that we can give it a name:
-
-```lean4
 abbrev StateProp σ := σ → Prop
 ```
 
-And, this means `LTL.atom` will want to consume such a function, for an
-arbitrary state type sigma:
+What does this mean for our temporal logic API?  This means `LTL.atom` will
+want to consume such a time-dependent prop:
 
-```lean4
+```diff-lean4
     def atom (p : StateProp σ) ... : Prop := ... -- NEW
 ```
 
 Since we're making a statement about a particular trace, `atom` needs to know
 what trace that is:
 
-```lean4
-    def atom (p : StateProp σ) (t : Trace σ) : Prop := ... -- NEW
+```diff-lean4
+-   def atom (p : StateProp σ) ... : Prop := ...
++   def atom (p : StateProp σ) (t : Trace σ) : Prop := ...
 ```
 
 So that's the statement we want to assert and over what execution we want to
@@ -125,10 +117,9 @@ time, we can finish the definition.
 To make use of `LTL.atom`, we use it as part of a `theorem`, just like any
 other proposition in Lean.  
 
-```lean4
-namespace LTL
-   def atom (p : StateProp σ) (t : Trace σ) : Prop := p (now t)
-end LTL
+```diff-lean4
+-  def atom (p : StateProp σ) (t : Trace σ) : Prop := ...
++  def atom (p : StateProp σ) (t : Trace σ) : Prop := p (now t)
 ```
 ::: margin-note
 `rfl` is enough to discharge the proof of this theorem, but we can make a
@@ -181,10 +172,10 @@ surprising: it's our `Trace σ`.
     def eventually (p : ???) (t : Trace σ) : Prop := ∃ i, p (drop i t)
 ```
 
-But, `p` clearly can't consume just an
-individual state `σ` as it did in `atom`, because `drop` produces a whole new
-`Trace σ`.  So, this is a predicate over _entire traces_; this is the key to
-being able to write specifications that straddle multiple points in time.
+But, `p` clearly can't consume just an individual state `σ` as it did in
+`atom`, because `drop` produces a whole new `Trace σ`.  So, this is a predicate
+over _entire traces_; this is the key to being able to write specifications
+that straddle multiple points in time.
 
 ```lean4
 namespace LTL
@@ -387,40 +378,15 @@ claims we can make about the design are strong.
 
 ```lean4
 theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
-  intro t HValid
+  intro t ⟨h_init, h_cons⟩
   -- TODO: what next?
 
 1 goal
 t : Trace VMState
 HValid : validTrace t
+h_init : t 0 = init
+h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
 ⊢ noFreeLunch t
-```
-
-### Inline destructuring of a conjunction with `<` and `>`
-
-Remember that our proof that `t` is a `validTrace` falls back to a proof of
-initialization (that is, `t 0 = init`) _and_ of consecution (`∀ (i : Nat), ∃ a
-h, t (1 + i) = vmStep (t i) a h`).  Proving an inductive invariant always means
-wanting to reason about both of those sub-pieces individually.
-
-We _could_ write `have ⟨h_init, h_cons⟩ := HValid` to pattern-match out the two
-pieces of the conjunction (recall that `have` is like `let` but for the proof-world).
-But, we can actually do that pattern-match right in the intro step, saving us
-a step and emphasizing that what's important are the two components of the
-statement.
-
-```diff-lean4
- theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeLunch t := by
--  intro t HValid
-+  intro t ⟨h_init, h_cons⟩
-   -- TODO: OK, what now??
-
- 1 goal
- t : Trace VMState
--HValid : validTrace t
-+h_init : t 0 = init
-+h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
- ⊢ noFreeLunch t
 ```
 
 ### Getting to the heart of the theorem
