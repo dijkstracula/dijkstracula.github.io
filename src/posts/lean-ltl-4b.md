@@ -1,12 +1,14 @@
 ---
 layout: post.njk
-title: "FRP in Lean: Events and LTL.eventually"
+title: "FRP in Lean: Reactive Events and LTL.eventually"
 date: 2026-04-24
 tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "If Signals type to LTL.always, what could type to LTL.eventually?"
 series: lean-ltl
 series_title: "FRP: Events"
 ---
+
+<script src="/js/frp/runtime.js"></script>
 
 Last time, we introduced Signals, which are time-varying datatypes: at all
 time steps `t`, a `Signal a` produces some value of type `a`.  We also saw that
@@ -112,6 +114,55 @@ def pedCrossing (button : FRP.Event Unit) : □ (Light × WalkSign) :=
      (Light.Red,    WalkSign.DontWalk), -- t=3: not pressed; cycle continues...
      (Light.Yellow, WalkSign.DontWalk)]
 ```
+
+<style>
+  .frp-light-red    { background: #C33 !important; color: white; }
+  .frp-light-yellow { background: #F3B31A !important; color: #222; }
+  .frp-light-green  { background: #2A8455 !important; color: white; }
+  .frp-walk         { background: #2A8455 !important; color: white; }
+</style>
+
+:::tip
+Try toggling when a button is pressed by clicking the _button_ cell at time
+`t`. You'll see the execution history change to reflect the new inputs.
+<div id="frp-pedcrossing-graph"></div>
+<div id="frp-pedcrossing"></div>
+:::
+
+<script>
+(() => {
+  const g = FRP.graph();
+  const LIGHTS = ['Red', 'Yellow', 'Green'];
+  const cycling = g.sig('cycling', t => LIGHTS[t % 3]);
+  const button  = g.eventAt('button', [2, 7]);
+  const walk    = g.map('walk',
+    b => b !== null ? 'Walk' : 'DontWalk',
+    button);
+  const carLight = g.map2('carLight',
+    (b, c) => b !== null ? 'Red' : c,
+    button, cycling);
+  g.map2('pedCrossing', (l, w) => [l, w], carLight, walk);
+  function lightCell(v) {
+    if (v === 'Red')    return { text: 'R', className: 'frp-light-red' };
+    if (v === 'Yellow') return { text: 'Y', className: 'frp-light-yellow' };
+    if (v === 'Green')  return { text: 'G', className: 'frp-light-green' };
+    return v;
+  }
+  function format(v, name, t, node) {
+    if (name === 'cycling' || name === 'carLight') return lightCell(v);
+    if (name === 'walk') {
+      return v === 'Walk' ? { text: 'W', className: 'frp-walk' } : '·';
+    }
+    if (name === 'pedCrossing') return v[0][0] + ',' + v[1][0];
+    return FRP.defaultFormat(v, name, t, node);
+  }
+  const gv = FRP.renderGraph(document.getElementById('frp-pedcrossing-graph'), g,
+                             { ticks: 12, format });
+  const tv = FRP.renderTiming(document.getElementById('frp-pedcrossing'), g,
+                              { ticks: 12, format, controls: true });
+  tv.subscribe(t => gv.setTick(t));
+})();
+</script>
 
 ## The Curry-Howard correspondence for Events...sort of...
 
@@ -456,6 +507,19 @@ closing the goal and completing the combinator.
 Goals accomplished!
 ```
 
+::: tip
+<div id="frp-event-merge"></div>
+:::
+<script>
+(() => {
+  const g = FRP.graph();
+  const p1 = g.eventAt('press1', [2, 8]);
+  const p2 = g.eventAt('press2', [4, 8]);
+  g.merge('press1 <|> press2', p1, p2);
+  FRP.renderTiming(document.getElementById('frp-event-merge'), g, { ticks: 10 });
+})();
+</script>
+
 ## Bridging Events and Signals with a stateful Signal
 
 here's one more combinator that might come in handy for us.  Suppose we'd like
@@ -485,6 +549,24 @@ def Event.latch (init: α) (e: Event α) : Signal α
   | 0 => (e 0).getD init
   | (n + 1) => (e (n + 1)).getD (latch init e n)
 ```
+
+::: tip
+<div id="frp-latch"></div>
+:::
+
+<script>
+(() => {
+  const g = FRP.graph();
+  const beep = g.event('beep', t => {
+    if (t === 1) return 'A';
+    if (t === 4) return 'C';
+    if (t === 7) return 'E';
+    return null;
+  });
+  g.latch('lastNote', '—', beep);
+  FRP.renderTiming(document.getElementById('frp-latch'), g, { ticks: 10 });
+})();
+</script>
 
 This is our first example of a Signal whose value is not a straightforward
 computation from the given timestep, but relies on past values.  In the next

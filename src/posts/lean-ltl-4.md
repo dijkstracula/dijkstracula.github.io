@@ -6,7 +6,10 @@ tags: [post, lean, reactive-programming, ltl, frp]
 excerpt: "So if propositions are types, and LTL are propositions, what programs are well-typed by LTL?"
 series: lean-ltl
 series_title: "FRP: Signals"
+inlineCodeLang: lean4
 ---
+
+<script src="/js/frp/runtime.js"></script>
 
 # The Curry-Howard correspondence for LTL: FRP
 
@@ -35,11 +38,11 @@ where we're mutating a state structure action by action, FRP is about building
 relationships between different values in a way that should feel natural to you
 if you've programmed functionally before.
 
-The *LTL types FRP* paper builds up a formulation that shows that under
-Curry-Howard, the LTL logic maps to types of value in an FRP program.  Building
-this connection up will be the ultimate goal of this post; by the end of it, we
-should end up with two Lean namespaces that look pretty similar in structure
-and function.
+The [LTL types FRP](https://dl.acm.org/doi/epdf/10.1145/2103776.2103783) paper
+builds up a formulation that shows that under Curry-Howard, the LTL logic maps
+to types of value in an FRP program.  Building this connection up will be the
+ultimate goal of this post; by the end of it, we should end up with two Lean
+namespaces that look pretty similar in structure and function.
 
 ```lean4
 -- From Part 3 (last time)
@@ -109,38 +112,58 @@ Here's our first Signal, which doesn't do more than act as a "what time is it"
 clock:
 
 ```lean4
-def clock : Signal Time := 
-  fun t => t --At time step t, our output is t itself
+def clock : Signal Time := fun t => t
 ```
 
-Just like with LTL's `drop`, we can advance the value of a signal by shifting
-it forward in time:
+<div id="frp-clock"></div>
+<script>
+(() => {
+  const g = FRP.graph();
+  const clock = g.clock('clock');
+  FRP.renderTiming(document.getElementById('frp-clock'), g, { ticks: 10 });
+})();
+</script>
 
-```lean4
-def advance (s: Signal α) (t: Time): Signal α := fun n => s (n+t)
-
-#eval (advance clock 3) 5 -- At t=5, a clock advanced by 3 is 8
-#eval (List.range 10).map (advance clock 4) -- [4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-```
-
-Conversely, we can delay a signal arriving by shifting backwards in time.
-Since subtraction of `Nat`s is defined such that `0` is produced if the
-value would have gone negative, our implementation here just recycles the
-value at `t=0` until the clock actually starts running.
-
-```lean4
-def delay (s: Signal α) (t: Time): Signal α := fun n => s (n-t)
-
-#eval (List.range 10).map (delay clock 4) -- [0, 0, 0, 0, 0, 1, 2, 3, 4, 5]
-```
-
-Next, let's define a way that lifts a value into the world of Signals:
+Next, let's define a way that lifts a constant value into the world of Signals:
 
 ```lean4
 def const (v: α) : Signal α := fun _ => v
-
-#eval (const 42) 5 -- at t=5, this signal has value 42, unsurprisingly.
 ```
+
+<div id="frp-const"></div>
+<script>
+(() => {
+  const g = FRP.graph();
+  const c = g.const('const 42', 42);
+  FRP.renderTiming(document.getElementById('frp-const'), g, { ticks: 10 });
+})();
+</script>
+
+::: margin-note
+Since subtraction of `Nat`s is defined such that `0` is produced if the
+value would have gone negative, our implementation here just recycles the
+value at `t=0` until the clock actually starts running.
+:::
+Just like with LTL's `drop`, we can advance the value of a signal by shifting
+it forward in time.  Conversely, we can delay a signal arriving by shifting
+backwards in time.
+
+```lean4
+def advance (s: Signal α) (t: Time): Signal α := fun n => s (n+t)
+def delay (s: Signal α) (t: Time): Signal α   := fun n => s (n-t)
+```
+
+<div id="frp-clock-advance"></div>
+<script>
+(() => {
+  const g = FRP.graph();
+  const clock = g.clock('clock');
+  g.advance('advance clock 2', clock, 2);
+  g.delay('delay clock 2', clock, 2);
+  FRP.renderTiming(document.getElementById('frp-clock-advance'), g, { ticks: 10 });
+})();
+</script>
+
 
 OK, we can define some pretty uninteresting signals - FRP is really all
 about writing functions that transform signals by way of _functional
@@ -227,6 +250,27 @@ def lvingrm : Signal Float := fun t => 19.5 + 0.5 * Float.sin (2 * t.toFloat)
 #eval (bedroom 42, kitchen 42, lvingrm 42) -- (19.083478, 20.600015, 19.866595)
 ```
 
+::: tip
+Click the play button at the bottom of this widget to watch the values in
+each Signal change over time.
+<div id="frp-hallway-v0-graph"></div>
+<div id="frp-hallway-v0"></div>
+:::
+
+<script>
+(() => {
+  const g = FRP.graph();
+  const bedroom = g.sig('bedroom', t => 20.0 + Math.sin(t));
+  const kitchen = g.sig('kitchen', t => 21.0 + Math.cos(t));
+  const lvingrm = g.sig('lvingrm', t => 19.5 + 0.5 * Math.cos(2 * t));
+  const gv = FRP.renderGraph(document.getElementById('frp-hallway-v0-graph'), g,
+                             { ticks: 10 });
+  const tv = FRP.renderTiming(document.getElementById('frp-hallway-v0'), g,
+                              { ticks: 10, controls: true });
+  tv.subscribe(t => gv.setTick(t));
+})();
+</script>
+
 Using `map`, we can convert these Celsius signals into Fahrenheit, by mapping
 over a conversion function, for our American friends:
 
@@ -255,6 +299,29 @@ we can't use `map` aka `<$>` directly. `map2`, though, does let us write this:
 def avg (x y : Float) : Float := (x + y) / 2.0
 def hallway : Signal Float := map2 avg bedroom kitchen
 ```
+
+::: tip
+Click the play button at the bottom of this widget to watch time-varying values
+propagate through the FRP program - at each timestep, a new value for `hallway`
+is computed from its two dependent signals.  There's no final "sink" signal in
+an FRP program so `lvingrm` and `hallway` are free to coexist.
+<div id="frp-hallway-graph"></div>
+<div id="frp-hallway"></div>
+:::
+<script>
+(() => {
+  const g = FRP.graph();
+  const bedroom = g.sig('bedroom', t => 20.0 + Math.sin(t));
+  const kitchen = g.sig('kitchen', t => 21.0 + Math.cos(t));
+  const lvingrm = g.sig('lvingrm', t => 19.5 + 0.5 * Math.cos(2 * t));
+  g.map2('hallway', (b, k) => (b + k) / 2, bedroom, kitchen);
+  const gv = FRP.renderGraph(document.getElementById('frp-hallway-graph'), g,
+                             { ticks: 10 });
+  const tv = FRP.renderTiming(document.getElementById('frp-hallway'), g,
+                              { ticks: 10, controls: true });
+  tv.subscribe(t => gv.setTick(t));
+})();
+</script>
 
 Since we defined `Applicative.seq` in terms of `map2`, it stands to reason that
 we should be able to use `<*>` to implement `hallway`, too.  And indeed we can!
@@ -306,7 +373,7 @@ Now any list aggregation just maps over the sequence`Signal:
 def avgTemp : Signal Float := (fun rs => rs.sum / rs.length) <$> readings
 def minTemp : Signal Float := List.minimum <$> readings
 
-def alertIfHot : Signal Bool := (fun rs => rs.any (· > 30.0)) <$> readings
+def isHot : Signal Bool := (fun rs => rs.any (· > 30.0)) <$> readings
 ```
 
 A note about the first argument to `List.mapA`: as the name suggests, this
@@ -322,9 +389,42 @@ though.  If you're familiar with unification in the context of type inference,
 you might find it interesting to trace how Lean would typecheck this.
 :::
 ```lean4
-def alertIfHotF : Signal Bool :=
+def isHotF : Signal Bool :=
   (fun rs => rs.any (· > 90)) <$> List.mapA ctof signals
 ```
+
+::: tip
+<div id="frp-temp-graph"></div>
+<div id="frp-temp"></div>
+:::
+
+<script>
+(() => {
+  const g = FRP.graph();
+  const bedroom = g.sig('bedroom', t => 30 + 6 * Math.sin(t),    { row: 0, col: 0 });
+  const kitchen = g.sig('kitchen', t => 28 + 4 * Math.cos(t),    { row: 0, col: 1 });
+  const lvingrm = g.sig('lvingrm', t => 20 + Math.cos(2 * t),    { row: 0, col: 2 });
+  const hallway = g.map2('hallway', (b, k) => (b + k) / 2, bedroom, kitchen,
+                         { row: 1.5, col: 0.5 });
+  const sensors = [bedroom, kitchen, lvingrm, hallway];
+  const readings = g.mapN('readings', xs => xs, sensors, { row: 2, col: 2 });
+  g.map('avgTemp',     xs => xs.reduce((a, b) => a + b, 0) / xs.length, readings, { row: 3, col: 0 });
+  g.map('minTemp',     xs => Math.min(...xs), readings, { row: 3, col: 1 });
+  g.map('isHot',  xs => xs.some(v => v > 30), readings, { row: 3, col: 2 });
+  g.map('isHotF', xs => xs.map(c => c * 9 / 5 + 32).some(f => f > 90), readings, { row: 3, col: 3 });
+  function format(v, name, t, node) {
+    if (name === 'readings' && Array.isArray(v)) {
+      return '[...]';
+    }
+    return FRP.defaultFormat(v, name, t, node);
+  }
+  const gv = FRP.renderGraph(document.getElementById('frp-temp-graph'), g,
+                             { ticks: 10, layout: 'spatial', format });
+  const tv = FRP.renderTiming(document.getElementById('frp-temp'), g,
+                              { ticks: 10, controls: true, format });
+  tv.subscribe(t => gv.setTick(t));
+})();
+</script>
 
 You might say that this is not the most realistic program, but nonetheless I
 think it nicely shows what makes FRP cool.  Before proceeding, pause and ponder
@@ -489,6 +589,35 @@ def junction : □ (Light × Light) := FRP.map2 Prod.mk l1 l2
 
 #eval junction 5 -- (Light.Green, Light.Red)
 ```
+
+<style>
+  .frp-light-red    { background: #C33 !important; color: white; }
+  .frp-light-yellow { background: #F3B31A !important; color: #222; }
+  .frp-light-green  { background: #2A8455 !important; color: white; }
+</style>
+
+<div id="frp-junction"></div>
+<script>
+(() => {
+  const g = FRP.graph();
+  const LIGHTS = ['Red', 'Yellow', 'Green'];
+  const l1 = g.sig('l1', t => LIGHTS[t % 3]);
+  const l2 = g.advance('l2', l1, 1);
+  g.map2('junction', (a, b) => [a, b], l1, l2);
+  function light(v) {
+    if (v === 'Red')    return { text: 'R', className: 'frp-light-red' };
+    if (v === 'Yellow') return { text: 'Y', className: 'frp-light-yellow' };
+    if (v === 'Green')  return { text: 'G', className: 'frp-light-green' };
+    return v;
+  }
+  function format(v, name, t, node) {
+    if (name === 'l1' || name === 'l2') return light(v);
+    if (name === 'junction') return v[0][0] + ',' + v[1][0];
+    return FRP.defaultFormat(v, name, t, node);
+  }
+  FRP.renderTiming(document.getElementById('frp-junction'), g, { ticks: 10, format });
+})();
+</script>
 
 Let's ensure _mutual exclusion_ on the intersection: at no point can cars from
 both streets enter the junction:

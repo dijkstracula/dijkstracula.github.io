@@ -554,7 +554,7 @@ combinator that looks something like: "we need to produce a `Signal // P ∧ ¬b
 given an input signal, a P and a b":
 
 ```lean4
-def hoare_while_ish
+def RSignal.while
   (P b : StateProp a) -- P, our loop invariant; b, our loop check
   (s : □ α // P)      -- our source of input values to poll
   : □ α // P ∧ ¬b := sorry
@@ -570,7 +570,7 @@ So, our prototype should produce an Event that raises a value upon loop
 termination!
 
 ```diff-lean4
-  def hoare_while_ish
+  def RSignal.while
     (P b : StateProp a) -- P, our loop invariant; b, our loop check
     (s : □ α // P)      -- our source of input values to poll
 -   : □ α // P ∧ ¬b := sorry
@@ -602,9 +602,9 @@ In order to construct that Event we need a proof that the Event will actually
 fire; that's exactly our loop termination condition!
 
 ```diff-lean4
-  def hoare_while_ish
-    (P b : StateProp a) -- P, our loop invariant; b, our loop check
-    (s : □ α // P)      -- our source of input values to poll
+  def RSignal.while
+    (P b : StateProp a)           -- P, our loop invariant; b, our loop check
+    (s : □ α // P)                -- our source of input values to poll
 +   (hTerm : ∃ t, ¬ b (s.val t))  -- Proof that we eventually exit the loop
     : □ α // P ∧ ¬b := sorry
     : ◇ {a : α // P ∧ ¬b} := sorry
@@ -612,11 +612,11 @@ fire; that's exactly our loop termination condition!
 
 Let's now see how we can implement the body of this combinator.
 
-## A first pass of the `factorial` loop in FRP
+## A declarative implementation of `fact`'s main loop
 
 Before trying to design a general FRP combinator, let's see how we'd write this
 back when we introduced signals in part 3.  I imagine we'd have a signal for
-each state variable, and an "environment" variable that bundles them all up:
+each state variable, and an "environment" variable that bundles them both up:
 
 ::: margin-note
 In general, we might want `fact_env` to be expressed as a map-like structure
@@ -627,34 +627,166 @@ For now, though, just keeping a tuple of values straight is enough for us.
 ```lean4
 def i : □ Nat := FRP.scan (· + 1) 0
 def z : □ Nat := (·.factorial) <$> i
-def fact_env : □ (Nat × Nat) := Prod.mk <$> i <*> z
-
-#eval fact_env 10 -- (10, 3628800)
-
-example : (fact_env 5).2 = 120 := by decide
 ```
 
-Clearly, `fact_env` being a signal means it will just keep counting up
-indefinitely, so there's no way to maintain a `i < n` invariant.  It kind
-of feels like what we want is a notification mechanism to raise an `Event`
-when the final environment state is consumed.
+Here, implicitly, each tick of the clock corresponds to a loop iteration.
+(Later on in a future post, we'll probably have to somehow loosen this
+requirement).
 
-It might not be immediately obvious what form this combinator should take,
-but if we revisit the conclusion of the `hoare_while` inference rule, we can
-essentially read the function signature right off:
+The nice thing about this formulation is that proving the loop invariant `z =
+i!` is trivial:
+
+```lean4
+theorem fact_loop_invariant : 
+  ∀ t, (fact_env t).2 = (fact_env t).1.factorial := by
+  intro t; rfl
+```
+
+This means we can compose `i`, `z`, and `fact_loop_invariant` to produce
+a signal whose safety property is the factorial loop's invariant:
+
+```
+def fact_loop : □ (Nat × Nat) // (fun ⟨i, z⟩ => z = i.factorial) :=
+  let s : □ (Nat × Nat) := Prod.mk <$> i <*> z
+  FRP.Refining.Signal.collect (fun t => ⟨s t, fact_loop_invariant t⟩)
+
+#eval (fact_loop.val 5) -- (5, 120)
+```
+
+Clearly, though, `fact_loop` being a signal means it will just keep counting up
+indefinitely, no matter what the caller's intentions were, so there's no way to
+constrain execution for just `n` steps; proving `i < n` is going to be
+impossible. What we _could_ do, though, is let these signals tick forever but
+raise an `Event` when `i < n` ceases to be true.
+
+Let's write such a combinator on `Event`s: it'll consume a refined signal and
+some additional `raise` property, and a proof that at some point `raise` holds;
+we'll get back an Event that raises under that condition.
 
 ::: margin-note
-I thought flipping the polarity of `hold` versus `b` in the inference rule
-made the type signature here a bit cleaner.  YMMV!
+Note that `hTerm` says that _there exists_ some timestep but nothing about
+which `t`, if there are multiple ones.  We might want `hTerm` to, later on,
+reason about the specific `t` which first raises the event.
 :::
 ```lean4
-def Event.firstWhen
+def Event.when
   {P : StateProp α}
-  (continue : StateProp α) [DecidablePred b]
+  (raise : StateProp α) [DecidablePred raise]
   (sig : □ α // P)
-  : ◇ {a : α // P a ∧ cont a} := sorry
+  (hTerm : ∃ t, raise (sig.val t))
+  : ◇ {a : α // P a ∧ raise a} :=
+    let f := sorry
+    have live : FRP.fires f := by sorry
+    { f, live }
 ```
 
-`Event.firstWhen` is a bridge between modalities: it consumes a `□` and
-produces aso I `◇`. This isn't the first time we've seen such a function:
+`Event.when` is a bridge between modalities: it consumes a `□` and
+produces a `◇`. This isn't the first time we've seen such a function:
 `accumulate` went the other way, consuming a `◇` and producing a `□`!
+
+The event's `f`, if you recall, is going to be a function that optionally
+produces an `α // P a ∧ raise a`, dependent on whether `raise` is true.
+Straightforward enough, since this is a pointwise transformation on the input
+signal.
+
+```diff-lean4
+  def Event.when
+    {P : StateProp α}
+    (raise : StateProp α) [DecidablePred raise]
+    (sig : □ α // P)
+    (hTerm : ∃ t, raise (sig.val t))
+    : ◇ {a : α // P a ∧ raise a} :=
++     let toOpt : {a : α // P a} → Option {a : α // P a ∧ raise a} :=
++       fun ⟨a, hp⟩ => if h : raise a then some ⟨a, And.intro hp h⟩ else none
++     let f : □ (Option {a : α // P a ∧ raise a}) := toOpt <$> sig
+      have live : FRP.fires f := by sorry
+      { f, live }
+```
+
+The liveness proof, which we need for an Event to truly encapsulate an
+`LTL.eventually` proposition, falls out from the supplied `hTerm` prop,
+which is our proof of loop termination.  We'll start by unfolding the
+definition of `FRP.fires`:
+
+```diff-lean4
+  def Event.when
+    {P : StateProp α}
+    (raise : StateProp α) [DecidablePred raise]
+    (sig : □ α // P)
+    (hTerm : ∃ t, raise (sig.val t))
+    : ◇ {a : α // P a ∧ raise a} :=
+      let toOpt : {a : α // P a} → Option {a : α // P a ∧ raise a} :=
+        fun ⟨a, hp⟩ => if h : raise a then some ⟨a, And.intro hp h⟩ else none
+      let f : □ (Option {a : α // P a ∧ raise a}) := toOpt <$> sig
+      have live : FRP.fires f := by
++       unfold FRP.fires
+      { f, live }
+
+  1 goal
+  hTerm : ∃ t, raise (sig.val t)
+  toOpt : { a // P a } → Option { a // P a ∧ raise a } := 
+    | ⟨a, hp⟩ => if h : raise a then some ⟨a, ⋯⟩ else none
+  f : FRP.Signal (Option { a // P a ∧ raise a }) := toOpt <$> Signal.split sig
+  ⊢ ∃ t, (f t).isSome = true
+```
+
+Next, we'll do some straightforward unfolding until our goal is expressed
+in terms of `raise` and not the encapsulating `Option`:
+
+```diff-lean4
+  def Event.when
+    {P : StateProp α}
+    (raise : StateProp α) [DecidablePred raise]
+    (sig : □ α // P)
+    (hTerm : ∃ t, raise (sig.val t))
+    : ◇ {a : α // P a ∧ raise a} :=
+      let toOpt : {a : α // P a} → Option {a : α // P a ∧ raise a} :=
+        fun ⟨a, hp⟩ => if h : raise a then some ⟨a, And.intro hp h⟩ else none
+      let f : □ (Option {a : α // P a ∧ raise a}) := toOpt <$> sig
+      have live : FRP.fires f := by
+        unfold FRP.fires
++       simp [toOpt, f, Functor.map, Signal.split]
+      { f, live }
+
+  1 goal
+  hTerm : ∃ t, raise (sig.val t)
+  toOpt : { a // P a } → Option { a // P a ∧ raise a } := 
+    | ⟨a, hp⟩ => if h : raise a then some ⟨a, ⋯⟩ else none
+  f : FRP.Signal (Option { a // P a ∧ raise a }) := toOpt <$> Signal.split sig
+- ⊢ ∃ t, (f t).isSome = true
++ ⊢ ∃ t, raise (sig.val t)
+```
+
+The goal is now exactly `hTerm`.
+
+```diff-lean4
+  def Event.when
+    {P : StateProp α}
+    (raise : StateProp α) [DecidablePred raise]
+    (sig : □ α // P)
+    (hTerm : ∃ t, raise (sig.val t))
+    : ◇ {a : α // P a ∧ raise a} :=
+      let toOpt : {a : α // P a} → Option {a : α // P a ∧ raise a} :=
+        fun ⟨a, hp⟩ => if h : raise a then some ⟨a, And.intro hp h⟩ else none
+      let f : □ (Option {a : α // P a ∧ raise a}) := toOpt <$> sig
+      have live : FRP.fires f := by
+        unfold FRP.fires
+        simp [toOpt, f, Functor.map, Signal.split]
++       exact hTerm
+      { f, live }
+
+0 goals
+Goals accomplished!
+```
+
+This seems like, broadly, a useful combinator, and we can use it to
+implement `RSignal.while`:
+
+```diff-lean4
+  def RSignal.while
+    (P b : StateProp α)           -- P, our loop invariant; b, our loop check
+    [inst : DecidablePred b]
+    (s : □ α // P)                -- our source of input values to poll
+    (hTerm : ∃ t, ¬ b (s.val t))  -- Proof that we eventually exit the loop
++   : ◇ {a : α // P a ∧ ¬b a} := Event.when P (¬b ·) s hTerm
+```

@@ -9,6 +9,8 @@ series_title: "Intro - execution traces"
 inlineCodeLang: lean4
 ---
 
+<script src="/js/frp/runtime.js"></script>
+
 ## Welcome back!
 
 Last time we implemented a simple reactive program in Lean.  We implemented a
@@ -244,6 +246,26 @@ old ones will become super important in future posts.
 #eval orangeTrace 3   -- { coins := 0, dispensed := some (VM.Flavour.LemonLime), numOrange := 5, numLL := 4 }
 #eval orangeTrace 42  -- { coins := 0, dispensed := none, numOrange := 5, numLL := 4 }
 ```
+
+<div id="frp-orange-trace"></div>
+<script>
+(() => {
+  const trace = [
+    { coins: 0, dispensed: '-',  numOrange: 5, numLL: 5 }, // t=0 (pre DropCoin)
+    { coins: 1, dispensed: '-',  numOrange: 5, numLL: 5 }, // t=1 (pre DropCoin)
+    { coins: 2, dispensed: '-',  numOrange: 5, numLL: 5 }, // t=2 (pre Choose LL)
+    { coins: 0, dispensed: 'LL', numOrange: 5, numLL: 4 }, // t=3 (pre TakeItem)
+  ];
+  const final = { coins: 0, dispensed: '-', numOrange: 5, numLL: 4 };
+  const at = (t, key) => t < trace.length ? trace[t][key] : final[key];
+  const g = FRP.graph();
+  g.sig('coins',     t => at(t, 'coins'));
+  g.sig('dispensed', t => at(t, 'dispensed'));
+  g.sig('numOrange', t => at(t, 'numOrange'));
+  g.sig('numLL',     t => at(t, 'numLL'));
+  FRP.renderTiming(document.getElementById('frp-orange-trace'), g, { ticks: 8 });
+})();
+</script>
 
 While we're on the topic, though, you should pause and ponder about whether
 "just staying in the same state" is something that the pop state machine would

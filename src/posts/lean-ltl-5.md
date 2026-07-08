@@ -8,6 +8,8 @@ series_title: "FRP: stateful combinators and safety"
 inlineCodeLang: lean4
 ---
 
+<script src="/js/frp/runtime.js"></script>
+
 # Non-pointwise combinators have knowledge of previous timesteps
 
 Up to now, every Signal we've seen has been stateless.  `FRP.map` and
@@ -205,10 +207,22 @@ dissimilar from the problem we had last time with `Event.latch`, and the
 solution's the same: A real FRP runtime would do something smarter like mutate
 a value over time to cache previous state(s).
 :::
-```
+```lean4
 def screaming : Signal String := scan (· ++ "a") ""
 #eval (List.range 5).map screaming -- ["", "a", "aa", "aaa", "aaaa"]
 ```
+
+:::tip
+<div id="frp-scan"></div>
+:::
+
+<script>
+(() => {
+  const g = FRP.graph();
+  g.scan('screaming', s => s + 'a', '');
+  FRP.renderTiming(document.getElementById('frp-scan'), g, { ticks: 8 });
+})();
+</script>
 
 Something interesting to note is that this is our first Signal that isn't
 ultimately driven by the tick of the `clock`: we never actually do any
@@ -510,6 +524,43 @@ def crosswalk ev := FRP.accumulate
  (8, CrossingState.Countdown 0),
  (9, CrossingState.Cooldown 3)]
 ```
+
+::: tip
+<div id="frp-crosswalk"></div>
+:::
+<script>
+(() => {
+  function tick(s) {
+    if (s.kind === 'Cooldown') {
+      return s.n === 0 ? { kind: 'Idle' } : { kind: 'Cooldown', n: s.n - 1 };
+    }
+    if (s.kind === 'Idle') return { kind: 'Idle' };
+    if (s.kind === 'Countdown') {
+      return s.n === 0 ? { kind: 'Cooldown', n: 3 } : { kind: 'Countdown', n: s.n - 1 };
+    }
+    return s;
+  }
+  function onSome(_ev, s) {
+    if (s.kind === 'Idle') return { kind: 'Countdown', n: 3 };
+    return tick(s);
+  }
+  function fmt(s) {
+    return s.kind === 'Idle' ? 'Idle' : s.kind + ' ' + s.n;
+  }
+  const g = FRP.graph();
+  const presses = g.eventAt('presses', [2, 5], undefined, { noT0Click: true });
+  g.accumulate('crosswalk',
+               { kind: 'Cooldown', n: 2 },
+               tick, onSome, presses);
+  FRP.renderTiming(document.getElementById('frp-crosswalk'), g, {
+    ticks: 10,
+    format: (v, name, t, node) => {
+      if (name === 'crosswalk') return fmt(v);
+      return FRP.defaultFormat(v, name, t, node);
+    }
+  });
+})();
+</script>
 
 We see precisely what we wanted to: at `t=2`, we're still in the midst of a
 cooldown, so that button press is ignored.  However, by the time we reach
