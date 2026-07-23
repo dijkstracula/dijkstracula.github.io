@@ -7,6 +7,9 @@ _site/
 # Node.js dependencies
 node_modules/
 
+# Full source font for the math-bracket subset (only the ~KB subset is committed)
+scripts/fonts-src/
+
 # npm/yarn logs
 npm-debug.log*
 yarn-debug.log*

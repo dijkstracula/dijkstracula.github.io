@@ -1,7 +1,7 @@
 ---
 layout: post.njk
 title: "FRP in Lean: Hoare Logic and loop invariants redux"
-date: 2026-06-30
+date: 2026-07-10
 tags: [post, lean, reactive-programming, frp, hoare-logic]
 excerpt: "New program logic just dropped!"
 series: lean-ltl
@@ -18,8 +18,7 @@ def map
   {pre: α → Prop}
   {post: β → Prop}
   (f: {a: α // pre a} → {b : β // post b})
-  (s: □ α // pre)
-  : □ β // post := ...
+  : (□ α // pre) → (□ β // post) := fun s => ...
 ```
 
 Given a precondition over the input type `a` and a postcondition over the
@@ -115,7 +114,7 @@ dispense an orange pop, after some internal mutations: We could write the Hoare
 triple for this operation, perhaps, like:
 
 ```lean4
--- imaginary Hoare triple syntax
+-- imaginary Hoare triple syntax for our monadic API
 { numOrange > 0 } getOrange.run init { result := some Orange }
 ```
 
@@ -134,89 +133,156 @@ ones I've chosen are at least decent!
 { dispensed := some Orange}    take          { result := some Orange }
 ```
 
-::: margin-note 
-Hey, I know a decent [Dafny tutorial](/posts/proving-the-coding-interview/) or
-[two](/posts/proving-the-coding-interview-lean/), if you're looking for one!
-:::
-Hoare logic is also at the essence of how Dafny weaves logical statements about
-different parts of a program.  Here's a Dafny method that ought to feel
-familiar, even if the syntax strictly speaking might not:
+To valdiate an execution history like this, the precondition for each action
+needs to be provably satisfied when each action is taken; symmetrically, the
+postcondition for each action is then exposed afterwards.
 
-```dafny
-method increment(x: int) returns (y: int)
-  requires x == 0      // precondition: P
-  ensures y > 0        // postcondition: Q
-{
-  y := x + 1;
-}
+## A data definition and syntax transformer for Hoare logic
 
-... 
-z := 0
-x := increment(z)      // Pre: z = 0; Post: x > 0
-```
-
-For Dafny to "typecheck" a program that calls `increment`, the precondition
-regarding the input argument (or any other piece of program state) has to be
-provably satisfied at all call sites; symmetrically, Dafny will in turn expose
-the postcondition for the parts of the program following the function call.
-
-In FRP-land, of course, we don't have variable assignments in the imperative
-programming sense, but a Signal _does_ have the property that it's "a box that
-holds a value that can change over time".  Hoare
-[called](https://www.cs.cmu.edu/~crary/819-f09/Hoare69.pdf) the idea that "in
-an assignment `x := y`, whatever proposition `P` is true about the right-hand
-side of the assignment will also be true about the left hand side" the _axiom
-of assignment_.  The Hoare triple encapsulating this slightly convoluted
-English sentence might read `{ P(y) } x := y { P(x) }` for some well-chosen
-`P`s.  This means that we're invoking the axiom of assignment whenever we
-declare a new Signal value.
+Abstractly, a hoare triple associates a precondition and a postcondition
+through some sort of transforming action.  In FRP, our pre- and post-condition
+will be defined in terms of refined signals.  Let's write this in terms of
+a function type, since that's a natural way to transform values:
 
 ```lean4
-def incr (i : {i : Int // i = 0}) : {i : Int // i > 0} := ...
-def sqrt (i : {i : Int // i > 0}) : {i : Int // i >= 0} := ...
-
-def z : □ Int // (· = 0)  := RSignal.const ⟨0, by lia⟩
-def x : □ Int // (· > 0)  := incr <$$> z
+abbrev Hoare (P : StateProp α) (Q : StateProp β) :=
+  (□ α // P) → (□ β // Q)
 ```
 
-Next: Here's a call of `increment` in some larger Dafny program:  (I haven't
-written a square root method, and I'm not sure if the Dafny standard library
-has one, but you can probably imagine a caller's Hoare triple might be
-something like `{x >= 0} sqrt(x) {sqrt(x) >= 0}`.)
+It'd be nice to express Hoare triples "in their natural habitat", so let's
+write a quick syntax transformer to make this look like the mathematical notation:
 
-::: margin-warning
-For now, let's gloss over the fact that we have an implicit weakening step that
-turns `z > 0` into `z >= 0`.  This is trivial for Dafny's solver but we'd have
-to use `RSignal.weaken` manually.
+::: margin-note
+{% raw %}`⦃` is typed `\{{`, `⦄` is typed `\}}`, and `⟹`, which renders spectacularly
+poorly in my terminal, is `\==>`.{% endraw %}
 :::
-```dafny
-// sequencing...
-let z := 0;          // z := 0
-z := increment(z);   // z > 0
-z := sqrt(z);        // z >= 0
-
-// ... is composition.
-z := sqrt(increment(0)) // z >= 0
+```lean4
+infixr:35 " ⟹ " => Hoare
+syntax "⦃" ident " : " term " // " term "⦄" : term
+macro_rules
+  | `(⦃$i:ident : $ty // $p⦄) => `((fun $i : $ty => $p : StateProp $ty))
 ```
 
-Here we are _sequencing_ operations on some program state, which is the same
-here as composing the two functions together.  Lean lets us write the same
-program in FRP style: 
+### A new interpretation of `FRP.map`
+
+Let's see how we can play around with this new notation with some existing
+primitives from last time.  Here's our definition of `map`:
 
 ```lean4
--- sequencing of signals...
-def z :  □ Int // (· = 0)  := RSignal.const ⟨0, by lia⟩
-def z2 : □ Int // (· > 0)  := incr <$$> z
-def z3 : □ Int // (· >= 0) := sqrt <$$> z2
-
--- ... is composition of signals.
-def z4 : □ Int // (· >= 0) := sqrt <$$> incr <$$> z
+ def RSignal.map
+   {pre: α → Prop} {post: β → Prop}
+   (f: {a: α // pre a} → {b : β // post b})
+   (s: □ α // pre)
+   : □ β // post :=
+   Signal.collect (fun t => f (Signal.split s t))
 ```
 
-This bring us to our first correspondence: composition of Signals is
-Hoare logic's _sequencing rule_.
+Let's do a bit of type signature refactoring here where, instead of `s` directly
+being consumed in the function, we return a function that consumes the `s` and
+transforms it:
 
-## Sequencing and composition
+```diff-lean4
+ def RSignal.map
+   {pre: α → Prop} {post: β → Prop}
+   (f: {a: α // pre a} → {b : β // post b})
+-  (s: □ α // pre)
+-  : □ β // post :=
++  : (□ α // pre) → (□ β // post) := fun s =>
+   Signal.collect (fun t => f (Signal.split s t))
+```
+
+Now, the value produced by `RSignal.map` is a `(□ α // pre) → (□ β // post)`.
+This is exactly a Hoare triple, so let's see what it looks like in that style:
+
+```diff-lean4
+ def RSignal.map
+   {pre: α → Prop} {post: β → Prop}
+   (f: {a: α // pre a} → {b : β // post b})
+-  : (□ α // pre)       →  (□ β // post) := fun s =>
++  :  ⦃ a : α // pre a ⦄ ⟹ ⦃ b : β // post b ⦄ := fun s =>
+   Signal.collect (fun t => f (Signal.split s t))
+```
+
+The action that `map` performs on `Signal`s is now shown almost pictorially:
+what changes is the outer enclosing context -- a `Signal`'s refinement turns
+into a Hoare condition, and a function arrow turns into a Hoare command.
+Everything internal to the "enclosure syntax" stays the same.  This is exactly
+the structure-preserving transformation we'd expect from an algebraic functor,
+so it's good that we can reasonably convince ourselves that it really is one!
+
+## Functorial theorems for free
+
+In the previous section we tripped over a new view of `map` that acts on Hoare
+predicates.  Being a `Functor`, the _functor laws_ must hold when we talk about
+`map`ping over Hoare predicates:
+
+::: tip
+```
+id <$$> v = v -- Functors preserve identity morphisms
+
+(h ∘ g) <$$> v = h <$$> g <$$> v -- Functors preserve composition of morphisms
+```
+:::
+
+This means that these two identities must have an interpretation under Hoare logic.
+
+### The identity mapping is the `skip` rule
+
+`id <$$> v = v`, in the context of the Signal functor, tells us that `id <$$>
+some_signal = some_signal`. What's the Hoare logic equivalent of a "no-op"
+command?  Well, it's a command that represents an empty statement (like a
+single `;` in C).
+
+Hoare logic implements a so-called _skip rule_ for being able to state "a
+predicate is preserved by a no-op": the Hoare triple for this rule might look
+like `{P} skip {P}`. It's always safe to insert a skip into a program, and
+doing so carries all preconditions over the skip as postcondintions.
+
+How can we express this triple in Lean?  We can write a type signature for
+`hoare_skip` in terms of its Hoare triple:
+
+```lean4
+def hoare_skip ( P : StateProp α )
+  : ⦃ a : α // P a ⦄ ⟹ ⦃ a : α // P a ⦄ := sorry -- TODO
+```
+
+Going back to the definition of `Hoare`: What's a function that consumes a `(□
+α // P)` and also produces a `(□ α // P)`?  There's a great function that takes
+any abstract `T` type and produces a `T`: that's the identity function!
+
+```lean4
+def hoare_skip ( P : StateProp α )
+  : ⦃ a : α // P a ⦄ ⟹ ⦃ a : α // P a ⦄ := id
+```
+
+This is a great sanity check that `id` has a deep connection to `hoare_skip`.
+So, it better be the case that `hoare_skip P` is the same thing as `id <$$> s`
+for any signal `s`.  And indeed it is!
+
+```lean4
+example : hoare_skip P = (id <$$> ·) := by rfl
+```
+
+## Sequencing is the composition law
+
+The other functor law relates to how functions under a functor compose: This
+tells us that mapping over the composition of two functions is the same as
+mapping first over the first function, and then mapping _again_ over the second
+one:
+
+::: tip
+```
+(h ∘ g) <$$> v = h <$$> g <$$> v
+```
+:::
+
+Working backwards, from the previous section, we want to end up with something
+that looks like "some other Hoare rule out there is equivalent to sequencing
+operations on a Signal":
+
+```lean4
+example : some_other_hoare_rule = (g <$$> f <$$> ·) := by rfl
+```
 
 Here's the sequencing rule for Hoare logic: 
 
@@ -226,9 +292,8 @@ notation](https://planetmath.org/gentzensystem), or sequent calculus, in this
 series.  This is an _inference rule_; you read this by saying "if the
 statements above the line hold, then the statement below the line holds".
 
-Under Curry-Howard, an inference rule corresponds to a _function type_ whose
-arguments have types of the statements above the line, and whose return type is
-that which is below the line.
+We can write `hoare_skip` in Genzen notation; since that rule took no
+arguments, there'd be no statements above the line.
 :::
 ::: tip
 ```
@@ -242,60 +307,29 @@ second, it's valid to "toss out the middle proposition" if our Hoare command
 becomes "execute the first statement, and then execute the second statement".
 :::
 
-In our example here, `z4`, our composition-of-signals, has an intermediary
-proposition that gets hidden inside the composition.
-
-As it happens, because `RSignal.map` maintains the _functor law_ `map (f ∘ g) =
-map f ∘ map g` (even though it doesn't implement `Functor`, for reasons we
-discussed last time), composing two refined functions and then lifting them
-into a Signal gives the same result as lifting each function separately and
-then compositing the two signals.  We can even prove they're the same function!
-
-::: margin-note
-I spent awhile trying to complete the `z4 = z5` proof before discovering a
-reflexivity proof is enough.  I genuinely am not sure how Lean figures that out
-with such a simple tactic, because I would have thought we'd have to manually
-prove that `Signal.spilt` and `Signal.collect` are inverses, which we've never
-actually done!
-:::
+Under Curry-Howard, an inference rule corresponds to a _function type_ whose
+arguments have types of the statements above the line, and whose return type is
+that which is below the line.  So our sequencing rule is `hoare_seq`, whose type
+is the inference rule: given a step `S1` from `P` to `Q`, and another one from
+`Q` to `R`, `hoare_seq` should let us compose those two operations and jump
+straight from `P` to `R`.
 
 ```lean4
-def z4 : □ Int // (· >= 0) := sqrt <$$> incr <$$> z
-def z5 : □ Int // (· >= 0) := (sqrt ∘ incr) <$$> z
-example : z4 = z5 := by rfl`
+def hoare_seq {P : StateProp α} {Q : StateProp β} {R : StateProp γ} :
+    (⦃b : β // Q b⦄ ⟹ ⦃c : γ // R c⦄) →
+    (⦃a : α // P a⦄ ⟹ ⦃b : β // Q b⦄) →
+    (⦃a : α // P a⦄ ⟹ ⦃c : γ // R c⦄) := sorry
 ```
 
-We can go deeper and state `hoare_seq` under Curry-Howard, the proof of which
-is `∘`!
+This is just function composition!
 
-```lean4
-def hoare_seq
-  {P : StateProp α} {Q : StateProp β} {R : StateProp γ} :
-  ((□ α // P) → (□ β // Q)) → ((□ β // Q) → (□ γ // R)) →
-  ((□ α // P) → (□ γ // R)) := flip Function.comp
+```diff-lean4
+ def hoare_seq {P : StateProp α} {Q : StateProp β} {R : StateProp γ} :
+    (⦃b : β // Q b⦄ ⟹ ⦃c : γ // R c⦄) →
+    (⦃a : α // P a⦄ ⟹ ⦃b : β // Q b⦄) →
+-   (⦃a : α // P a⦄ ⟹ ⦃c : γ // R c⦄) := sorry
++   (⦃a : α // P a⦄ ⟹ ⦃c : γ // R c⦄) := Function.comp
 ```
-
-### Skip is a no-op
-
-Before we move on from `map`, it's worth pointing out that Hoare logic
-implements a so-called _skip rule_ for being able to state "a predicate is
-preserved by a no-op": this is captured by the "command" being the identity
-function:
-
-```lean4
-def hoare_skip : (□ α // P) → (□ α // P) := id
-```
-
-:::tip
-```
-      ------------------- (hoare_skip)
-          {P} skip {P}
-```
-
-The _skip_ rule: Skip is akin to an empty statement (like `;` in C).  It's
-always safe to skip, and doing so carries all preconditions ahead.
-:::
-
 
 ## Conjunctions and conditionals
 
@@ -304,10 +338,6 @@ expect `map2` to, as well, but we'll see the correspondence isn't quite so
 exact; there are actually a few different Hoare logic rules that correspond to
 a use of `map2`.  Which is cool!  `map2` is a general combinator and so we might
 expect to be able to use it in a few different contexts.
-
-The most straightforward interpretation of `map2` is that it's just the
-multi-arity version of what we saw in `map`:  a Hoare command that requires
-two inputs 
 
 ```lean4
 def s1 : □ Int // (· = 5)  := RSignal.const ⟨5, by lia⟩
@@ -329,11 +359,9 @@ bh : b = 7
 
 when we discharge the proof of `a + b > 10` via `lia`, the tactic's inequality
 solver will somehow combine `ah` and `bh`.  This should suggest that `map2`
-_conjoins_ signals.
-
-There are a few ways we can make use of a joining step: implementing
-conditionals is a pretty important one.  Here's the Hoare logic inference rule
-for conditionals:
+_conjoins_ signals.  There are a few ways we can make use of a joining step:
+implementing conditionals is a pretty important one.  Here's the Hoare logic
+inference rule for conditionals:
 
 ::: tip
 ```
@@ -361,7 +389,7 @@ holds.
 ```lean4
 def RSignal.ite
   {P : StateProp α} {Q : StateProp β}
-  (C : StateProp α)
+  (C : StateProp α) [inst : DecidablePred C]
   (sig : □ α // P)
   /- ... TODO: what else? -/
   : □ β // Q := sorry /- TODO -/
@@ -390,7 +418,7 @@ find use for this level of dynamism down the road.
 ```diff-lean4
  def RSignal.ite
    {P : StateProp α} {Q : StateProp β}
-   (C : StateProp α)
+   (C : StateProp α) [inst : DecidablePred C]
    (sig : □ α // P)
 +  (thn : {a : α // P a ∧ C a}   → {b : β // Q b})
 +  (els : {a : α // P a ∧ ¬ C a} → {b : β // Q b})
@@ -410,8 +438,7 @@ some arbitrary (possibly impossible-to-prove) proposition:
 ```diff-lean4
  def RSignal.ite
    {P : StateProp α} {Q : StateProp β}
--  (C : StateProp α)
-+  (C : StateProp α) [inst : DecidablePred C]
+   (C : StateProp α) [inst : DecidablePred C]
    (sig : □ α // P)
    (thn : {a : α // P a ∧ C a}   → {b : β // Q b})
    (els : {a : α // P a ∧ ¬ C a} → {b : β // Q b})
@@ -442,7 +469,7 @@ def syra : (□ Int // (· > 0)) → (□ Int // (· > 0)) :=
   hoare_if (· % 2 = 0) syra_even syra_odd
 
 def positives : □ Int // (· > 0) :=
-  Signal.collect (fun t => ⟨ Int.ofNat t + 1, by lia⟩)
+  Signal.collect (fun t => ⟨Int.ofNat t + 1, by lia⟩)
 
 -- We can take one step for all values from [1..11)
 -- [2, 1, 5, 2, 8, 3, 11, 4, 14, 5]
@@ -457,6 +484,65 @@ the output of the `syra` signal back into itself for repeated iteration until
 we reach `1`.  This means we need to enrich our FRP library's notion of 
 control flow - good news, though, because Hoare logic has a looping primitive
 that will help us design just that.
+
+## Truth and consequences
+
+Something we've been tripping over is that while Dafny's really good at computing
+what follows from a proposition (or what might follow from a proposition), we
+have to do the work manually ourselves.  For instance, starting with `{X=3} X
+:= X+1 {X=4}`, I should expect to be able to weaken the postcondition to state
+`{X=3} X := X+1 {X>0}`.  Or, starting with `{X>0} Y := X*2 {Y>0}`, I should be
+able to strengthen the postcondition to state `{X=5} Y := X*2 {Y>0}`.
+
+How do we formalise this in an inference rule, so we can make sure our FRP
+library captures this behaviour?  Suppose we had the beginning of a Hoare logic
+inference rule that looks like this:
+
+```
+          {P'} S {Q'}
+    ----------------------- (hoare_???)
+           {P} S {Q}
+```
+
+Clearly this isn't well-defined yet, because nothing ties `P` to `P'` or `Q` to
+`Q'`.  How should they relate?
+
+::: margin-note
+Pause and ponder how this relates to covariance and contravariance in type
+systems with subtyping.
+:::
+If we're starting with the `{P'}` precondition, `P` better "say everything that
+`P'` says".  Conversely, `Q'` better say everything that `Q` says.  This is
+just logical implication, which gives us the _consequence rule_!
+
+::: tip
+```
+    P → P'    {P'} S {Q'}    Q' → Q
+   ---------------------------------- (hoare_consequence)
+               {P} S {Q}
+```
+:::
+
+We've already implemented a version of this rule, by way of `RSignal.weaken`,
+which was a natural operation on a signal.  Since we go from a less precise
+refinement to a more precise one, given an implication going the same way,
+`weaken` is _covariant_ in its predicate.
+
+::: margin-note
+We might also need an `Event.weaken` at some point.  You should try writing
+that on your own.
+:::
+```lean4
+def RSignal.weaken {P Q : StateProp α}
+  (h : ∀ a, P a → Q a) : 
+  (□ α // P) → □ α // Q :=
+    FRP.Refining.map (fun ⟨val, prop⟩ => ⟨val, h val prop⟩)
+```
+
+Symmetrically, we probably want a new combinator that contravariantly
+_strengthens_ a given signal's _precondition_.  
+
+<TODO: postcondition???>
 
 ## Control flow and loop invariants
 

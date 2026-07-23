@@ -6,7 +6,8 @@
     "start": "eleventy --serve",
     "build": "node scripts/fetch-feeds.js && eleventy",
     "fetch-feeds": "node scripts/fetch-feeds.js",
-    "dither:headshot": "node scripts/dither-asset.js src/assets/me.jpg src/assets/me-dithered.png 2"
+    "dither:headshot": "node scripts/dither-asset.js src/assets/me.jpg src/assets/me-dithered.png 2",
+    "fonts:subset": "node scripts/subset-math.js"
   },
   "keywords": [
     "blog",
@@ -21,6 +22,7 @@
     "@11ty/eleventy-plugin-syntaxhighlight": "^5.0.2",
     "markdown-it-footnote": "^4.0.0",
     "sharp": "^0.34.5",
+    "subset-font": "^2.5.0",
     "terser": "^5.47.1"
   },
   "dependencies": {

@@ -1,4 +1,17 @@
 /* ============================================================
+   Web fonts
+   ============================================================ */
+/* Subset of NewComputerModern Math for the white curly brackets ⦃ ⦄ (Hoare-triple
+   notation in the Lean posts), which Computer Modern and JetBrains Mono lack.
+   Regenerate via `npm run fonts:subset`; keep unicode-range in sync with GLYPHS. */
+@font-face {
+  font-family: "MathBrackets";
+  src: url("/assets/fonts/math-brackets.woff2") format("woff2");
+  unicode-range: U+2983, U+2984;   /* ⦃ ⦄ */
+  font-display: swap;
+}
+
+/* ============================================================
    Palette
    ============================================================ */
 :root {
@@ -10,8 +23,8 @@
   --rule: #D6D4CE;
   --accent: #2E4A7B;
   --accent-hover: #1B3768;
-  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
-  --serif: "Computer Modern Serif", "Latin Modern Roman", Georgia, serif;
+  --mono: "JetBrains Mono", "MathBrackets", ui-monospace, Menlo, monospace;
+  --serif: "Computer Modern Serif", "MathBrackets", "Latin Modern Roman", Georgia, serif;
 
   /* Pico-compat tokens (syntax.css + proof-state rules still reference these). */
   --pico-background-color: var(--paper);

@@ -394,8 +394,10 @@ def isHotF : Signal Bool :=
 ```
 
 ::: tip
-<div id="frp-temp-graph"></div>
-<div id="frp-temp"></div>
+<div href="#frp-temp-graph">
+    <div id="frp-temp-graph"></div>
+    <div id="frp-temp"></div>
+</div>
 :::
 
 <script>
