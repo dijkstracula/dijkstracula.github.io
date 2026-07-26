@@ -22,18 +22,11 @@ have been wondering what the point of doing that is.  We'll answer that today:
 in this post we'll see how we can _compose_ such proof-carrying computations
 using the FRP combinators we already know and love.  
 
-Before we do that, though, let's do some light refactoring.  At the moment, our
-`FRP` namespace is polluted with both ordinary, non proof-checking combinators
-(like, `FRP.map`) as well as ones that _do_ make statements about, say, safety
-properties (like `FRP.accumulate`, which was the meat of the previous post
-in this series).  Let's create a sub-namespace to isolate the more complicated
-proof-carrying ones.
-
 ::: tip
 ```lean4
 namespace FRP
 ...
-def Refining.accumulate
+def RSignal.accumulate
   -- Given a property over some state ...
   {inv: StateProp β}
   -- an initial state,
@@ -71,7 +64,7 @@ def Refining.accumulate
 
 def accumulate
   (init : β) (onNone: β → β) (onSome: α → β → β) (ev: Event α)
-    : Signal β := Refining.accumulate
+    : Signal β := RSignal.accumulate
     ⟨init, by trivial⟩
     (fun s => ⟨onNone s, by trivial⟩)
     (fun e s => ⟨onSome e s, by trivial⟩)
@@ -324,16 +317,16 @@ series going long enough, we might find a better use for those terms :-)
 ```lean4
 -- forks a signal with a global safety property into one where
 -- the invariant is proved locally at each time step.
-def Signal.split   : (□ β) // inv -> □ (β // inv) :=
+def RSignal.split   : (□ β) // inv -> □ (β // inv) :=
   sorry -- TODO
 
 -- collates a signal's local invariant proofs into a signal that
 -- maintains the invariant as a global safety property.
-def Signal.collect : □ (β // inv) -> (□ β) // inv :=
+def RSignal.collect : □ (β // inv) -> (□ β) // inv :=
   sorry -- TODO
 ```
 
-### `Signal.split` shards out a safety property into pointwise statements
+### `RSignal.split` shards out a safety property into pointwise statements
 
 The rough shape of `split` will be the following: We consume a refined
 Signal, and produce a new Signal such that at every time step, we somehow
@@ -341,7 +334,7 @@ produce a `β` and a proof that that `β` satisfies the invariant, and then glue
 them together to make a "signal of refinements".
 
 ```diff-lean4
-  def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+  def RSignal.split (sig: (□ β) // inv) : □ (β // inv) :=
 -    sorry -- TODO
 +    fun t => ⟨...val, prf⟩ -- TODO: something roughly like:
 ```
@@ -351,7 +344,7 @@ the only way for us to produce `β`s.  Recalling that `sig.val` is a `□ β`,
 getting a `β` just from applying `t` seems like as good an idea as any!
 
 ```diff-lean4
-  def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+  def RSignal.split (sig: (□ β) // inv) : □ (β // inv) :=
 +    let vals : □ β := sig.val
 -    fun t => ⟨...val, prf⟩ -- TODO: something roughly like:
 +    fun t => ⟨vals t, prf⟩ -- TODO: something roughly like:
@@ -368,7 +361,7 @@ to `fun i => p (drop i t)`. This means `sig.property` can be applied:
 `sig.property i` gives us a proof that the invariant holds at time `i`.
 
 ```diff-lean4
- def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+ def RSignal.split (sig: (□ β) // inv) : □ (β // inv) :=
    let vals : □ β := sig.val
 +  let safety : (□ (LTL.atom inv)) := sig.property
 -  fun t => ⟨vals t, prf⟩ -- TODO something like:
@@ -401,7 +394,7 @@ So, our final `split` is:
 
 ::: tip
 ```diff-lean4
- def Signal.split (sig: (□ β) // inv) : □ (β // inv) :=
+ def RSignal.split (sig: (□ β) // inv) : □ (β // inv) :=
    let vals : □ β := sig.val
 -  let safety : (□ (LTL.atom inv))  := sig.property
 +  let safety : (∀ t, inv (vals t)) := (always_atom_iff vals).mpr sig.property
@@ -409,13 +402,13 @@ So, our final `split` is:
 ```
 :::
 
-### `Signal.collect` compiles a Signal with a safety property
+### `RSignal.collect` compiles a Signal with a safety property
 
 Let's write the operation that does the opposite: given a Signal of
 refinements, collect that infinite sequence of proofs into a refined Signal.
 
 ```lean4
-def Signal.collect (sig: □ (β // inv)) : (□ β) // inv := 
+def RSignal.collect (sig: □ (β // inv)) : (□ β) // inv := 
   let vals : □ β := sorry 
   let safety : (□ (LTL.atom inv)) vals := sorry 
   ⟨vals, safety⟩
@@ -432,7 +425,7 @@ statement to an LTL proposition.
 
 ::: tip
 ```diff-lean4
- def Signal.collect (sig: □ (β // inv)) : (□ β) // inv := 
+ def RSignal.collect (sig: □ (β // inv)) : (□ β) // inv := 
 -  let vals : □ β := sorry 
 -  let safety : (□ (LTL.atom inv)) vals := sorry 
 +  let vals : □ β := fun t => (sig t).val
@@ -455,7 +448,7 @@ def accumulate
 -
 - ⟨ vals, (always_atom_iff vals).mp safety ⟩
 -
-+  Signal.collect step_at
++  RSignal.collect step_at
 ```
 
 ## Lifting unrefined functions into refined Signals
@@ -526,7 +519,7 @@ the raw `0 ≤ (5 * x + 17) % 256 ∧ (5 * x + 17) % 256 < 256` goal, and then
 ```
 
 And of course we know how to turn this into a refined signal!  Just pipe
-the whole thing into `Signal.collect`
+the whole thing into `RSignal.collect`
 
 ```diff-lean4
 - def prng : □ (Int // unsignedMax 256) := 
@@ -534,7 +527,7 @@ the whole thing into `Signal.collect`
     FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by sorry⟩) 
     FRP.scan (fun ⟨x, hx⟩ => ⟨lcg x, by simp [unsignedMax, lcg]; lia ⟩) 
              ⟨97, by trivial⟩
-+   |> Signal.collect
++   |> RSignal.collect
 ```
 
 This is great, we have a nice tight safety property for `prng`; we're also free
@@ -575,12 +568,12 @@ a)` like before.  Reason is: that's a _pointwise refinement_: it produces
 `<val, proof>` pair.
 
 Luckily, though, we just wrote a combinator to turn one into the other!
-`Signal.collect` really does all the heavy lifting here.
+`RSignal.collect` really does all the heavy lifting here.
 
 ```diff-lean4
  def RSignal.const {inv: StateProp α} (a : { a : α // inv a } ) : □ α // inv :=
 -  -- TODO
-+  Signal.collect (fun _ => a)
++  RSignal.collect (fun _ => a)
 ```
 
 ### Choosing good invariants for a `RSignal.const`
@@ -690,9 +683,9 @@ Let's write the body of `map`.  Roughly, our goal is going to be: "decompose
 the input Signal into its piecewise parts, apply the function on each part,
 and recombine into a new refined Signal.
 
-`Signal.split s` gives us a `□ (α // inv_a)`, which `f` can be applied to at
-every timestep.  `fun t => f (Signal.split s t)` gives us a `□ (β // inv_b)`,
-and then `Signal.combine` stitches the pointwise invariants back into a
+`RSignal.split s` gives us a `□ (α // inv_a)`, which `f` can be applied to at
+every timestep.  `fun t => f (RSignal.split s t)` gives us a `□ (β // inv_b)`,
+and then `RSignal.collect` stitches the pointwise invariants back into a
 safety property.  So, we're left with functionally a one-liner:
 
 ```diff-lean4
@@ -702,7 +695,7 @@ safety property.  So, we're left with functionally a one-liner:
    (f: {a: α // pre a} → {b : β // post b})
    (s: □ α // pre)
    : □ β // post :=
-+  Signal.collect (fun t => f (Signal.split s t))
++  RSignal.collect (fun t => f (RSignal.split s t))
 ```
 
 ### Transforming values and properties, pointwise
@@ -774,7 +767,7 @@ def RSignal.map2
   (s1: □ α // inv_a) 
   (s2: □ β // inv_b)
   : □ γ // inv_c :=
-  (fun t => f (Signal.split s1 t) (Signal.split s2 t)) |> Signal.collect
+  (fun t => f (RSignal.split s1 t) (RSignal.split s2 t)) |> RSignal.collect
 ```
 
 ::: margin-note

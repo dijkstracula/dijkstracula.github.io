@@ -114,13 +114,21 @@ assert it.  We can now define what `atom` means: it's an assertion that the
 proposition holds at the current moment.  Using our `now` helper from last
 time, we can finish the definition.
 
-To make use of `LTL.atom`, we use it as part of a `theorem`, just like any
-other proposition in Lean.  
+Since `atom` is one of the foundational primitives of LTL, let's give it a bit
+of custom syntax, modeled after the
+[Iris](https://github.com/logsem/iris-tutorial/blob/62eb294e2ba0a3468c762fb05b3d999645966947/theories/pure.v#L116-L126)
+Rocq library:
 
 ```diff-lean4
 -  def atom (p : StateProp σ) (t : Trace σ) : Prop := ...
 +  def atom (p : StateProp σ) (t : Trace σ) : Prop := p (now t)
+
++  notation:max "⌜" p "⌝" => LTL.atom p -- typed \cu and \cur
 ```
+
+To make use of `LTL.atom`, we use it as part of a `theorem`, just like any
+other proposition in Lean.  
+
 ::: margin-note
 `rfl` is enough to discharge the proof of this theorem, but we can make a
 more general statement: _for every_ trace where `t 0` is `init`, the hopper
@@ -128,16 +136,10 @@ starts out empty.  Can you state this formally and prove it?
 :::
 ```lean4
 def hopperEmpty (s : VMState) : Prop := s.coins = 0
-def isCurrentlyEmpty := LTL.atom hopperEmpty
+def isCurrentlyEmpty := ⌜hopperEmpty⌝
 
 theorem startsEmpty : isCurrentlyEmpty (getFragment init getOrange) := by rfl
 ```
-
-(In "real-world" software, we might want to add an implicit coersion between
-our `StateProp` and `LTL.atom`, so we don't have to keep writing `LTL.atom`
-everywhere.  After all, the point of the atom is just a container that holds
-the proposition anyway.  I'll leave it explicit here but you might be
-interested in exploring the `Coe` typeclass to try that yourself.)
 
 ### `eventually` and `always` make claims over entire traces
 
@@ -335,7 +337,7 @@ def validTrace (t : Trace VMState) : Prop :=
   ∀ i, 
     ∃ a, 
       ∃ h : validAction (t i) a, 
-        t (1 + i) = vmStep (t i) a h
+        t (i + 1) = vmStep (t i) a h
 ```
 
 Here's an important property of making a profitable pop machine: it should
@@ -385,7 +387,7 @@ theorem noFreeLunch_holds : ∀ (t : Trace VMState) (hv : validTrace t), noFreeL
 t : Trace VMState
 HValid : validTrace t
 h_init : t 0 = init
-h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+h_cons : ∀ (i : Nat), ∃ a h, t (i + 1) = vmStep (t i) a h
 ⊢ noFreeLunch t
 ```
 
@@ -405,9 +407,9 @@ that make up the definition:
  1 goal
  t : Trace VMState
  h_init : t 0 = init
- h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+ h_cons : ∀ (i : Nat), ∃ a h, t (i + 1) = vmStep (t i) a h
 -⊢ noFreeLunch t
-+⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (1 + i)).dispensed = none
++⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (i + 1)).dispensed = none
 ```
 
 Before proceeding, you should make sure that you're convinced that our goal
@@ -424,12 +426,12 @@ OK, We now have a new universal and two hypotheses, so let's pull them into the 
  1 goal
  t : Trace VMState
  h_init : t 0 = init
- h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+ h_cons : ∀ (i : Nat), ∃ a h, t (i + 1) = vmStep (t i) a h
 +i : Nat
 +h_empty : (t i).dispensed = none
 +h_unpaid : (t i).coins < 2
--⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (1 + i)).dispensed = none
-+⊢ (t (1 + i)).dispensed = none
+-⊢ ∀ (i : Nat), (t i).dispensed = none → (t i).coins < 2 → (t (i + 1)).dispensed = none
++⊢ (t (i + 1)).dispensed = none
 ```
 
 ### Specializing a universally-quantified proof is like calling a function
@@ -461,14 +463,14 @@ function application too.)
  1 goal
  t : Trace VMState
  h_init : t 0 = init
- h_cons : ∀ (i : Nat), ∃ a h, t (1 + i) = vmStep (t i) a h
+ h_cons : ∀ (i : Nat), ∃ a h, t (i + 1) = vmStep (t i) a h
  i : Nat
  h_empty : (t i).dispensed = none
  h_unpaid : (t i).coins < 2
 +a : VMAction
 +h_valid : validAction (t i) a
-+h_step : t (1 + i) = vmStep (t i) a h_valid
- ⊢ (t (1 + i)).dispensed = none
++h_step : t (i + 1) = vmStep (t i) a h_valid
+ ⊢ (t (i + 1)).dispensed = none
 ```
 
 All this work has just gotten us to the following point: we need to prove that
@@ -486,7 +488,7 @@ do that unfolding, we end up with a real dog's breakfast in our context:
 +  unfold vmStep at h_step
 
  ...
-+  h_step : t (1 + i) =
++  h_step : t (i + 1) =
 +    match a, h_valid with
 +    | VMAction.DropCoin, H =>
 +      { coins := (t i).coins + 1, dispensed := (t i).dispensed, numOrange := (t i).numOrange, numLL := (t i).numLL }
@@ -512,7 +514,7 @@ break up the proof by the different possible actions, and then simplify.
 
 4 goals
 ...
-⊢ (t (1 + i)).dispensed = none
+⊢ (t (i + 1)).dispensed = none
 ```
 
 Once we prove consecution for each of the four actions, we'll be done with our
@@ -528,10 +530,10 @@ Despite looking similar, they do different things:
 
 - `simp at h_step` simplifies the hypothesis itself: it reduces the match
   expression inside h_step now that a is concrete, turning the big match into a
-  simple equation like `t (1 + i) = { dispensed := (t i).dispensed, ... }`.
+  simple equation like `t (i + 1) = { dispensed := (t i).dispensed, ... }`.
 - `simp [h_step]` simplifies the goal using `h_step` as a rewrite rule: it
-  substitutes that equation into the goal `(t (1 + i)).dispensed = none`,
-  replacing `(t (1 + i)).dispensed` with `(t i).dispensed`.
+  substitutes that equation into the goal `(t (i + 1)).dispensed = none`,
+  replacing `(t (i + 1)).dispensed` with `(t i).dispensed`.
 :::
 If you said something to the effect of, "`validAction` for `TakeItem` requires
 `(t i).dispensed.isSome`, but `h_empty` says `(t i).dispensed = none`", then
@@ -624,7 +626,7 @@ Here's something else that's worth stating:
 
 ```lean4
 def mustPayFirst : Trace VMState → Prop :=
-  (LTL.atom (·.dispensed = none)) U (LTL.atom (·.coins ≥ 2))
+  ⌜(·.dispensed = none)⌝ U ⌜(·.coins ≥ 2)⌝
 ```
 
 Applying this proposition to our sample trace isn't as scary as it might look:

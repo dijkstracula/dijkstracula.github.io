@@ -1,13 +1,16 @@
 ---
 layout: post.njk
-title: "FRP in Lean: Hoare Logic and loop invariants redux"
+title: "FRP in Lean: Hoare Logic and loops"
 date: 2026-07-10
 tags: [post, lean, reactive-programming, frp, hoare-logic]
 excerpt: "New program logic just dropped!"
 series: lean-ltl
+inlineCodeLang: lean4
 series_title: "Hoare Logic"
 draft: true
 ---
+
+<script src="/js/frp/runtime.js"></script>
 
 Last time we implemented a series of combinators that transformed not just data
 values that might flow through a functional reactive program, but invariants
@@ -15,8 +18,7 @@ about that data.  Recall our `RSignal.map` function:
 
 ```lean4
 def map
-  {pre: α → Prop}
-  {post: β → Prop}
+  {pre: StateProp α} {post: StateProp β}
   (f: {a: α // pre a} → {b : β // post b})
   : (□ α // pre) → (□ β // post) := fun s => ...
 ```
@@ -65,7 +67,34 @@ where you get stuck.
 + infixr:100 " <$$> " => RSignal.map
 ```
 
-Going forward, I'll use `<$$>` in place of `RSignal.map` whenever possible.
+Going forward, I'll use our "dependent fmap" operator `<$$>` in place of
+`RSignal.map` whenever possible.
+
+### Two readings of `<$$>`
+
+Remember that `RSignal.map` transforms signal values in a pointwise manner: for
+a dependent function `f` and a refined signal `s`, `f <$$> s` means that at
+each timestep, `s i` gets turned into `f (s i)`.   This is a _transformed
+signal_: whatever refinement `pre` that `s` had before the application is
+replaced by `post`, the refinement of `f`.
+
+Here's another view that moves up a level of abstraction: let's put aside
+`<$$>` for a moment and look at the larger expression `f <$$> ·`, without a
+particular `s`. Remember that the dot in `f <$$> ·` is an anonymous function
+argument, so this expression is the same as `fun s => f <$$> s`. This is a
+_signal transformer_.
+
+What type does a signal transformer have?  Let's fix some particular `f` and
+take a look:
+
+```lean4
+def incr (i : {i : Int // i ≥ 0}) : {i : Int // i > 0} := ⟨i.val + 1, by lia⟩
+#check (incr <$$> ·) -- (□ Int // (· ≥ 0)) → (□ Int // (· > 0))
+```
+
+Here, `LTL.atom (· ≥ 0)` is our _precondition_ and `LTL.atom (· > 0)` our
+_postcondition_, with `(incr <$$> ·)` the bridge between the two.  These three
+components make up the core of Hoare logic.
 
 ## The essence of Hoare logic, in one formula
 
@@ -139,10 +168,8 @@ postcondition for each action is then exposed afterwards.
 
 ## A data definition and syntax transformer for Hoare logic
 
-Abstractly, a hoare triple associates a precondition and a postcondition
-through some sort of transforming action.  In FRP, our pre- and post-condition
-will be defined in terms of refined signals.  Let's write this in terms of
-a function type, since that's a natural way to transform values:
+We saw that signal transformers, a function of the form `(f <$$> ·)`, behave in
+the same way as a Hoare triple. Let's typedef this sort of expression:
 
 ```lean4
 abbrev Hoare (P : StateProp α) (Q : StateProp β) :=
@@ -170,11 +197,11 @@ primitives from last time.  Here's our definition of `map`:
 
 ```lean4
  def RSignal.map
-   {pre: α → Prop} {post: β → Prop}
+   {pre: StateProp α} {post: StateProp β}
    (f: {a: α // pre a} → {b : β // post b})
    (s: □ α // pre)
    : □ β // post :=
-   Signal.collect (fun t => f (Signal.split s t))
+   RSignal.collect (fun t => f (RSignal.split s t))
 ```
 
 Let's do a bit of type signature refactoring here where, instead of `s` directly
@@ -183,12 +210,12 @@ transforms it:
 
 ```diff-lean4
  def RSignal.map
-   {pre: α → Prop} {post: β → Prop}
+   {pre: StateProp α} {post: StateProp β}
    (f: {a: α // pre a} → {b : β // post b})
 -  (s: □ α // pre)
 -  : □ β // post :=
 +  : (□ α // pre) → (□ β // post) := fun s =>
-   Signal.collect (fun t => f (Signal.split s t))
+   RSignal.collect (fun t => f (RSignal.split s t))
 ```
 
 Now, the value produced by `RSignal.map` is a `(□ α // pre) → (□ β // post)`.
@@ -196,11 +223,11 @@ This is exactly a Hoare triple, so let's see what it looks like in that style:
 
 ```diff-lean4
  def RSignal.map
-   {pre: α → Prop} {post: β → Prop}
+   {pre: StateProp α} {post: StateProp β}
    (f: {a: α // pre a} → {b : β // post b})
 -  : (□ α // pre)       →  (□ β // post) := fun s =>
 +  :  ⦃ a : α // pre a ⦄ ⟹ ⦃ b : β // post b ⦄ := fun s =>
-   Signal.collect (fun t => f (Signal.split s t))
+   RSignal.collect (fun t => f (RSignal.split s t))
 ```
 
 The action that `map` performs on `Signal`s is now shown almost pictorially:
@@ -213,14 +240,14 @@ so it's good that we can reasonably convince ourselves that it really is one!
 ## Functorial theorems for free
 
 In the previous section we tripped over a new view of `map` that acts on Hoare
-predicates.  Being a `Functor`, the _functor laws_ must hold when we talk about
-`map`ping over Hoare predicates:
+predicates.  Being a `Functor` in concept if not actually in type, the _functor
+laws_ must hold when we talk about `map`ping over Hoare predicates:
 
 ::: tip
 ```
-id <$$> v = v -- Functors preserve identity morphisms
+id <$$> sig = sig -- Functors preserve identity morphisms
 
-(h ∘ g) <$$> v = h <$$> g <$$> v -- Functors preserve composition of morphisms
+(h ∘ g) <$$> sig = h <$$> g <$$> sig -- Functors preserve composition of morphisms
 ```
 :::
 
@@ -331,37 +358,18 @@ This is just function composition!
 +   (⦃a : α // P a⦄ ⟹ ⦃c : γ // R c⦄) := Function.comp
 ```
 
+You might have been thinking that this was going to be a repeat of part 1 where
+we sequenced state transitions monadically with `bind`.  Because FRP programs are
+free of effects to thread through the computation, we don't need the richness of
+primitive that we did for the pop machine example.
+
 ## Conjunctions and conditionals
 
-`RSignal.map`, ahem, mapped pretty cleanly onto the sequencing rule.  We might
-expect `map2` to, as well, but we'll see the correspondence isn't quite so
-exact; there are actually a few different Hoare logic rules that correspond to
-a use of `map2`.  Which is cool!  `map2` is a general combinator and so we might
-expect to be able to use it in a few different contexts.
+Hoare logic has a bunch of other inference rules that we probably ought to look
+at - if we don't have a good mapping between a given Hoare rule and an FRP combinator,
+that probably tells us that we should figure out how to implement one.
 
-```lean4
-def s1 : □ Int // (· = 5)  := RSignal.const ⟨5, by lia⟩
-def s2 : □ Int // (· = 7)  := RSignal.const ⟨7, by lia⟩
-def s3 : □ Int // (· > 10) :=
-  RSignal.map2 (fun ⟨a, ah⟩ ⟨b, bh⟩ => ⟨a + b, by lia⟩) s1 s2
-```
-
-If we look at what's in our context in the body of the `fun`, we have,
-unsurprisingly, both input signals' preconditions in scope:
-
-```lean4
-a : Int
-ah : a = 5
-b : Int
-bh : b = 7
-⊢ { c // c > 10 }
-```
-
-when we discharge the proof of `a + b > 10` via `lia`, the tactic's inequality
-solver will somehow combine `ah` and `bh`.  This should suggest that `map2`
-_conjoins_ signals.  There are a few ways we can make use of a joining step:
-implementing conditionals is a pretty important one.  Here's the Hoare logic
-inference rule for conditionals:
+Here's the Hoare logic inference rule for conditional logic:
 
 ::: tip
 ```
@@ -383,20 +391,20 @@ from `P`.
 ### A `Prop`-dependent `if-then-else` combinator
 
 Let's start building an FRP combinator for signal switching: We'll clearly need
-three propositions, `C`, `P`, and `Q`, and at a signal where at least we know `P`
-holds.
+three propositions, `C`, `P`, and `Q`.  The combinator will produce a Hoare triple
+(which, recall, we implement as a signal transformer).  What isn't clear from
+the `Hoare` type is how `C` gets involved:
 
+::: margin-note
+The StateProp `C` is enforced to be `Decidable` so that we can evaluate it as
+if it's a boolean at runtime.
+:::
 ```lean4
-def RSignal.ite
-  {P : StateProp α} {Q : StateProp β}
-  (C : StateProp α) [inst : DecidablePred C]
-  (sig : □ α // P)
+def hoare_if
+  (P C : StateProp α) (Q : StateProp β) [inst : DecidablePred C]  
   /- ... TODO: what else? -/
-  : □ β // Q := sorry /- TODO -/
+  : (⦃a : α // P a⦄ ⟹ ⦃b : β // Q b⦄) := fun sig => sorry /- TODO -/
 ```
-
-Of course, taking a `□ α // P` to a `□ α // Q` sounds like a job for `map`, but
-the new wrinkle is how to involve `C`.
 
 Suppose the interpretation of this combinator is "at each timestep", choose
 between applying two functions depending on whether `C` holds at a given
@@ -416,42 +424,31 @@ you think of `map3` or applicative functors from last time) and maybe we'll
 find use for this level of dynamism down the road.
 :::
 ```diff-lean4
- def RSignal.ite
-   {P : StateProp α} {Q : StateProp β}
-   (C : StateProp α) [inst : DecidablePred C]
-   (sig : □ α // P)
+def hoare_if
+  (P C : StateProp α) (Q : StateProp β) [inst : DecidablePred C]  
 +  (thn : {a : α // P a ∧ C a}   → {b : β // Q b})
 +  (els : {a : α // P a ∧ ¬ C a} → {b : β // Q b})
--  /- ... TODO: what else? -/
-   : □ β // Q := 
-+    let f a := sorry
-+    f <$$> input
+  /- ... TODO: what else? -/
+  : (⦃a : α // P a⦄ ⟹ ⦃b : β // Q b⦄) := fun sig => sorry /- TODO -/
 ```
 
-Let's see what the implementation for `f` looks like.  If we use a dependent-if
-binding (which we've seen at some point in the distant past), then we're 90% of
-the way there: `if h : C a.val` will bring `h: C a` and `h: ¬ C a` into the
-context in the true and false branches, and then we can conjoin `a.property : P
-a` and `h`, so long as we insist that `C` is a decidable proposition and not just
-some arbitrary (possibly impossible-to-prove) proposition:
+Let's see what the implementation for this function should look like.  We'll
+`<$$>` over a function that does as we describe: For each timestep: check the
+truthiness of `C a`, then dispatch to `thn` or `els` somehow:
 
 ```diff-lean4
- def RSignal.ite
-   {P : StateProp α} {Q : StateProp β}
-   (C : StateProp α) [inst : DecidablePred C]
-   (sig : □ α // P)
+ def hoare_if
+   (P C : StateProp α) (Q : StateProp β) [inst : DecidablePred C]  
    (thn : {a : α // P a ∧ C a}   → {b : β // Q b})
    (els : {a : α // P a ∧ ¬ C a} → {b : β // Q b})
--  /- ... TODO: what else? -/
-   : □ β // Q := 
--    let f a := sorry
-+    let f a := if h : C a.val then
-+      thn ⟨a.val, And.intro a.property h⟩ else
-+      els ⟨a.val, And.intro a.property h⟩
-     f <$$> input
+   /- ... TODO: what else? -/
+   : (⦃a : α // P a⦄ ⟹ ⦃b : β // Q b⦄) := fun sig =>
++    (fun ⟨val, prop⟩ => if h : C val
++      then thn ⟨val, And.intro prop h⟩
++      else els ⟨val, And.intro prop h⟩) <$$> sig
 ```
 
-Here's `RSignal.ite` in action: maybe you recognise the _Syracuse function_ in
+Here's `hoare_if` in action: maybe you recognise the _Syracuse function_ in
 terms of a certain conjecture that it's connected to:
 
 ```lean4
@@ -469,7 +466,7 @@ def syra : (□ Int // (· > 0)) → (□ Int // (· > 0)) :=
   hoare_if (· % 2 = 0) syra_even syra_odd
 
 def positives : □ Int // (· > 0) :=
-  Signal.collect (fun t => ⟨Int.ofNat t + 1, by lia⟩)
+  RSignal.collect (fun t => ⟨Int.ofNat t + 1, by lia⟩)
 
 -- We can take one step for all values from [1..11)
 -- [2, 1, 5, 2, 8, 3, 11, 4, 14, 5]
@@ -536,7 +533,7 @@ that on your own.
 def RSignal.weaken {P Q : StateProp α}
   (h : ∀ a, P a → Q a) : 
   (□ α // P) → □ α // Q :=
-    FRP.Refining.map (fun ⟨val, prop⟩ => ⟨val, h val prop⟩)
+    FRP.RSignal.map (fun ⟨val, prop⟩ => ⟨val, h val prop⟩)
 ```
 
 Symmetrically, we probably want a new combinator that contravariantly
@@ -734,7 +731,7 @@ a signal whose safety property is the factorial loop's invariant:
 ```
 def fact_loop : □ (Nat × Nat) // (fun ⟨i, z⟩ => z = i.factorial) :=
   let s : □ (Nat × Nat) := Prod.mk <$> i <*> z
-  FRP.Refining.Signal.collect (fun t => ⟨s t, fact_loop_invariant t⟩)
+  FRP.RSignal.collect (fun t => ⟨s t, fact_loop_invariant t⟩)
 
 #eval (fact_loop.val 5) -- (5, 120)
 ```
@@ -812,7 +809,7 @@ definition of `FRP.fires`:
   hTerm : ∃ t, raise (sig.val t)
   toOpt : { a // P a } → Option { a // P a ∧ raise a } := 
     | ⟨a, hp⟩ => if h : raise a then some ⟨a, ⋯⟩ else none
-  f : FRP.Signal (Option { a // P a ∧ raise a }) := toOpt <$> Signal.split sig
+  f : FRP.Signal (Option { a // P a ∧ raise a }) := toOpt <$> RSignal.split sig
   ⊢ ∃ t, (f t).isSome = true
 ```
 
@@ -831,14 +828,14 @@ in terms of `raise` and not the encapsulating `Option`:
       let f : □ (Option {a : α // P a ∧ raise a}) := toOpt <$> sig
       have live : FRP.fires f := by
         unfold FRP.fires
-+       simp [toOpt, f, Functor.map, Signal.split]
++       simp [toOpt, f, Functor.map, RSignal.split]
       { f, live }
 
   1 goal
   hTerm : ∃ t, raise (sig.val t)
   toOpt : { a // P a } → Option { a // P a ∧ raise a } := 
     | ⟨a, hp⟩ => if h : raise a then some ⟨a, ⋯⟩ else none
-  f : FRP.Signal (Option { a // P a ∧ raise a }) := toOpt <$> Signal.split sig
+  f : FRP.Signal (Option { a // P a ∧ raise a }) := toOpt <$> RSignal.split sig
 - ⊢ ∃ t, (f t).isSome = true
 + ⊢ ∃ t, raise (sig.val t)
 ```
@@ -857,7 +854,7 @@ The goal is now exactly `hTerm`.
       let f : □ (Option {a : α // P a ∧ raise a}) := toOpt <$> sig
       have live : FRP.fires f := by
         unfold FRP.fires
-        simp [toOpt, f, Functor.map, Signal.split]
+        simp [toOpt, f, Functor.map, RSignal.split]
 +       exact hTerm
       { f, live }
 

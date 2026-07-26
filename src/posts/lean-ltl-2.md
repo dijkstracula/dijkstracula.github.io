@@ -371,10 +371,10 @@ We'll call an entire trace _valid_ if two conditions hold:
 ```lean4
 def validTrace (t : Trace VMState) : Prop :=
   t 0 = init ∧
-  ∀ i, 
-    ∃ a, 
-      ∃ h : validAction (t i) a, 
-        t (1 + i) = vmStep (t i) a h
+  ∀ i,  -- At every time step...
+    ∃ a,  -- There's an action...
+      ∃ h : validAction (t i) a, -- and there's a proof...
+        t (i + 1) = vmStep (t i) a h -- that we can step that action.
 ```
 
 The initialization condition is easy to check for `orangeTrace`:

@@ -5,10 +5,38 @@ const markdownIt = require("markdown-it");
 const markdownItFootnote = require("markdown-it-footnote");
 const markdownItContainer = require("markdown-it-container");
 const Prism = require("prismjs");
+const fs = require("fs");
+const path = require("path");
 
 global.Prism = Prism;
 require('./src/js/prism-lean.js');
 require('./src/js/prism-dafny.js');
+
+// Root of the CI-verified Lean sources (git submodule at vendor/lean-ltl-frp). Mounted
+// outside `src/` so its .lean files never leak into the built site.
+const LEAN_ROOT = path.join(__dirname, "vendor", "lean-ltl-frp");
+
+// Pull a named `-- ANCHOR: name` … `-- ANCHOR_END: name` region out of a Lean
+// source file, stripping the anchor lines and shared leading indentation.
+function extractLeanAnchor(src, name) {
+  const lines = src.split("\n");
+  const isAnchor = (l, kind) =>
+    new RegExp(`--\\s*ANCHOR${kind}:\\s*${name}\\s*$`).test(l);
+  const start = lines.findIndex(l => isAnchor(l, ""));
+  const end = lines.findIndex((l, i) => i > start && isAnchor(l, "_END"));
+  if (start < 0 || end < 0) {
+    throw new Error(`lean shortcode: anchor "${name}" not found`);
+  }
+  let body = lines.slice(start + 1, end).filter(l => !/--\s*ANCHOR(_END)?:/.test(l));
+  const nonblank = body.filter(l => l.trim());
+  const indent = nonblank.length
+    ? Math.min(...nonblank.map(l => l.match(/^\s*/)[0].length))
+    : 0;
+  body = body.map(l => l.slice(indent));
+  while (body.length && !body[0].trim()) body.shift();
+  while (body.length && !body[body.length - 1].trim()) body.pop();
+  return body.join("\n");
+}
 
 module.exports = function(eleventyConfig) {
   // Configure markdown-it with footnote support and callouts
@@ -223,6 +251,22 @@ module.exports = function(eleventyConfig) {
       }
     );
   });
+
+  // `{% lean "Examples/Ltl6.lean", "prng" %}` — inline a region of the CI-verified
+  // Lean sources (the vendor/lean-ltl-frp submodule) as a highlighted block, so listings
+  // can't drift from what actually compiles. Omit the anchor to inline a whole file.
+  // Fails the build loudly if the submodule checkout or the named anchor is missing.
+  eleventyConfig.addShortcode("lean", (file, anchor, lang = "lean4") => {
+    const src = fs.readFileSync(path.join(LEAN_ROOT, file), "utf8");
+    const code = anchor ? extractLeanAnchor(src, anchor) : src.trim();
+    return `\n\`\`\`${lang}\n${code}\n\`\`\`\n`;
+  });
+
+  // Live-reload posts when the Lean sources change (dev only; guarded so a missing
+  // submodule checkout doesn't break the build before `git submodule update`).
+  if (fs.existsSync(LEAN_ROOT)) {
+    eleventyConfig.addWatchTarget(LEAN_ROOT);
+  }
 
   // Add RSS plugin
   eleventyConfig.addPlugin(rssPlugin);

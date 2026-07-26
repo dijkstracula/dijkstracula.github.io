@@ -1,5 +1,23 @@
 [
   {
+    "title": "Aurora DSQL: Scalable, Multi-Region OLTP",
+    "url": "http://brooker.co.za/blog/2026/07/19/dsql-paper.html",
+    "date": "2026-07-19T00:00:00.000Z",
+    "source": "Marc Brooker's blog"
+  },
+  {
+    "title": "Now Go Build CTO Fellowship: Season 2",
+    "url": "https://www.allthingsdistributed.com/2026/07/now-go-build-cto-fellowship-season-2.html?utm_campaign=inbound&utm_source=rss",
+    "date": "2026-07-08T09:00:00.000Z",
+    "source": "All Things Distributed (Werner Vogels' blog)"
+  },
+  {
+    "title": "Datacenter Caching: A Round-Trip to the Ephemeral Store",
+    "url": "https://www.youtube.com/watch?v=jL68eC3HyFQ&t=202s",
+    "date": "2026-07-08T00:00:00.000Z",
+    "source": "Yao Yue's site"
+  },
+  {
     "title": "Modular Explicits:",
     "url": "https://okmij.org/ftp/ML/higher-kind-poly.html#mod-exp",
     "date": "2026-07-03T00:01:00.000Z",
@@ -220,23 +238,5 @@
     "url": "https://prydt.xyz/blog/config-languages-strong-typing/",
     "date": "2026-03-05T00:00:00.000Z",
     "source": "Pranoy Dutta's blog"
-  },
-  {
-    "title": "People should read more French novels",
-    "url": "https://cecilycarver.substack.com/p/people-should-read-more-french-novels",
-    "date": "2026-03-02T05:03:11.000Z",
-    "source": "The Amateur"
-  },
-  {
-    "title": "The last problem of Higher-Order Abstract Syntax:",
-    "url": "https://okmij.org/ftp/meta-programming/calculi.html#HOAS",
-    "date": "2026-03-02T00:01:00.000Z",
-    "source": "Oleg Kiselyov's blog"
-  },
-  {
-    "title": "Why I Left Big-O in the Dustbin When I Left School",
-    "url": "https://www.youtube.com/watch?v=ZeI4apdgupg",
-    "date": "2026-03-01T00:00:00.000Z",
-    "source": "Yao Yue's site"
   }
 ]

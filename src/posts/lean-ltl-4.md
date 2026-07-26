@@ -44,6 +44,13 @@ to types of value in an FRP program.  Building this connection up will be the
 ultimate goal of this post; by the end of it, we should end up with two Lean
 namespaces that look pretty similar in structure and function.
 
+::: margin-note
+Or, as I've done, just keep distinct
+[LTL.lean](https://github.com/dijkstracula/lean-ltl-frp/blob/3bcd1965876f39d76399377055bb6cb7f3f4e57e/LtlFrp/LTL.lean)
+and
+[FRP.lean](https://github.com/dijkstracula/lean-ltl-frp/blob/3bcd1965876f39d76399377055bb6cb7f3f4e57e/LtlFrp/FRP/Signal.lean)
+files, managed by [Lean's build tool, Lake](https://lean-lang.org/doc/reference/latest/Build-Tools-and-Distribution/Lake/).
+:::
 ```lean4
 -- From Part 3 (last time)
 namespace LTL
@@ -626,7 +633,7 @@ both streets enter the junction:
 
 ```lean4
 def neverBothGreen : Prop :=
-  LTL.always (LTL.not (LTL.atom (fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)))) junction
+  LTL.always (LTL.not ⌜fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)⌝) junction
 
 example : neverBothGreen := by -- TODO
 
@@ -644,8 +651,8 @@ and `junction` so we actually have something to work with:
 
  1 goal
 -⊢ neverBothGreen
-+⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
-+    (FRP.map2 Prod.mk cycling (FRP.advance cycling 1))
++  □ (LTL.not ⌜fun x => x.fst = Light.Green ∧ x.snd = Light.Green⌝)
++    (FRP.Signal.map2 Prod.mk cycling (FRP.advance cycling 1))
 ```
 
 Great, that gives us something to actually work with now.  Next, let's unfold
@@ -660,8 +667,8 @@ we can also introduce into the context.
 
  1 goal
 +t : ℕ
--⊢ □ (LTL.not (LTL.atom fun x => x.1 = Light.Green ∧ x.2 = Light.Green)) 
--    (FRP.map2 Prod.mk cycling (FRP.advance cycling 1))
+-⊢ □ (LTL.not ⌜fun x => x.1 = Light.Green ∧ x.2 = Light.Green)⌝) 
+-    (FRP.Signal.map2 Prod.mk cycling (FRP.advance cycling 1))
 
 +⊢  (now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).1 = Light.Green →
 +  ¬(now (drop t (FRP.map2 Prod.mk cycling (FRP.advance cycling 1)))).2 = Light.Green
@@ -847,7 +854,7 @@ program!
  #eval junction 5
 
  def neverBothGreen : Prop :=
-   LTL.always (LTL.not (LTL.atom (fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)))) junction
+   LTL.always (LTL.not ⌜fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)⌝) junction
 
  example : neverBothGreen := by
    simp [neverBothGreen, junction, l1, l2]

@@ -584,7 +584,7 @@ walk sign is on, the traffic light better be red!
 ```lean4
 def walkOnlyWhenRed (button : ◇ Unit) : Prop :=
   LTL.always
-    (LTL.atom (fun (traffic, ped) => ped = .Walk → traffic = .Red))
+    ⌜fun (traffic, ped) => ped = .Walk → traffic = .Red⌝
     (pedCrossing button)
 
 theorem walkSafe (button : ◇ Unit) : walkOnlyWhenRed button := by 
@@ -692,8 +692,7 @@ pedestrians will starve out motorists.
 
 ```lean4
 def carsEventuallyGreen (button : ◇ Unit) : Prop :=
-  LTL.always (LTL.eventually (LTL.atom (· = .Green)))
-    (carLight button)
+  (□◇ ⌜(· = .Green)⌝) (carLight button)
 
 example : ¬ carsEventuallyGreen spammer := by
   simp [carsEventuallyGreen, spammer]
@@ -713,13 +712,22 @@ marine traffic has legal priority, without a cooldown protocol, the bridge
 could be left perpetually raised.
 :::
 This is not a problem if, like me, you hate how cars have ruined cities and
-have no moral objection to ceding this intersection entirely to pedestrians
-and cyclists. However, proving fairness is pretty important in other contexts:
-we might want a _fair OS scheduler_ to always, eventually, schedule a
-ready-to-run job, or a _fair mutex_ to always, eventually, cede the critical
-section to a waiter.
+have no moral objection to ceding this intersection entirely to pedestrians and
+cyclists. However, proving "always, eventually" is pretty important in other
+contexts: we might want an _OS scheduler_ to always, eventually, schedule a
+ready-to-run job, or a _mutex_ to always, eventually, cede the critical section
+to a waiter.
 
 ## Fairness ensures (eventual) progress
+
+`□◇ P` is, generally, a _fairness_ statement that you can think of as "in the
+limit, P is true infinitely often".  `¬ carsEventuallyGreen spammer`, by
+contrast, says that a pedestrian who never stops hammering the button
+monopolises the crossing, starving out motorists.  `□◇` says nothing about
+"when" and "how often", so unlike safety properties you can't refute fairness
+from a finite trace; after all, things might not be fair now but they might be
+down the road! This should tell us that proving fairness is generally a harder
+problem than safety properties.
 
 Let's consider two problems in one here: first, the pedestrian button should
 light the walk sign for more than just one timestep; and, we should have a
