@@ -1,3 +1,6 @@
 [submodule "src/resume"]
 	path = src/resume
 	url = https://github.com/dijkstracula/resume
+[submodule "vendor/lean-ltl-frp"]
+	path = vendor/lean-ltl-frp
+	url = https://github.com/dijkstracula/lean-ltl-frp
