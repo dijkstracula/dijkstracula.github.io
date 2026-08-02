@@ -633,7 +633,7 @@ both streets enter the junction:
 
 ```lean4
 def neverBothGreen : Prop :=
-  LTL.always (LTL.not ⌜fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)⌝) junction
+  □ (LTL.not ⌜fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)⌝) junction
 
 example : neverBothGreen := by -- TODO
 
@@ -854,7 +854,7 @@ program!
  #eval junction 5
 
  def neverBothGreen : Prop :=
-   LTL.always (LTL.not ⌜fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)⌝) junction
+   □ (LTL.not ⌜fun (l1, l2) => (l1 = .Green ∧ l2 = .Green)⌝) junction
 
  example : neverBothGreen := by
    simp [neverBothGreen, junction, l1, l2]

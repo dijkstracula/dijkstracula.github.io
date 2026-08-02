@@ -1,0 +1,18 @@
+#!/bin/sh
+# Guard the vendor/lean-ltl-frp submodule, which we edit in place.
+#
+# A commit made inside the submodule while its HEAD is detached is not on any
+# branch: it can be garbage-collected, and a pin we record for it in this repo
+# would then dangle. Block committing here whenever the submodule is detached,
+# so we re-attach (git -C vendor/lean-ltl-frp checkout main) before pinning.
+
+sub="vendor/lean-ltl-frp"
+
+# Only check when the submodule is actually checked out as a git repo.
+if git -C "$sub" rev-parse --git-dir >/dev/null 2>&1; then
+  if ! git -C "$sub" symbolic-ref -q HEAD >/dev/null 2>&1; then
+    echo "pre-commit: $sub is on a detached HEAD — commits there will be orphaned." >&2
+    echo "  Re-attach first:  git -C $sub checkout main" >&2
+    exit 1
+  fi
+fi

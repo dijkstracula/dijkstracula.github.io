@@ -683,22 +683,78 @@ Let's write the body of `map`.  Roughly, our goal is going to be: "decompose
 the input Signal into its piecewise parts, apply the function on each part,
 and recombine into a new refined Signal.
 
-`RSignal.split s` gives us a `□ (α // inv_a)`, which `f` can be applied to at
-every timestep.  `fun t => f (RSignal.split s t)` gives us a `□ (β // inv_b)`,
-and then `RSignal.collect` stitches the pointwise invariants back into a
-safety property.  So, we're left with functionally a one-liner:
+1) `RSignal.split s` gives us a `□ (α // inv_a)` signal-of-refinements, which `f`
+can be applied to at every timestep.  
+2) `fun t => f (RSignal.split s t)` gives us a `□ (β // inv_b)`;
+however, notice that function is literally `Signal.map`, so what we really want
+is `Signal.map f (Rsignal.split s)`!
+3) Lastly, `RSignal.collect` stitches the pointwise invariants back into a
+safety property.  
+
+So, we're left with functionally a one-liner: split the refined signal into
+a signal-of-refinements, map over it elementwise with f, then recombine.
 
 ```diff-lean4
  def RSignal.map
-   {pre: α → Prop}
-   {post: β → Prop}
+   {pre: StateProp α}
+   {post: StateProp β}
    (f: {a: α // pre a} → {b : β // post b})
    (s: □ α // pre)
    : □ β // post :=
-+  RSignal.collect (fun t => f (RSignal.split s t))
++  RSignal.collect (Signal.map f (RSignal.split s t))
 ```
 
-### Transforming values and properties, pointwise
+Very lastly: for reasons that will become clearer both in the next section 
+and the next blog post, let's factor the `s` argument into the return type:
+
+```diff-lean4
+ def RSignal.map
+   {pre: StateProp α}
+   {post: StateProp β}
+   (f: {a: α // pre a} → {b : β // post b})
+-  (s: □ α // pre)
+-  : □ β // post :=
++  : (□ α // pre) → (□ β // post) := fun s =>
+   RSignal.collect (Signal.map f (RSignal.split s t))
+```
+
+### A conjugal view of `RSignal.map`
+
+I'm a sucker who likes to write things in point-free style, even though in my
+day job of programming in OCaml, point-free style in a mutable setting has
+tripped me up more than once.  Let's tidy up `RSignal.map` in that way since
+it's a quick exercise and reveals something fun about `collect` and `split`.
+
+First: the one weird trick of point-free programming: any time you see anything
+that looks like `fun x => g (h x)`, know that it can be
+[eta-converted](https://wiki.haskell.org/Eta_conversion) into the function
+composition `g ∘ h`. (You should stare at this until you're convinced that it's
+the case.)
+
+We have two such subexpressions shaped like this, so let's start with `fun s =>
+RSignal.collect (Signal.map f (RSignal.split s t))` and apply eta_contract.
+
+```
+fun s => RSignal.collect            (Signal.map f   (RSignal.split s)) ==>
+
+         RSignal.collect ∘ (fun s => Signal.map f   (RSignal.split s)) ==>
+
+         RSignal.collect ∘           Signal.map f ∘ RSignal.split
+```
+
+::: margin-note
+Another reason why we should be convinced that `RSignal` is a functor is that
+functor laws can be inherited through a conjugation, and we know we have a
+conjugation over `Signal.map`.
+:::
+Earlier we convinced ourselves that `RSignal.collect` and `RSignal.split` are
+inverses of each other, so this means that this is an algebraic _conjugation_:
+`Rsignal.map` is `Rsignal.collect ∘ Signal.map f ∘ Rsignal.collect⁻¹`.  Do you
+remember change of bases from linear algebra?  They were shaped the same way.
+More generally, we say that a conjugation is a _transport of structure along
+an isomorphism_.
+
+## Transforming values and properties, pointwise
 
 What can we do with a refined `map` that we couldn't before?  Let's suppose we
 wanted to take our `prng` signal from earlier, which we proved was always going
