@@ -154,9 +154,19 @@ def drop (k : Nat) (t : Trace α) : Trace α := fun n => t (k + n)
 def next : Trace α → Trace α := drop 1
 ```
 
+Notice that `now` has to always hand back a well-defined value, as opposed to
+producing an `Option α` or `Result InvalidTimeStep α` or something.  This means
+that, combined with `drop`, our only option is for `Trace` to be defined for
+all time steps: it's an infinitely-sized data structure!  Letting traces be
+unbounded makes the verification work we want to do over them in later posts
+easier.  (Folks smarter than me [have
+definitely](https://people.irisa.fr/Nicolas.Markey/PDF/Papers/ijcai2013-DGV.pdf)
+done work in verifying finite traces, though, so don't think that it's a
+fundamental limitation or anything.)
+
 ## Traces, concretely
 
-Let's get our bearings by accumulating finite traces from our monadic API. 
+Let's get our bearings by accumulating actual traces from our monadic API. 
 
 Remember that `Trace`s are conceptually-infinite in length, so when we actually
 execute a series of actions, we're actually producing a _trace fragment_. (This

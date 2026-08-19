@@ -437,7 +437,7 @@ def Event.merge (e1: Event α) (e2 : Event α) : Event α :=
   ⟨f, fires⟩
 ```
 
-Implemeting the `a`-producing function is straightforward enough: we'll take
+Implementing the `a`-producing function is straightforward enough: we'll take
 check whether `e1 t` produces a `some` value, or defer to `e2 t` if not. We can
 use `Option.orElse`, or the
 [Alternative](https://lean-lang.org/doc/reference/latest/Functors___-Monads-and--do--Notation/#Alternative___mk)

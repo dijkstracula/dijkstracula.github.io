@@ -40,62 +40,6 @@ far we can connect Hoare logic to our FRP library. I have a suspicion that
 we'll get most, but not _all_ of the way there, and it'll help reveal if
 there's any gaps in our library.
 
-## Warmup: Faking `RSignal` as a Functor
-
-We discussed last time that we can't make `RSignal` an instance of the
-typeclass `Functor`, because `RSignal` has a dependent type `(α : Type) → (α →
-Prop) → Type`, which won't fit `Functor`'s `Type → Type` shape.  We can at
-least, though, add a custom operator to replace the `<$>` we don't get to use:
-
-::: margin-note
-You should attempt to do the same thing with `Applicative`, by implementing a
-`infixr:60 " <**> " => RSignal.map2` and some definition of `pure`, and see
-where you get stuck.
-:::
-```diff-lean4
- -- Unrefined Signals are truly Functors and Applicatives...
-
- instance : Functor Signal where
-   map := Signal.map -- e.g. <$>
-
- instance : Applicative Signal where
-   pure := Signal.const
-   seq sf sx := Signal.map2 (· ·) sf (sx ()) -- e.g. <*>
-
-+ -- ... RSignals can have identically-implemented operators, but
-+ -- they can't be expressed through the same typeclass interface.
-+ infixr:100 " <$$> " => RSignal.map
-```
-
-Going forward, I'll use our "dependent fmap" operator `<$$>` in place of
-`RSignal.map` whenever possible.
-
-### Two readings of `<$$>`
-
-Remember that `RSignal.map` transforms signal values in a pointwise manner: for
-a dependent function `f` and a refined signal `s`, `f <$$> s` means that at
-each timestep, `s i` gets turned into `f (s i)`.   This is a _transformed
-signal_: whatever refinement `pre` that `s` had before the application is
-replaced by `post`, the refinement of `f`.
-
-Here's another view that moves up a level of abstraction: let's put aside
-`<$$>` for a moment and look at the larger expression `f <$$> ·`, without a
-particular `s`. Remember that the dot in `f <$$> ·` is an anonymous function
-argument, so this expression is the same as `fun s => f <$$> s`. This is a
-_signal transformer_.
-
-What type does a signal transformer have?  Let's fix some particular `f` and
-take a look:
-
-```lean4
-def incr (i : {i : Int // i ≥ 0}) : {i : Int // i > 0} := ⟨i.val + 1, by lia⟩
-#check (incr <$$> ·) -- (□ Int // (· ≥ 0)) → (□ Int // (· > 0))
-```
-
-Here, `LTL.atom (· ≥ 0)` is our _precondition_ and `LTL.atom (· > 0)` our
-_postcondition_, with `(incr <$$> ·)` the bridge between the two.  These three
-components make up the core of Hoare logic.
-
 ## The essence of Hoare logic, in one formula
 
 We'll see exactly what sorts of program behaviour we can express in Hoare logic

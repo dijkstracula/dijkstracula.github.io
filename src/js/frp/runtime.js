@@ -166,6 +166,88 @@
     return String(v);
   }
 
+  // ── shared timing-grid primitives ────────────────────────────────────
+  // Header: corner + a row of tick labels. `focusable` gates both the class
+  // and the click (matching renderTiming's conditional focus); focusable
+  // ticks call `onPick(t)`.
+  function mkHeader(grid, ticks, focus, focusable, onPick) {
+    const corner = document.createElement('div');
+    corner.className = 'frp-corner';
+    grid.appendChild(corner);
+    for (let t = 0; t < ticks; t++) {
+      const th = document.createElement('div');
+      let cls = 'frp-th';
+      if (focusable) cls += ' frp-th-focusable';
+      if (t === focus) cls += ' frp-focused';
+      th.className = cls;
+      th.textContent = t;
+      if (focusable) {
+        const at = t;
+        th.addEventListener('click', () => onPick(at));
+      }
+      grid.appendChild(th);
+    }
+  }
+
+  // One value cell: `cls` is appended after `frp-cell`; `onPick` (optional)
+  // wires a click.
+  function mkCell(text, cls, onPick) {
+    const el = document.createElement('div');
+    el.className = 'frp-cell' + (cls ? ' ' + cls : '');
+    el.textContent = text;
+    if (onPick) el.addEventListener('click', onPick);
+    return el;
+  }
+
+  // Play/pause/reset bar: play toggles a `step` interval, reset runs `reset`.
+  function mkControls(container, step, reset, speed) {
+    const bar = document.createElement('div');
+    bar.className = 'frp-controls';
+    let playing = false, timer = null;
+    const play = document.createElement('button');
+    play.className = 'frp-ctrl-btn'; play.type = 'button'; play.textContent = '▶';
+    play.addEventListener('click', () => {
+      if (playing) { playing = false; play.textContent = '▶'; clearInterval(timer); }
+      else { playing = true; play.textContent = '⏸'; timer = setInterval(step, speed || 700); }
+    });
+    bar.appendChild(play);
+    const rst = document.createElement('button');
+    rst.className = 'frp-ctrl-btn'; rst.type = 'button'; rst.textContent = '⏮';
+    rst.addEventListener('click', reset);
+    bar.appendChild(rst);
+    container.appendChild(bar);
+  }
+
+  // Scaffold for a focus-scrubbing timing widget: owns focus / render / grid
+  // swap, the header, and optional play controls. The widget supplies only
+  // `rows(focus, setFocus) → [{ label, labelCls?, cells: [{ text, cls?, onPick? }] }]`.
+  function timelineWidget(container, spec) {
+    const ticks    = spec.ticks;
+    const controls = spec.controls !== false;
+    const cycle    = spec.cycle || ticks;
+    container.classList.add('frp-widget');
+    let focus = 0, gridEl = null;
+    function setFocus(t) { focus = t; render(); }
+    function render() {
+      const grid = document.createElement('div');
+      grid.className = 'frp-timing';
+      grid.style.setProperty('--frp-cols', ticks);
+      mkHeader(grid, ticks, focus, true, setFocus);
+      for (const r of spec.rows(focus, setFocus)) {
+        const lab = document.createElement('div');
+        lab.className = 'frp-label' + (r.labelCls ? ' ' + r.labelCls : '');
+        lab.textContent = r.label;
+        grid.appendChild(lab);
+        for (const c of r.cells) grid.appendChild(mkCell(c.text, c.cls || '', c.onPick || null));
+      }
+      if (gridEl) gridEl.replaceWith(grid); else container.appendChild(grid);
+      gridEl = grid;
+    }
+    render();
+    if (controls) mkControls(container, () => setFocus((focus + 1) % cycle), () => setFocus(0));
+    return { setTick: setFocus };
+  }
+
   function renderTiming(container, g, opts) {
     opts = opts || {};
     const ticks  = opts.ticks  || 16;
@@ -194,26 +276,11 @@
 
       const focusable = subscribers.length > 0 || hasControls;
 
-      const corner = document.createElement('div');
-      corner.className = 'frp-corner';
-      grid.appendChild(corner);
-      for (let t = 0; t < ticks; t++) {
-        const th = document.createElement('div');
-        let cls = 'frp-th';
-        if (focusable) cls += ' frp-th-focusable';
-        if (t === focus) cls += ' frp-focused';
-        th.className = cls;
-        th.textContent = t;
-        if (focusable) {
-          const tickAt = t;
-          th.addEventListener('click', () => {
-            focus = tickAt;
-            render();
-            notify();
-          });
-        }
-        grid.appendChild(th);
-      }
+      mkHeader(grid, ticks, focus, focusable, (at) => {
+        focus = at;
+        render();
+        notify();
+      });
 
       for (const name of g.order) {
         const node = g.nodes[name];
@@ -335,6 +402,207 @@
     };
   }
 
+  // Sliding-window `extend`: a query `f` over the window [t, t+k) of `s`,
+  // producing `extend f s`. The focused column marks the window on the input
+  // row and the result on the output row — scrub and the stencil slides.
+  function renderExtend(container, opts) {
+    opts = opts || {};
+    const ticks    = opts.ticks    || 12;
+    const k        = opts.window   || 2;
+    const input    = opts.input    || ((t) => t);
+    const f        = opts.f        || ((w) => w[k - 1] - w[0]);
+    const label    = opts.label    || 's';
+    const outLabel = opts.outLabel || 'extend f s';
+    const format   = opts.format   || defaultFormat;
+
+    // `s` reads ahead past `ticks` freely (it's a function), so right-edge
+    // windows are still well-defined — matching Signal being infinite.
+    const win    = (t) => Array.from({ length: k }, (_, i) => input(t + i));
+    const inRow  = Array.from({ length: ticks }, (_, t) => input(t));
+    const outRow = Array.from({ length: ticks }, (_, t) => f(win(t)));
+    const cells  = (row, clsAt, setFocus) => row.map((v, t) =>
+      ({ text: format(v, null, t, null), cls: clsAt(t), onPick: () => setFocus(t) }));
+
+    return timelineWidget(container, {
+      ticks, controls: opts.controls !== false,
+      rows: (focus, setFocus) => [
+        { label,           cells: cells(inRow,  (t) => (t >= focus && t < focus + k) ? 'frp-window' : '', setFocus) },
+        { label: outLabel, cells: cells(outRow, (t) => (t === focus) ? 'frp-window-out' : '', setFocus) },
+      ],
+    });
+  }
+
+  // `duplicate` as the staircase of suffixes (tails). Row t is `drop t s`,
+  // aligned so its head sits under column t; the diagonal of heads spells out
+  // the input (`map extract ∘ duplicate = id`). Focusing t lights that suffix.
+  function renderDuplicate(container, opts) {
+    opts = opts || {};
+    const ticks    = opts.ticks || 10;
+    const depth    = Math.min(opts.depth || ticks, ticks);
+    const input    = opts.input || ((t) => t);
+    const label    = opts.label || 's';
+    const format = opts.format || defaultFormat;
+    const fmt = (c) => format(input(c), null, c, null);
+
+    return timelineWidget(container, {
+      ticks, controls: opts.controls !== false, cycle: depth,
+      rows: (focus, setFocus) => {
+        // input row (no click); then one row per suffix `drop t s`.
+        const rows = [{ label, cells: Array.from({ length: ticks }, (_, c) =>
+          ({ text: fmt(c), cls: c === focus ? 'frp-focused' : '' })) }];
+        for (let t = 0; t < depth; t++) {
+          const at = t;
+          rows.push({
+            label: 'drop ' + t,
+            labelCls: t === focus ? 'frp-dup-focus' : '',
+            cells: Array.from({ length: ticks }, (_, c) => {
+              let cls = '', text = '';
+              if (c < t) {
+                cls = 'frp-blank';                            // outside this suffix
+              } else {
+                text = fmt(c);                                // (drop t s)(c) = s(c)
+                if (c === t) cls = 'frp-dup-head';            // head of this suffix = extract
+                if (t === focus) cls += (cls ? ' ' : '') + 'frp-dup-focus';
+              }
+              return { text, cls, onPick: () => setFocus(at) };
+            }),
+          });
+        }
+        return rows;
+      },
+    });
+  }
+
+  // Capstone: `extend = map f ∘ duplicate`, in one figure. The staircase is
+  // `duplicate` (row t = drop t s); on the focused row, f's window [t, t+k) is
+  // lit and its result lands in the output cell below — that collapse is
+  // `map f`. Scrub down the staircase to watch each suffix fold to a value.
+  function renderExtendFactored(container, opts) {
+    opts = opts || {};
+    const ticks    = opts.ticks    || 8;
+    const depth    = Math.min(opts.depth || 6, ticks);
+    const k        = opts.window   || 2;
+    const input    = opts.input    || ((t) => t);
+    const f        = opts.f        || ((w) => w[k - 1] - w[0]);
+    const label    = opts.label    || 's';
+    const outLabel = opts.outLabel || 'extend f s';
+    const format   = opts.format   || defaultFormat;
+
+    const fmt    = (c) => format(input(c), null, c, null);
+    const win    = (t) => Array.from({ length: k }, (_, i) => input(t + i));
+    const outRow = Array.from({ length: ticks }, (_, t) => f(win(t)));
+
+    return timelineWidget(container, {
+      ticks, controls: opts.controls !== false, cycle: depth,
+      rows: (focus, setFocus) => {
+        const inWin = (c) => (c >= focus && c < focus + k) ? 'frp-window' : '';
+        const rows = [{ label, cells: Array.from({ length: ticks }, (_, c) =>
+          ({ text: fmt(c), cls: inWin(c), onPick: () => setFocus(c) })) }];
+        // duplicate: one row per suffix; on the focused row, f's window is lit.
+        for (let t = 0; t < depth; t++) {
+          const at = t;
+          rows.push({
+            label: 'drop ' + t,
+            labelCls: t === focus ? 'frp-dup-focus' : '',
+            cells: Array.from({ length: ticks }, (_, c) => {
+              if (c < t) return { text: '', cls: 'frp-blank', onPick: () => setFocus(at) };
+              let cls = (c === t) ? 'frp-dup-head' : '';
+              if (t === focus && c < t + k) cls += (cls ? ' ' : '') + 'frp-window';
+              return { text: fmt(c), cls, onPick: () => setFocus(at) };
+            }),
+          });
+        }
+        // map f: each suffix collapsed to one value = extend f s.
+        rows.push({ label: outLabel, cells: Array.from({ length: ticks }, (_, c) =>
+          ({ text: format(outRow[c], null, c, null), cls: c === focus ? 'frp-window-out' : '',
+             onPick: () => setFocus(c) })) });
+        return rows;
+      },
+    });
+  }
+
+  // `delay k s` — the past-shift, `fun t => s(max(0, t - k))`. The output
+  // reads input `max(0, t-k)`; the first k cells are *clamped* to `s 0`
+  // (Nat subtraction truncates), marked `frp-clamp`. This is the deliberate
+  // contrast to `duplicate`, whose earlier columns are blank (out of domain)
+  // rather than held: `drop` advances (no value before), `delay` retards
+  // (holds `s 0`).
+  function renderDelay(container, opts) {
+    opts = opts || {};
+    const ticks    = opts.ticks    || 12;
+    const k        = opts.delay    || 3;
+    const input    = opts.input    || ((t) => t);
+    const label    = opts.label    || 's';
+    const outLabel = opts.outLabel || ('delay ' + k + ' s');
+    const format   = opts.format   || defaultFormat;
+    const src = (t) => Math.max(0, t - k);
+    const fmt = (c) => format(input(c), null, c, null);
+
+    return timelineWidget(container, {
+      ticks, controls: opts.controls !== false,
+      rows: (focus, setFocus) => [
+        // input: the source cell the focused output reads is lit.
+        { label, cells: Array.from({ length: ticks }, (_, c) =>
+          ({ text: fmt(c), cls: c === src(focus) ? 'frp-window' : '', onPick: () => setFocus(c) })) },
+        // output: cells before k are clamped to s 0; the focused result is lit.
+        { label: outLabel, cells: Array.from({ length: ticks }, (_, c) => {
+            let cls = c < k ? 'frp-clamp' : '';
+            if (c === focus) cls += (cls ? ' ' : '') + 'frp-window-out';
+            return { text: fmt(src(c)), cls, onPick: () => setFocus(c) };
+          }) },
+      ],
+    });
+  }
+
+  // The finite comonad: a non-empty list with a head "focus". Unlike Signal,
+  // everything terminates and fits on screen — `duplicate` is the *complete*
+  // shrinking tails triangle (left-aligned; first column = the heads = the
+  // input, i.e. `map extract ∘ duplicate = id`), and `extend f` collapses each
+  // suffix to one value with no off-screen reads. `opts.window` (optional)
+  // makes f read only the first k of each suffix; default is the whole suffix.
+  function renderNonEmpty(container, opts) {
+    opts = opts || {};
+    const values   = opts.values   || [1, 2, 3, 4, 5];
+    const n        = values.length;
+    const k        = opts.window;                                  // undefined = whole suffix
+    const f        = opts.f        || ((w) => w.reduce((a, b) => a + b, 0));  // default: sum
+    const label    = opts.label    || 's';
+    const outLabel = opts.outLabel || 'extend f s';
+    const format   = opts.format   || defaultFormat;
+
+    const suffix  = (t) => values.slice(t);
+    const readWin = (t) => (k == null) ? suffix(t) : suffix(t).slice(0, k);
+    const outRow  = Array.from({ length: n }, (_, t) => f(readWin(t)));
+    const fmt = (v, c) => format(v, null, c, null);
+
+    return timelineWidget(container, {
+      ticks: n, controls: opts.controls !== false, cycle: n,
+      rows: (focus, setFocus) => {
+        const rows = [{ label, cells: values.map((v, c) =>
+          ({ text: fmt(v, c), cls: c === focus ? 'frp-focused' : '', onPick: () => setFocus(c) })) }];
+        // duplicate: the shrinking tails triangle. Row t = drop t s, left-aligned.
+        for (let t = 0; t < n; t++) {
+          const at = t;
+          rows.push({
+            label: 'drop ' + t,
+            labelCls: t === focus ? 'frp-dup-focus' : '',
+            cells: Array.from({ length: n }, (_, c) => {
+              if (t + c >= n) return { text: '', cls: 'frp-blank', onPick: () => setFocus(at) };
+              let cls = (c === 0) ? 'frp-dup-head' : '';          // head of suffix = extract
+              const inWin = (k == null) ? true : (c < k);
+              if (t === focus && inWin) cls += (cls ? ' ' : '') + 'frp-window';  // what f reads
+              return { text: fmt(values[t + c], t + c), cls, onPick: () => setFocus(at) };
+            }),
+          });
+        }
+        // map f: each suffix collapsed to one value = extend f s.
+        rows.push({ label: outLabel, cells: outRow.map((v, c) =>
+          ({ text: fmt(v, c), cls: c === focus ? 'frp-window-out' : '', onPick: () => setFocus(c) })) });
+        return rows;
+      },
+    });
+  }
+
   const STYLES = `
     .frp-widget {
       font-family: 'JetBrains Mono', monospace;
@@ -431,6 +699,17 @@
     .frp-gnode-event .frp-gnode-value { fill: var(--accent); }
     .frp-gparticle        { fill: var(--accent); }
     .frp-arrow            { fill: var(--mute); }
+
+    /* extend widget: the window the query reads, and the result it produces */
+    .frp-cell.frp-window     { background: var(--paper-2); box-shadow: inset 0 0 0 2px var(--accent); }
+    .frp-cell.frp-window-out { background: var(--accent); color: var(--paper); font-weight: 700; }
+    /* duplicate widget: staircase of suffixes (tails) */
+    .frp-cell.frp-blank      { background: var(--paper); opacity: 0.2; }
+    .frp-cell.frp-dup-head   { box-shadow: inset 0 0 0 2px var(--accent); }
+    .frp-cell.frp-dup-focus,
+    .frp-label.frp-dup-focus { background: var(--paper-2); }
+    /* delay widget: cells held at s 0 by the Nat-subtraction clamp */
+    .frp-cell.frp-clamp:not(.frp-window-out) { background: var(--paper-2); color: var(--mute); font-style: italic; }
   `;
   if (!document.getElementById('frp-styles')) {
     const style = document.createElement('style');
@@ -769,5 +1048,5 @@
     return { setTick };
   }
 
-  window.FRP = { graph, renderTiming, renderGraph, defaultFormat, computeRanks };
+  window.FRP = { graph, renderTiming, renderGraph, renderExtend, renderDuplicate, renderExtendFactored, renderDelay, renderNonEmpty, defaultFormat, computeRanks };
 })();
