@@ -1,0 +1,46 @@
+#!/bin/sh
+# Guard the push side of our in-place submodules (src/resume, vendor/lean-ltl-frp).
+#
+# CI and fresh clones fetch each submodule by the exact commit this repo records,
+# so that commit must already exist on the submodule's remote before we push the
+# superproject. Otherwise the deploy build (or anyone's clone) cannot resolve the
+# pin, even though everything looks consistent locally. Block the push whenever a
+# recorded submodule commit is missing upstream.
+#
+# This is the push-time companion to the pre-commit detached-HEAD guard, and
+# mirrors `git config push.recurseSubmodules check` for machines that lack it.
+
+toplevel=$(git rev-parse --show-toplevel)
+paths=$(git config -f "$toplevel/.gitmodules" --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
+
+status=0
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha>, one line per pushed ref.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Skip deletions (local sha is all zeros).
+  case "$local_sha" in
+    *[!0]*) : ;;
+    *) continue ;;
+  esac
+
+  for p in $paths; do
+    # Only check submodules that are actually checked out as a git repo.
+    git -C "$p" rev-parse --git-dir >/dev/null 2>&1 || continue
+
+    # The commit this pushed superproject commit records for the submodule.
+    gitlink=$(git ls-tree "$local_sha" "$p" | awk '{print $3}')
+    [ -n "$gitlink" ] || continue
+
+    # Refresh remote-tracking refs so containment reflects the actual remote.
+    git -C "$p" fetch -q 2>/dev/null || true
+
+    if [ -z "$(git -C "$p" branch -r --contains "$gitlink" 2>/dev/null)" ]; then
+      echo "pre-push: $p commit $gitlink is not on its remote." >&2
+      echo "  Push the submodule first:  git -C $p push origin HEAD" >&2
+      echo "  (override with --no-verify only if you know it is reachable there)" >&2
+      status=1
+    fi
+  done
+done
+
+exit $status

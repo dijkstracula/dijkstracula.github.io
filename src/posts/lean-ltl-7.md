@@ -102,7 +102,7 @@ don't have to be the only bridge structure, though:
 We've seen earlier in this series -- and you've almost certainly seen elsewhere
 in the world -- that monads are values that you can put into a computational
 context, and sequence.  (To be a proper monad, you also need to behave like
-one, by always following the _monad laws_.)
+one, by always following the _monad laws_.  The devil's always in the details.)
 
 ::: margin-note
 Embedded proofs of satisfying algebraic laws are also part of Lean's [lawful
@@ -249,19 +249,77 @@ For this reason we call "`comonad`" `extend`.  With `extend`, we can look at a
 local neighbourhood around each point in time, and compute a new value based on 
 that context.
 
-
 ## Deriving the comonad laws from our one weird trick
 
 All right, let's bundle this up into a Lean typeclass as we did with `Monad`
 above - for the propositions about left and right identity, and associativity,
 play the "invert the arrows" game three final times:
 
-{% lean "LtlFrp/Structures.lean", "comonad" %}
+{% lean "Examples/Ltl7.lean", "comonad_v0" %}
 
 `rid` is kind of my favourite here:  The monadic version says "sequence a pure
 lifting step into a monad `ma` and you get back the original monad".  The
-comonadic version says "extend a comonad out to infinity by just performing the
-point-read extraction and you get back the original comonad".
+comonadic version says "extend a comonad `wa` out to infinity by just
+performing the point-read extraction and you get back the original `wa`".
+
+What _is_ annoying though is that we call these "identity" and "associativity",
+the propositions don't actually look at all like statements about identities
+and associativity.  We might have expected the laws to look like "`<something>
+⊕ f = f`", "`f ⊕ <something> = f`", and "`f ⊕ (g ⊕ h) = (f ⊕ g) ⊕ h`", for any
+well-typed `f`, and well-chosen `<something>`s and `⊕`s.
+
+## You could have invented the coKleisli category
+
+Kleis-_what_?  Categ-_who_??  Ok never mind, let's just solve for the way to
+write these laws more tidily.
+
+Our goal for this section is to be able to write `lid`, `rid`, and `assoc`
+in terms of some operator `⊕`, for which those theorems really do look like
+identity and associativity.
+
+Our strategy is going to be this: notice that the shape of the laws with `⊕` in
+the previous section don't actually mention a comonad `wa`, but only how
+functions in the `Comonad` typeclass and some function `f` interact.  This
+is in contrast to our current laws have `wa` sprinkled around on both sides of
+the equality.  So, not only will our "new and improved comonad laws" actually
+look like the algebraic properties they're supposed to express, but they'll in
+some sense be more general since by writing them without `wa` we'll be
+"removing a degree of freedom" from the propositions.
+
+Of course, the comonad laws actually _do_ need to talk about a `wa`, so we're
+going to banish it from our laws by partial application: if we can figure out
+how to write, say, `(f ⊕ <something>) wa = f wa`, we can drop the argument on
+both sides and leave things written in a point-free manner.
+
+### Sketching `⊕` with the identity laws
+
+Since `rid` is my favourite of the two identity laws, let's start with seeing
+how we can banish `wa` from `extend wa extract = wa`.  If this could be
+slightly rearranged to `<something> wa = wa`, then we could "cancel `wa` on
+both sides", so we'd be left with `<something> = id`.  Problem is, of course,
+`wa` is in the middle of a larger expression, and while function application
+has many properties commutativity isn't one of them.
+
+What we _could_ do, though, is implement some new `extend'` function that simply
+flips its two input arguments: Then, we'd truly have `extend' extract wa = wa`
+and we'd be well on our way.
+
+{% lean "Examples/Ltl7.lean", "extend'" %}
+
+OK, cool!  Written in this form, `rid: extend' extract wa = wa` is our new
+right identity; we're now free to drop `wa` on both sides, which leaves us
+as `extend' extract = id`.  That in itself is a neat property.
+
+Here's one last thing we can do: compose both sides with a given `f`: now we
+have `f ∘ extend' extract = f`.  This is exactly the shape we are after!  We
+started wanting `f ⊕ <something> = f` and we've figured out both unknowns:
+`<something>`, written a bit more explicitly, is `fun wa => extend wa extract`,
+and `⊕` is going to involve applying `∘`, the function composition operator,
+with that `<something>`.
+
+What about `lid`?  It's `extract (extend' f wa) = f wa`, which is shockingly
+convenient, since we can already peel off the `wa` on both sides and solve for
+`f` on the right-hand side: `extract extend' f = f` is what we're left with!
 
 ## Proving that (non-refined) `Signals` are comonads
 
@@ -326,22 +384,68 @@ identifier, replacing `drop sig` with `(fun s => fun n n' => s (n + n')) sig`
 wherever the identifier appears.  Then, beta reduction can proceed naturally,
 producing `fun n n' => sig (n + n')` as we see in the goal.
 
-But, `simp [drop]` yields a `'simp' made no progress` error and the goal remains
-unchanged.  My mental model was that `simp [drop]` was sugar for `unfold drop;
-simp`, but clearly not.
+But, `simp [drop]` yields a `'simp' made no progress` error and the goal
+remains unchanged.  My mental model was that `simp [drop]` was sugar for
+`unfold drop; simp`, but clearly not.  
+
+::: margin-note
+Since you can think of `simp` as holding a set of possible simplifications, the
+order that one lists the additional steps within the brackets doesn't in fact
+matter.
+:::
+What it _actually_ does is add `drop s n n' = s (n + n')` as a possible
+simplification step, which the tactic will use internally to try and pare down
+the goal.  But, we're only partially-evaluating `drop sig`, so the rewrite
+fails without concrete `n` and `n'` arguments, and so `simp` leaves us stuck.
+
+So, here's my complete implementation of the `lid` proof, which uses `unfold`
+for `drop` but `simp` elsewhere, and concludes with simplifying a `0 + n`
+subexpression:
+
+```lean4
+  lid := by intro α sig β f; unfold drop; simp [now, Functor.map, Nat.zero_add]
+```
 
 ### right identity proof: point-free equality proofs need `funext`
 
+Okay, what about the _right identity_?  We are meant to prove `now <$> drop sig
+= sig`.  Since `sig` is a `Signal`, which is implemented in terms of a
+function, we musn't forget to use _functional extensionality_ in order to turn
+a "prove functions equal" proof into a "for all inputs to the functions, their
+outputs are equal" one.
+
+So, so far we have:
+
+```lean4
+  rid := by intros α sig; funext t
+
+1 goal
+α : Type
+sig : Signal α
+t : Time
+⊢ (now <$> drop sig) t = sig t
+```
+
+As before, we have a partial evaluation of `drop` in the goal, so at a first
+glance one might think we would be stuck in the same way as before.  However!
+Take a look at some intermediary simplifications:
+
+* If we simplify away the `<$>`, `(now <$> drop sig) t` becomes `now (drop sig t)`;
+* If we simplify `now`, `now, (drop sig t)` becomes `drop sig t 0`.
+
+This proof can simplify down to a call to `drop` that _isn't_ a partial application!
+So, if we simplify `drop`, we're left with `sig (t + 0) = sig t`, which a another
+theorem about the `Nat`s will discharge.
+
+```lean4
+  rid := by intros α sig; funext t; simp [now, Functor.map, drop, Nat.add_zero]
+```
+
 ### associativity proof: `rw` pattern matching doesn't work on bound variables
 
-* Usually, when we unfold definitions in a goal, we can either use the `simp`
-or `unfold` tactics to replace a bound name with its definition.  I admit I
-don't understand why, but the partial application of `drop cm`, defined as `fun
-n => fun n' => s (n + n')` leaves `simp` confused about how to expand out the
-body that a genuine `unfold` does not.
-* `rid` is defined as an equality over functions, so we need to use `funext` to
-lift a function argument into the context; without it, `simp` will get stuck on
-trying to manipulate unfolded functions.
+Okay, the final one: `extend (extend wa f) g = extend wa (fun wa' => g (extend
+wa' f))`.  
+
 * To use the `rw` tactic, which consumes an equality theorem and rewrites one
 side of the equation with another, all variables in the rewrite need to be _free_
 and not bound as function arguments.
